@@ -59,6 +59,7 @@ namespace ProjectG // 프로젝트 영역
             player.AddComponent<SkillHud>().Begin(controller, camera); // 스킬 세 칸 표시
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
+            TrainingTarget.Create(new Vector2(0f, 2.5f)).transform.SetParent(camera.transform, true); // 임시 약점 표적
             camera.gameObject.AddComponent<DemoBulletSpawner>().Begin(pool, controller, camera); // 시험용 적탄 발사 연결
             return player; // 생성 플레이어 반환
         } // 생성 종료

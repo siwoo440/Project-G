@@ -28,6 +28,12 @@ public class SkillHudLayoutTests // 스킬 화면 배치 시험
     { // 시험 시작
         Assert.That(SkillHudLayout.Countdown(remaining), Is.EqualTo(expected)); // 카운트다운 확인
     } // 시험 종료
+    [Test] // 확대된 스킬 칸 시험
+    public void SlotsAreTwoAndHalfTimesOriginalSize() // 2.5배 크기 확인
+    { // 시험 시작
+        Rect view = new Rect(0f, 0f, 1920f, 1080f); // 시험 화면 영역
+        Assert.That(SkillHudLayout.Slot(view, 0).width, Is.EqualTo(180f).Within(0.001f)); // 기존 72의 2.5배 확인
+    } // 시험 종료
     [Test] // 스킬 이미지 자원 시험
     public void GeneratedSkillImagesAreAvailable() // 이미지 자원 확인
     { // 시험 시작

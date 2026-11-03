@@ -72,6 +72,15 @@ namespace ProjectG // 프로젝트 영역
             RapidActive = 3f; // 시험용 활성 시간
             return true; // 고유 스킬 발동
         } // 사용 종료
+        public bool TrySniper(bool alive) // 저격 고유 스킬 사용
+        { // 사용 시작
+            if (!alive || Blocked || RapidActive > 0.000001f || RapidCooldown > 0.000001f) // 발동 조건 확인
+            { // 차단 시작
+                return false; // 발동 차단
+            } // 차단 종료
+            RapidCooldown = 10f; // 관통 사격 시험 쿨타임
+            return true; // 고유 스킬 발동
+        } // 사용 종료
         public bool TryCommon(bool alive) // 공용 스킬 사용
         { // 사용 시작
             if (!alive || Blocked || CommonCooldown > 0.000001f) // 발동 조건 확인

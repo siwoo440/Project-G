@@ -144,4 +144,53 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
         } // 정리 종료
     } // 시험 종료
+    [UnityTest] // 시험 표적과 자동 사격 연결 시험
+    public IEnumerator RapidShotsReachTrainingTargetAndBuildBonus() // 실제 표적 적중 확인
+    { // 시험 시작
+        yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
+        yield return null; // 초기화 대기
+        BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
+        TrainingTarget target = Object.FindFirstObjectByType<TrainingTarget>(); // 시험 표적 확인
+        Assert.That(target, Is.Not.Null); // 표적 생성 확인
+        yield return new WaitForSeconds(1.2f); // 실제 탄환 이동 대기
+        Assert.That(target.TotalDamage, Is.GreaterThan(0f)); // 표적 피해 확인
+        Assert.That(player.Combo.Bonus, Is.GreaterThan(0f)); // 적중 누적 확인
+    } // 시험 종료
+    [UnityTest] // 캐릭터 선택 키 시험
+    public IEnumerator SniperCanBeSelectedWithKeyboard() // 실제 저격형 선택 확인
+    { // 시험 시작
+        var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 편집기 입력 설정
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 게임 입력 허용
+        var previousBackground = InputSystem.settings.backgroundBehavior; // 백그라운드 입력 설정
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus; // 비대화형 입력 허용
+        Keyboard keyboard = InputSystem.AddDevice<Keyboard>(); // 가상 키보드 생성
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 구성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 확인
+        try // 시험 시작
+        { // 시험 범위 시작
+            yield return null; // 입력 초기화 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2)); // 저격형 선택 입력
+            yield return null; // 입력 처리 대기
+            Assert.That(player.Character, Is.EqualTo(CharacterType.Sniper)); // 저격형 선택 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 입력 해제
+            yield return null; // 입력 해제 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1)); // 속사형 선택 입력
+            yield return null; // 입력 처리 대기
+            Assert.That(player.Character, Is.EqualTo(CharacterType.Rapid)); // 속사형 선택 확인
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            foreach (Projectile shot in Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None)) // 탄환 순회
+            { // 순회 시작
+                Object.Destroy(shot.gameObject); // 시험 탄환 제거
+            } // 순회 종료
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            InputSystem.RemoveDevice(keyboard); // 키보드 제거
+            InputSystem.settings.backgroundBehavior = previousBackground; // 입력 설정 복원
+            InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

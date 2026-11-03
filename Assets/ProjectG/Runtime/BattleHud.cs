@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 영역
             text.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 45f)); // 화면 비례 글자 크기
             text.normal.textColor = Color.white; // 글자 색상
             GUI.Label(new Rect(left, top, 500f, 34f), "HP " + player.Survival.Health + "   GRAZE " + player.GrazeCount + "   ENERGY " + (player.Skills != null ? player.Skills.Energy : 0) + "/100", text); // 체력과 그레이즈 표시
+            GUI.Label(new Rect(left, top + 28f, 600f, 34f), (player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT") + "   F1 RAPID / F2 SNIPER", text); // 캐릭터 시험 상태
             if (!player.Survival.IsAlive) // 출격 실패 확인
             { // 실패 표시 시작
                 GUI.Label(new Rect(left, top + 34f, 260f, 34f), "MISSION FAILED", text); // 실패 상태 표시

@@ -52,6 +52,12 @@ namespace ProjectG // 프로젝트 영역
             BattlePlayer controller = player.AddComponent<BattlePlayer>(); // 플레이어 조작 요소
             controller.AssignCamera(camera); // 전투 카메라 연결
             controller.Begin(new Vector2(0f, -3f)); // 플레이어 조작 시작
+            GameObject marker = new GameObject("HitboxIndicator"); // 피격 중심 표시 객체
+            marker.transform.SetParent(player.transform, false); // 플레이어 중심에 배치
+            marker.AddComponent<HitboxIndicator>().Begin(controller); // 상태별 피격 표시 연결
+            player.AddComponent<BattleHud>().Begin(controller, camera); // 시험용 체력 표시
+            EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
+            camera.gameObject.AddComponent<DemoBulletSpawner>().Begin(pool, controller, camera); // 시험용 적탄 발사 연결
             return player; // 생성 플레이어 반환
         } // 생성 종료
     } // 클래스 종료

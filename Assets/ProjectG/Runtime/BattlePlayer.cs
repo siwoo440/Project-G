@@ -5,6 +5,21 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BattlePlayer : MonoBehaviour // 플레이어 구성 요소
     { // 클래스 시작
         private BattleSession session; // 전투 상태
+        public PlayerSurvival Survival // 플레이어 생존 상태
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
+        public int GrazeCount // 누적 그레이즈 수
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
+        public Vector2 PreviousPosition // 이전 플레이어 위치
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
         private InputAction moveAction; // 이동 입력
         private InputAction focusAction; // 집중 입력
         private Camera battleCamera; // 전투 카메라
@@ -56,6 +71,9 @@ namespace ProjectG // 프로젝트 영역
         public void Begin(Vector2 start) // 플레이어 시작
         { // 초기화 시작
             session = new BattleSession(start); // 전투 상태 생성
+            Survival = new PlayerSurvival(100); // 시험용 최대 체력
+            GrazeCount = 0; // 그레이즈 기록 초기화
+            PreviousPosition = start; // 이전 위치 초기화
             transform.position = new Vector3(start.x, start.y, 0f); // 시작 위치 적용
         } // 초기화 종료
         public void Step(Vector2 input, bool pressed, bool held, bool toggle, float elapsed, float left, float right, float bottom, float top) // 플레이어 진행
@@ -64,6 +82,12 @@ namespace ProjectG // 프로젝트 영역
             { // 초기화 시작
                 Begin(transform.position); // 현재 위치 초기화
             } // 초기화 종료
+            PreviousPosition = transform.position; // 이동 전 위치 보관
+            if (elapsed <= 0f || !Survival.IsAlive) // 정지 또는 출격 실패 확인
+            { // 진행 중단 시작
+                return; // 이동과 공격 중단
+            } // 진행 중단 종료
+            Survival.Advance(elapsed); // 무적 시간 진행
             int shots = session.Advance(input, pressed, held, toggle, elapsed, left, right, bottom, top); // 이동과 공격 계산
             transform.position = new Vector3(session.Position.x, session.Position.y, 0f); // 계산 위치 적용
             for (int index = 0; index < shots; index++) // 발사 탄환 순회
@@ -74,5 +98,12 @@ namespace ProjectG // 프로젝트 영역
                 bullet.AddComponent<Projectile>().Begin(new Vector2(spread, 10f), top); // 탄환 이동 시작
             } // 발사 종료
         } // 진행 종료
+        public void RegisterGraze() // 그레이즈 기록
+        { // 기록 시작
+            if (Survival != null && Survival.IsAlive) // 생존 상태 확인
+            { // 기록 처리 시작
+                GrazeCount++; // 그레이즈 횟수 증가
+            } // 기록 처리 종료
+        } // 기록 종료
     } // 클래스 종료
 } // 영역 종료

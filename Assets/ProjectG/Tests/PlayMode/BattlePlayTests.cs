@@ -57,4 +57,46 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         yield return null; // 장면 초기화 대기
         Assert.That(Object.FindFirstObjectByType<BattlePlayer>(), Is.Not.Null); // 플레이어 자동 생성 확인
     } // 시험 종료
+    [UnityTest] // 시험 적탄 생성 시험
+    public IEnumerator SampleSceneSpawnsEnemyBullet() // 적탄 자동 생성 확인
+    { // 시험 시작
+        yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
+        yield return new WaitForSeconds(1.5f); // 시험 적탄 생성 대기
+        Assert.That(Object.FindFirstObjectByType<EnemyBulletPool>(), Is.Not.Null); // 적탄 풀 존재 확인
+        Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 활성 적탄 확인
+    } // 시험 종료
+    [UnityTest] // 실제 피격과 그레이즈 시험
+    public IEnumerator EnemyBulletsDamageAndGrazeInPlayMode() // 플레이 모드 생존 흐름 확인
+    { // 시험 시작
+        yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
+        yield return null; // 장면 초기화 대기
+        BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 참조
+        EnemyBulletPool pool = Object.FindFirstObjectByType<EnemyBulletPool>(); // 적탄 풀 참조
+        Assert.That(player, Is.Not.Null); // 플레이어 존재 확인
+        Assert.That(pool, Is.Not.Null); // 적탄 풀 존재 확인
+        Vector2 position = player.transform.position; // 플레이어 위치
+        EnemyBullet near = pool.Spawn(position + new Vector2(0.3f, 0f), Vector2.zero, 0f, 10, -5f, player); // 근접 적탄 생성
+        yield return null; // 그레이즈 판정 대기
+        Assert.That(player.GrazeCount, Is.EqualTo(1)); // 그레이즈 확인
+        pool.Recycle(near); // 근접 적탄 회수
+        EnemyBullet hit = pool.Spawn(position, Vector2.zero, 0f, 10, -5f, player); // 피격 적탄 생성
+        yield return null; // 피격 판정 대기
+        Assert.That(player.Survival.Health, Is.EqualTo(90)); // 체력 감소 확인
+        Assert.That(hit.gameObject.activeSelf, Is.False); // 피격 탄환 회수 확인
+        EnemyBullet blocked = pool.Spawn(position, Vector2.zero, 0f, 10, -5f, player); // 무적 중 적탄 생성
+        yield return null; // 무적 판정 대기
+        Assert.That(player.Survival.Health, Is.EqualTo(90)); // 무적 중 중복 피해 차단
+        Assert.That(blocked.gameObject.activeSelf, Is.False); // 무적 접촉 회수 확인
+    } // 시험 종료
+    [UnityTest] // 적탄 예고 시험
+    public IEnumerator EnemyShotIsTelegraphedBeforeSpawning() // 적탄 사전 예고 확인
+    { // 시험 시작
+        yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
+        yield return null; // 장면 초기화 대기
+        Assert.That(GameObject.Find("EnemyShotWarning"), Is.Not.Null); // 예고 표시 확인
+        yield return new WaitForSeconds(0.5f); // 사전 경고 대기
+        Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.Zero); // 조기 발사 방지
+        yield return new WaitForSeconds(0.7f); // 발사 시점 대기
+        Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 예고 후 발사 확인
+    } // 시험 종료
 } // 시험 종료

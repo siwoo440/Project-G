@@ -4,8 +4,16 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BattleSession // 전투 상태
     { // 클래스 시작
         private float shotTimer; // 다음 발사 대기
-        public Vector2 Position { get; private set; } // 플레이어 위치
-        public bool Focused { get; private set; } // 집중 상태
+        public Vector2 Position // 플레이어 위치
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
+        public bool Focused // 집중 상태
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
         public BattleSession(Vector2 position) // 초기 위치 설정
         { // 초기화 시작
             Position = position; // 시작 위치 보관

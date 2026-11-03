@@ -9,7 +9,7 @@ namespace ProjectG // 프로젝트 영역
             float gap = Mathf.Clamp(view.height * 0.008f, 1f, 8f); // 스킬 칸 간격
             float widthLimit = Mathf.Max(1f, (view.width - 2f * margin - 2f * gap) / 3f); // 화면 너비 제한
             float heightLimit = Mathf.Max(1f, view.height - 2f * margin); // 화면 높이 제한
-            float size = Mathf.Min(180f, Mathf.Min(view.height * 0.225f, Mathf.Min(widthLimit, heightLimit))); // 정사각형 크기
+            float size = Mathf.Min(180f, Mathf.Min(view.height * 0.225f, Mathf.Min(widthLimit, heightLimit))); // 이전 스킬 칸 크기 복원
             int slot = Mathf.Clamp(index, 0, 2); // 스킬 칸 번호 제한
             float x = view.xMax - margin - size * (3 - slot) - gap * (2 - slot); // 오른쪽 정렬 위치
             float y = view.yMax - margin - size; // 아래쪽 정렬 위치

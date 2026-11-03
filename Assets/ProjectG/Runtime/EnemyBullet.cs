@@ -5,7 +5,8 @@ namespace ProjectG // 프로젝트 영역
     { // 클래스 시작
         private Vector2 velocity; // 적탄 이동 속도
         private float radius; // 시험용 탄환 반경
-        public float Radius => radius; // 현재 탄환 반경
+        public float Radius => radius; // 현재 탄환 판정 반경
+        public float DisplayRadius => radius * 3f; // 확대된 탄환 표시 반경
         public bool Clearable // 필살기 소거 가능 여부
         { // 속성 시작
             get; // 값 조회
@@ -37,12 +38,12 @@ namespace ProjectG // 프로젝트 영역
             Clearable = clearable; // 소거 가능 여부 초기화
             interaction.Reset(); // 그레이즈 상태 초기화
             transform.position = position; // 시작 위치 설정
-            transform.localScale = new Vector3(radius * 2f, radius * 2f, 1f); // 탄환 표시 크기
+            transform.localScale = new Vector3(DisplayRadius * 2f, DisplayRadius * 2f, 1f); // 탄환 표시 크기 세 배
             if (image == null) // 표시 요소 확인
             { // 생성 시작
                 image = gameObject.AddComponent<SpriteRenderer>(); // 표시 요소 추가
-                image.sprite = Projectile.GetSprite(); // 임시 이미지 사용
-                image.color = new Color(1f, 0.25f, 0.35f); // 적탄 구별 색상
+                image.sprite = BattleSprites.Load("bullet_enemy"); // 적탄 시험 이미지
+                image.color = Color.white; // 원본 이미지 색상
                 image.sortingOrder = 5; // 적탄 우선 표시
             } // 생성 종료
             InUse = true; // 사용 중 표시
@@ -74,7 +75,13 @@ namespace ProjectG // 프로젝트 영역
                     return; // 추가 판정 생략
                 } // 접촉 회수 종료
             } // 접촉 판정 종료
-            if (transform.position.y + radius < bottom) // 화면 이탈 확인
+            Camera view = Owner != null ? Owner.GetComponent<Camera>() : null; // 풀의 전투 카메라
+            float halfHeight = view != null ? view.orthographicSize : 0f; // 화면 세로 반경
+            float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
+            Vector3 center = view != null ? view.transform.position : Vector3.zero; // 화면 중심
+            float visibleRadius = DisplayRadius; // 확대 표시 반경
+            bool escaped = view != null && (transform.position.y - visibleRadius > center.y + halfHeight + 1f || transform.position.x + visibleRadius < center.x - halfWidth - 1f || transform.position.x - visibleRadius > center.x + halfWidth + 1f); // 위쪽과 좌우 이탈 확인
+            if (transform.position.y + visibleRadius < bottom || escaped) // 표시가 완전히 화면 밖인지 확인
             { // 회수 시작
                 Owner.Recycle(this); // 풀로 반환
             } // 회수 종료

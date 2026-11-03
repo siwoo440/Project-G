@@ -1,0 +1,871 @@
+fileFormatVersion: 2
+guid: b7b404ddb5b86f04c9373cef3deebf88
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -967173729703226465
+    second: enemy_aimed_0
+  - first:
+      213: -5582390976105051485
+    second: enemy_aimed_1
+  - first:
+      213: 3512852452486355911
+    second: enemy_aimed_2
+  - first:
+      213: 706011641720000806
+    second: enemy_aimed_3
+  - first:
+      213: -2223645355880304180
+    second: enemy_aimed_4
+  - first:
+      213: -2987149808588930271
+    second: enemy_aimed_5
+  - first:
+      213: 5414063794654679916
+    second: enemy_aimed_6
+  - first:
+      213: 881606234340523359
+    second: enemy_aimed_7
+  - first:
+      213: 3119011749330527963
+    second: enemy_aimed_8
+  - first:
+      213: 6952578441618602906
+    second: enemy_aimed_9
+  - first:
+      213: -6545683841284293091
+    second: enemy_aimed_10
+  - first:
+      213: -8099191753742157037
+    second: enemy_aimed_11
+  - first:
+      213: -6821116193222935202
+    second: enemy_aimed_12
+  - first:
+      213: 4089702405472779915
+    second: enemy_aimed_13
+  - first:
+      213: 3061563342605505036
+    second: enemy_aimed_14
+  - first:
+      213: 4942811258164219447
+    second: enemy_aimed_15
+  - first:
+      213: 2105904712526312413
+    second: enemy_aimed_16
+  - first:
+      213: -5352461567060368015
+    second: enemy_aimed_17
+  - first:
+      213: 4798836754522332700
+    second: enemy_aimed_18
+  - first:
+      213: -9041400880700492499
+    second: enemy_aimed_19
+  - first:
+      213: 9070911588976283082
+    second: enemy_aimed_20
+  - first:
+      213: -7487589598306895644
+    second: enemy_aimed_21
+  - first:
+      213: -7314132513622716284
+    second: enemy_aimed_22
+  - first:
+      213: -6814742163951018791
+    second: enemy_aimed_23
+  - first:
+      213: 3275023422856131004
+    second: enemy_aimed_24
+  - first:
+      213: -5845037774371495120
+    second: enemy_aimed_25
+  - first:
+      213: 6839549505325751474
+    second: enemy_aimed_26
+  - first:
+      213: -2171175891434297548
+    second: enemy_aimed_27
+  - first:
+      213: 5036617866890943249
+    second: enemy_aimed_28
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: enemy_aimed_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1241
+        height: 1232
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f9313fcfd98e392f0800000000000000
+      internalID: -967173729703226465
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_1
+      rect:
+        serializedVersion: 2
+        x: 112
+        y: 1181
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3aa89e7ebfc5782b0800000000000000
+      internalID: -5582390976105051485
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_2
+      rect:
+        serializedVersion: 2
+        x: 1164
+        y: 407
+        width: 11
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7cb1fc291b820c030800000000000000
+      internalID: 3512852452486355911
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_3
+      rect:
+        serializedVersion: 2
+        x: 836
+        y: 232
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 621d208f8d14cc900800000000000000
+      internalID: 706011641720000806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_4
+      rect:
+        serializedVersion: 2
+        x: 209
+        y: 216
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc1be4884560421e0800000000000000
+      internalID: -2223645355880304180
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_5
+      rect:
+        serializedVersion: 2
+        x: 743
+        y: 191
+        width: 14
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1234e2063138b86d0800000000000000
+      internalID: -2987149808588930271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_6
+      rect:
+        serializedVersion: 2
+        x: 756
+        y: 184
+        width: 27
+        height: 38
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6312b7165e922b40800000000000000
+      internalID: 5414063794654679916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_7
+      rect:
+        serializedVersion: 2
+        x: 145
+        y: 193
+        width: 7
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5df2adf2381c3c00800000000000000
+      internalID: 881606234340523359
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_8
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 192
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bd6ad1929a4f84b20800000000000000
+      internalID: 3119011749330527963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_9
+      rect:
+        serializedVersion: 2
+        x: 1067
+        y: 198
+        width: 9
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9b37bd91458c7060800000000000000
+      internalID: 6952578441618602906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_10
+      rect:
+        serializedVersion: 2
+        x: 1117
+        y: 192
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1e3c341a3f0925a0800000000000000
+      internalID: -6545683841284293091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_11
+      rect:
+        serializedVersion: 2
+        x: 1125
+        y: 154
+        width: 52
+        height: 45
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31bfc66e204e99f80800000000000000
+      internalID: -8099191753742157037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_12
+      rect:
+        serializedVersion: 2
+        x: 1182
+        y: 192
+        width: 11
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e5d384b46f68651a0800000000000000
+      internalID: -6821116193222935202
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_13
+      rect:
+        serializedVersion: 2
+        x: 1188
+        y: 192
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b8ef34b6baa81c830800000000000000
+      internalID: 4089702405472779915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_14
+      rect:
+        serializedVersion: 2
+        x: 1220
+        y: 194
+        width: 17
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c02db55a3abdc7a20800000000000000
+      internalID: 3061563342605505036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_15
+      rect:
+        serializedVersion: 2
+        x: 64
+        y: 160
+        width: 28
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 73e0ea2b6a4689440800000000000000
+      internalID: 4942811258164219447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_16
+      rect:
+        serializedVersion: 2
+        x: 1093
+        y: 184
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dd3b3f0bd2da93d10800000000000000
+      internalID: 2105904712526312413
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_17
+      rect:
+        serializedVersion: 2
+        x: 713
+        y: 160
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 175af65309c38b5b0800000000000000
+      internalID: -5352461567060368015
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_18
+      rect:
+        serializedVersion: 2
+        x: 1160
+        y: 147
+        width: 10
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c1e54685a94e89240800000000000000
+      internalID: 4798836754522332700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_19
+      rect:
+        serializedVersion: 2
+        x: 519
+        y: 127
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d2571f96dcd768280800000000000000
+      internalID: -9041400880700492499
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_20
+      rect:
+        serializedVersion: 2
+        x: 533
+        y: 128
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: acdc7e9c70a52ed70800000000000000
+      internalID: 9070911588976283082
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_21
+      rect:
+        serializedVersion: 2
+        x: 627
+        y: 88
+        width: 15
+        height: 41
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e8f1096eecb61890800000000000000
+      internalID: -7487589598306895644
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_22
+      rect:
+        serializedVersion: 2
+        x: 745
+        y: 128
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48012651b3bfe7a90800000000000000
+      internalID: -7314132513622716284
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_23
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 111
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9dc92d1ab1c2d61a0800000000000000
+      internalID: -6814742163951018791
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_24
+      rect:
+        serializedVersion: 2
+        x: 553
+        y: 95
+        width: 19
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb17c668378337d20800000000000000
+      internalID: 3275023422856131004
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_25
+      rect:
+        serializedVersion: 2
+        x: 601
+        y: 103
+        width: 9
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 033e8dfcc1142eea0800000000000000
+      internalID: -5845037774371495120
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_26
+      rect:
+        serializedVersion: 2
+        x: 641
+        y: 95
+        width: 9
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2bcd3a0a906faee50800000000000000
+      internalID: 6839549505325751474
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_27
+      rect:
+        serializedVersion: 2
+        x: 609
+        y: 81
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 437aa26b70f6ed1e0800000000000000
+      internalID: -2171175891434297548
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: enemy_aimed_28
+      rect:
+        serializedVersion: 2
+        x: 617
+        y: 85
+        width: 17
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11b9b69c349a5e540800000000000000
+      internalID: 5036617866890943249
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      enemy_aimed_0: -967173729703226465
+      enemy_aimed_1: -5582390976105051485
+      enemy_aimed_10: -6545683841284293091
+      enemy_aimed_11: -8099191753742157037
+      enemy_aimed_12: -6821116193222935202
+      enemy_aimed_13: 4089702405472779915
+      enemy_aimed_14: 3061563342605505036
+      enemy_aimed_15: 4942811258164219447
+      enemy_aimed_16: 2105904712526312413
+      enemy_aimed_17: -5352461567060368015
+      enemy_aimed_18: 4798836754522332700
+      enemy_aimed_19: -9041400880700492499
+      enemy_aimed_2: 3512852452486355911
+      enemy_aimed_20: 9070911588976283082
+      enemy_aimed_21: -7487589598306895644
+      enemy_aimed_22: -7314132513622716284
+      enemy_aimed_23: -6814742163951018791
+      enemy_aimed_24: 3275023422856131004
+      enemy_aimed_25: -5845037774371495120
+      enemy_aimed_26: 6839549505325751474
+      enemy_aimed_27: -2171175891434297548
+      enemy_aimed_28: 5036617866890943249
+      enemy_aimed_3: 706011641720000806
+      enemy_aimed_4: -2223645355880304180
+      enemy_aimed_5: -2987149808588930271
+      enemy_aimed_6: 5414063794654679916
+      enemy_aimed_7: 881606234340523359
+      enemy_aimed_8: 3119011749330527963
+      enemy_aimed_9: 6952578441618602906
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

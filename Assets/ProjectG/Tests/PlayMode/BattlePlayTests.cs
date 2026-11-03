@@ -193,4 +193,59 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
         } // 정리 종료
     } // 시험 종료
+    [UnityTest] // 실제 적 등장과 처치 시험
+    public IEnumerator EnemyAppearsAndProjectileDefeatRewardsPlayer() // 적 전투 흐름 확인
+    { // 시험 시작
+        yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
+        yield return new WaitForSeconds(2.3f); // 시험 적 등장 대기
+        EnemyDemoEncounter encounter = Object.FindFirstObjectByType<EnemyDemoEncounter>(); // 적 등장기 확인
+        BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
+        Assert.That(encounter, Is.Not.Null); // 등장기 존재 확인
+        Assert.That(encounter.Current, Is.Not.Null); // 적 등장 확인
+        EnemyActor enemy = encounter.Current; // 현재 적 보관
+        int experience = 0; // 보상 기록
+        player.ExperienceRewarded += value => experience += value; // 경험치 보상 연결
+        int before = player.Skills.Energy; // 기존 에너지 보관
+        GameObject shot = new GameObject("TestShot"); // 시험 탄환 생성
+        shot.transform.position = enemy.transform.position; // 적 위치에서 시험
+        shot.AddComponent<Projectile>().Begin(Vector2.up, 5f, 50, true, player); // 일반 적 처치 탄환
+        yield return null; // 탄환 접촉 대기
+        yield return null; // 처치 처리 대기
+        Assert.That(enemy.IsAlive, Is.False); // 실제 적 처치 확인
+        Assert.That(player.Skills.Energy, Is.GreaterThanOrEqualTo(before + 2)); // 처치 에너지 확인
+        Assert.That(experience, Is.EqualTo(6)); // 경험치 이벤트 확인
+    } // 시험 종료
+    [UnityTest] // 확대된 적과 보스 등장 시험
+    public IEnumerator EnlargedEnemiesSpawnWithinVerticalScreenBounds() // 적 등장 화면 경계 확인
+    { // 시험 시작
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
+        EnemyDemoEncounter encounter = cameraObject.GetComponent<EnemyDemoEncounter>(); // 적 등장기 참조
+        try // 시험 시작
+        { // 시험 범위 시작
+            encounter.Advance(2.1f); // 첫 적 등장
+            for (int index = 0; index < 5; index++) // 적과 보스 순회
+            { // 순회 시작
+                EnemyActor enemy = encounter.Current; // 현재 적 확인
+                Assert.That(enemy, Is.Not.Null); // 적 생성 확인
+                Transform body = enemy.transform.Find("EnemyBody"); // 적 몸체 조회
+                float top = enemy.transform.position.y + body.lossyScale.y * 0.5f; // 표시 상단 위치
+                Assert.That(top, Is.LessThanOrEqualTo(camera.transform.position.y + camera.orthographicSize)); // 화면 상단 이탈 방지
+                enemy.ApplyDamage(10000f, player); // 다음 적 진행
+                encounter.Advance(1.6f); // 다음 적 등장
+            } // 순회 종료
+            yield return null; // 정리 프레임 대기
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            foreach (Projectile shot in Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None)) // 탄환 순회
+            { // 순회 시작
+                Object.Destroy(shot.gameObject); // 시험 탄환 제거
+            } // 순회 종료
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

@@ -52,7 +52,7 @@ namespace ProjectG // 프로젝트 영역
                 float closestX = Mathf.Clamp(position.x, bounds.xMin, bounds.xMax); // 화면의 가까운 가로 위치
                 float closestY = Mathf.Clamp(position.y, bounds.yMin, bounds.yMax); // 화면의 가까운 세로 위치
                 Vector2 closest = new Vector2(closestX, closestY); // 화면의 가까운 점
-                if ((position - closest).sqrMagnitude > bullet.Radius * bullet.Radius) // 화면 밖 확인
+                if ((position - closest).sqrMagnitude > bullet.DisplayRadius * bullet.DisplayRadius) // 표시 영역이 화면 밖인지 확인
                 { // 화면 밖 처리 시작
                     continue; // 화면 밖 탄환 유지
                 } // 화면 밖 처리 종료

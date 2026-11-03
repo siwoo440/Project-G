@@ -66,4 +66,21 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
             Object.DestroyImmediate(holder); // 시험 풀 제거
         } // 정리 종료
     } // 시험 종료
+    [Test] // 화면 끝 확대 탄환 시험
+    public void EnlargedBulletRemainsAndCanBeClearedWhileVisible() // 보이는 탄환 처리 확인
+    { // 시험 시작
+        GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
+        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        try // 시험 시작
+        { // 시험 범위 시작
+            EnemyBullet bullet = pool.Spawn(new Vector2(0f, -5.1f), Vector2.zero, 0.06f, 10, -5f, null); // 화면 끝 탄환 생성
+            bullet.Simulate(0.01f); // 탄환 상태 진행
+            Assert.That(bullet.InUse, Is.True); // 보이는 탄환 유지
+            Assert.That(pool.ClearVisible(new Rect(-8f, -5f, 16f, 10f)), Is.EqualTo(1)); // 보이는 탄환 소거
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.DestroyImmediate(holder); // 시험 풀 제거
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

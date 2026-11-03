@@ -1,0 +1,533 @@
+fileFormatVersion: 2
+guid: be3ef1e08abd29b4ea5a6ff1f0305a7a
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2813306821376561297
+    second: bullet_enemy_0
+  - first:
+      213: 2630409133068385374
+    second: bullet_enemy_1
+  - first:
+      213: 5559343878543700701
+    second: bullet_enemy_2
+  - first:
+      213: -4497015415081142893
+    second: bullet_enemy_3
+  - first:
+      213: 3408856098700834604
+    second: bullet_enemy_4
+  - first:
+      213: -7644323076558514121
+    second: bullet_enemy_5
+  - first:
+      213: 4977519639583158696
+    second: bullet_enemy_6
+  - first:
+      213: -3095194787636300486
+    second: bullet_enemy_7
+  - first:
+      213: 4743967903891720779
+    second: bullet_enemy_8
+  - first:
+      213: -255873477524776290
+    second: bullet_enemy_9
+  - first:
+      213: 514211133777403932
+    second: bullet_enemy_10
+  - first:
+      213: 4821411142640817190
+    second: bullet_enemy_11
+  - first:
+      213: 6671993862919199702
+    second: bullet_enemy_12
+  - first:
+      213: 7604982927983319266
+    second: bullet_enemy_13
+  - first:
+      213: -9041820113404567849
+    second: bullet_enemy_14
+  - first:
+      213: -6591250184237625659
+    second: bullet_enemy_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: bullet_enemy_0
+      rect:
+        serializedVersion: 2
+        x: 112
+        y: 25
+        width: 1057
+        height: 1193
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 190555406afda0720800000000000000
+      internalID: 2813306821376561297
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_1
+      rect:
+        serializedVersion: 2
+        x: 514
+        y: 939
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e5cfb768b27118420800000000000000
+      internalID: 2630409133068385374
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_2
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 883
+        width: 17
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dd2f6d88dc1c62d40800000000000000
+      internalID: 5559343878543700701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_3
+      rect:
+        serializedVersion: 2
+        x: 866
+        y: 866
+        width: 16
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 395f1a26e446791c0800000000000000
+      internalID: -4497015415081142893
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_4
+      rect:
+        serializedVersion: 2
+        x: 1037
+        y: 763
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c27bc759f80be4f20800000000000000
+      internalID: 3408856098700834604
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_5
+      rect:
+        serializedVersion: 2
+        x: 1061
+        y: 657
+        width: 15
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7389869c9a8e9e590800000000000000
+      internalID: -7644323076558514121
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_6
+      rect:
+        serializedVersion: 2
+        x: 979
+        y: 624
+        width: 17
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a172eb7db3b31540800000000000000
+      internalID: 4977519639583158696
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_7
+      rect:
+        serializedVersion: 2
+        x: 265
+        y: 594
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a353c4c5db8ab05d0800000000000000
+      internalID: -3095194787636300486
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_8
+      rect:
+        serializedVersion: 2
+        x: 338
+        y: 398
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b4a02598ca5f5d140800000000000000
+      internalID: 4743967903891720779
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_9
+      rect:
+        serializedVersion: 2
+        x: 940
+        y: 393
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e9a11b88d64f27cf0800000000000000
+      internalID: -255873477524776290
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_10
+      rect:
+        serializedVersion: 2
+        x: 432
+        y: 353
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c106a504d48d22700800000000000000
+      internalID: 514211133777403932
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_11
+      rect:
+        serializedVersion: 2
+        x: 866
+        y: 335
+        width: 27
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6245739a3e719e240800000000000000
+      internalID: 4821411142640817190
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_12
+      rect:
+        serializedVersion: 2
+        x: 742
+        y: 306
+        width: 9
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6db92ee811fa79c50800000000000000
+      internalID: 6671993862919199702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_13
+      rect:
+        serializedVersion: 2
+        x: 860
+        y: 291
+        width: 11
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e81b591ea35a8960800000000000000
+      internalID: 7604982927983319266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_14
+      rect:
+        serializedVersion: 2
+        x: 508
+        y: 187
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7ded9813380058280800000000000000
+      internalID: -9041820113404567849
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bullet_enemy_15
+      rect:
+        serializedVersion: 2
+        x: 1163
+        y: 97
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5cec9ce11ec2784a0800000000000000
+      internalID: -6591250184237625659
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      bullet_enemy_0: 2813306821376561297
+      bullet_enemy_1: 2630409133068385374
+      bullet_enemy_10: 514211133777403932
+      bullet_enemy_11: 4821411142640817190
+      bullet_enemy_12: 6671993862919199702
+      bullet_enemy_13: 7604982927983319266
+      bullet_enemy_14: -9041820113404567849
+      bullet_enemy_15: -6591250184237625659
+      bullet_enemy_2: 5559343878543700701
+      bullet_enemy_3: -4497015415081142893
+      bullet_enemy_4: 3408856098700834604
+      bullet_enemy_5: -7644323076558514121
+      bullet_enemy_6: 4977519639583158696
+      bullet_enemy_7: -3095194787636300486
+      bullet_enemy_8: 4743967903891720779
+      bullet_enemy_9: -255873477524776290
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

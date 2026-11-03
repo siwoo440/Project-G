@@ -24,6 +24,14 @@ namespace ProjectG // 프로젝트 영역
             image.sortingOrder = 4; // 배경 위 예고 표시
             ChooseNextLane(); // 첫 발사 위치 예고
         } // 초기화 종료
+        public void StopSpawning() // 시험 적탄 발사 종료
+        { // 종료 시작
+            if (warning != null) // 예고 표시 확인
+            { // 표시 종료 시작
+                warning.SetActive(false); // 이전 예고 숨김
+            } // 표시 종료 종료
+            enabled = false; // 이전 발사기 중단
+        } // 종료 종료
         private void ChooseNextLane() // 다음 발사 위치 선택
         { // 선택 시작
             float halfHeight = battleCamera.orthographicSize; // 화면 세로 반경

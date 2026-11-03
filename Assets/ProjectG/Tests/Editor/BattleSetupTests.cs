@@ -16,6 +16,10 @@ public class BattleSetupTests // 장면 구성 시험
             Assert.That(player.GetComponent<BattlePlayer>(), Is.Not.Null); // 플레이어 입력 구성 확인
             Assert.That(player.GetComponent<SpriteRenderer>(), Is.Not.Null); // 플레이어 표시 확인
             Assert.That(player.GetComponent<SkillHud>(), Is.Not.Null); // 스킬 화면 연결 확인
+            Assert.That(player.transform.localScale.x, Is.EqualTo(1.125f).Within(0.0001f)); // 플레이어 표시 절반 확인
+            Assert.That(player.transform.localScale.y, Is.EqualTo(1.125f).Within(0.0001f)); // 플레이어 세로 크기 확인
+            Assert.That(player.transform.Find("HitboxIndicator").lossyScale.x, Is.EqualTo(0.24f).Within(0.0001f)); // 피격 가로 크기 유지
+            Assert.That(player.transform.Find("HitboxIndicator").lossyScale.y, Is.EqualTo(0.24f).Within(0.0001f)); // 피격 세로 크기 유지
             Assert.That(camera.orthographic, Is.True); // 직교 카메라 확인
         } // 시험 범위 종료
         finally // 시험 자원 정리

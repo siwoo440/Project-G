@@ -21,7 +21,7 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         private BattlePlayer owner; // 발사 플레이어
         private CharacterType character; // 발사 당시 캐릭터
-        private readonly HashSet<TrainingTarget> hitTargets = new HashSet<TrainingTarget>(); // 이미 맞힌 표적
+        private readonly HashSet<CombatTarget> hitTargets = new HashSet<CombatTarget>(); // 이미 맞힌 표적
         private Vector2 velocity; // 탄환 이동 속도
         private float upperBound; // 화면 위쪽 경계
         private static Sprite sharedSprite; // 공통 임시 이미지
@@ -36,19 +36,19 @@ namespace ProjectG // 프로젝트 영역
             hitTargets.Clear(); // 적중 목록 초기화
             upperBound = top; // 위쪽 경계 보관
             SpriteRenderer image = gameObject.AddComponent<SpriteRenderer>(); // 표시 구성 요소
-            image.sprite = GetSprite(); // 임시 이미지 적용
-            image.color = character == CharacterType.Sniper ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.35f); // 캐릭터별 탄환 색상
-            transform.localScale = new Vector3(0.10f, 0.24f, 1f); // 탄환 표시 크기
+            image.sprite = BattleSprites.Load("bullet_player"); // 플레이어 탄환 이미지
+            image.color = Color.white; // 원본 이미지 색상
+            transform.localScale = new Vector3(0.30f, 0.72f, 1f); // 아군 탄환 표시 크기 세 배
         } // 초기화 종료
-        public bool TryHit(TrainingTarget target, bool weakPoint) // 시험 표적 적중
+        public bool TryHit(CombatTarget target, bool weakPoint) // 시험 표적 적중
         { // 적중 처리 시작
-            if (target == null || RemainingHits <= 0 || !hitTargets.Add(target)) // 표적 중복과 잔여 횟수 확인
+            if (target == null || !target.CanTakeDamage || RemainingHits <= 0 || !hitTargets.Add(target)) // 표적 중복과 잔여 횟수 확인
             { // 중복 처리 시작
                 return false; // 중복 적중 차단
             } // 중복 처리 종료
             float bonus = owner != null && character == CharacterType.Rapid && IsBasic ? owner.Combo.Bonus : 0f; // 속사 기본탄 보너스
             float weak = character == CharacterType.Sniper && weakPoint ? 1.5f : 1f; // 저격형 약점 시험 배율
-            target.ApplyDamage(Damage * (1f + bonus) * weak); // 시험 피해 전달
+            target.ReceiveDamage(Damage * (1f + bonus) * weak, owner); // 시험 피해 전달
             if (owner != null && owner.Character == CharacterType.Rapid && character == CharacterType.Rapid && IsBasic) // 누적 대상 확인
             { // 누적 시작
                 owner.Combo.RegisterHit(); // 기본탄 적중 누적
@@ -60,9 +60,9 @@ namespace ProjectG // 프로젝트 영역
         { // 이동 시작
             Vector2 from = transform.position; // 이동 전 위치
             Vector2 to = from + velocity * Time.deltaTime; // 이동 후 위치
-            TrainingTarget[] targets = Object.FindObjectsByType<TrainingTarget>(FindObjectsSortMode.None); // 시험 표적 목록
+            CombatTarget[] targets = Object.FindObjectsByType<CombatTarget>(FindObjectsSortMode.None); // 시험 표적 목록
             System.Array.Sort(targets, (a, b) => ((Vector2)a.transform.position - from).sqrMagnitude.CompareTo(((Vector2)b.transform.position - from).sqrMagnitude)); // 가까운 표적 순서
-            foreach (TrainingTarget target in targets) // 표적 순회
+            foreach (CombatTarget target in targets) // 표적 순회
             { // 판정 시작
                 if (target.Intersects(from, to, out bool weak) && TryHit(target, weak) && RemainingHits <= 0) // 소진 탄환 확인
                 { // 제거 시작

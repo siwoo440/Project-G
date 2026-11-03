@@ -46,9 +46,9 @@ namespace ProjectG // 프로젝트 영역
             camera.gameObject.AddComponent<BattleViewport>(); // 화면 비율 유지
             GameObject player = new GameObject("ProjectG Player"); // 플레이어 객체 생성
             SpriteRenderer image = player.AddComponent<SpriteRenderer>(); // 플레이어 표시 요소
-            image.sprite = Projectile.GetSprite(); // 임시 사각형 이미지
-            image.color = new Color(0.3f, 0.9f, 1f); // 플레이어 색상
-            player.transform.localScale = new Vector3(0.35f, 0.35f, 1f); // 임시 표시 크기
+            image.sprite = BattleSprites.Player(CharacterType.Rapid); // 속사형 시험 이미지
+            image.color = Color.white; // 원본 이미지 색상
+            player.transform.localScale = new Vector3(1.125f, 1.125f, 1f); // 플레이어 표시 크기 절반
             BattlePlayer controller = player.AddComponent<BattlePlayer>(); // 플레이어 조작 요소
             controller.AssignCamera(camera); // 전투 카메라 연결
             controller.Begin(new Vector2(0f, -3f)); // 플레이어 조작 시작
@@ -59,8 +59,11 @@ namespace ProjectG // 프로젝트 영역
             player.AddComponent<SkillHud>().Begin(controller, camera); // 스킬 세 칸 표시
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
-            TrainingTarget.Create(new Vector2(0f, 2.5f)).transform.SetParent(camera.transform, true); // 임시 약점 표적
-            camera.gameObject.AddComponent<DemoBulletSpawner>().Begin(pool, controller, camera); // 시험용 적탄 발사 연결
+            TrainingTarget training = TrainingTarget.Create(new Vector2(0f, 2.5f)); // 임시 약점 표적
+            training.transform.SetParent(camera.transform, true); // 카메라에 표적 연결
+            DemoBulletSpawner demo = camera.gameObject.AddComponent<DemoBulletSpawner>(); // 기존 시험 발사기
+            demo.Begin(pool, controller, camera); // 초기 시험 적탄 연결
+            camera.gameObject.AddComponent<EnemyDemoEncounter>().Begin(pool, controller, camera, demo, training); // 적과 보스 시험 연결
             return player; // 생성 플레이어 반환
         } // 생성 종료
     } // 클래스 종료

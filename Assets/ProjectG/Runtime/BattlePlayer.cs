@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 영역
             private set; // 값 설정
         } // 속성 종료
         public event System.Action<int> UltimateDamageRequested; // 필살기 피해 요청
+        public event System.Action<int> ExperienceRewarded; // 경험치 보상 알림
         public void AssignBulletPool(EnemyBulletPool pool) // 적탄 풀 연결
         { // 연결 시작
             bulletPool = pool; // 적탄 풀 보관
@@ -83,11 +84,11 @@ namespace ProjectG // 프로젝트 영역
             if (Character == CharacterType.Rapid) // 속사형 필살기 확인
             { // 속사 필살기 시작
                 bulletPool.ClearVisible(screen); // 화면 안 소거 가능 적탄 제거
-                foreach (TrainingTarget target in Object.FindObjectsByType<TrainingTarget>(FindObjectsSortMode.None)) // 시험 표적 순회
+                foreach (CombatTarget target in Object.FindObjectsByType<CombatTarget>(FindObjectsSortMode.None)) // 시험 표적 순회
                 { // 피해 처리 시작
                     if (screen.Contains(target.transform.position)) // 화면 안 표적 확인
                     { // 화면 안 처리 시작
-                        target.ApplyDamage(80f); // 시험 피해 적용
+                        target.ReceiveDamage(80f, this); // 시험 피해 적용
                     } // 화면 안 처리 종료
                 } // 피해 처리 종료
                 UltimateDamageRequested?.Invoke(80); // 적 전체 시험 피해 요청
@@ -97,11 +98,11 @@ namespace ProjectG // 프로젝트 영역
                 float top = center.y + halfHeight; // 화면 위쪽
                 Rect beam = new Rect(transform.position.x - 0.2f, transform.position.y, 0.4f, Mathf.Max(0f, top - transform.position.y)); // 시험용 광선 범위
                 bulletPool.ClearVisible(beam); // 광선 안 소거 가능 적탄 제거
-                foreach (TrainingTarget target in Object.FindObjectsByType<TrainingTarget>(FindObjectsSortMode.None)) // 시험 표적 순회
+                foreach (CombatTarget target in Object.FindObjectsByType<CombatTarget>(FindObjectsSortMode.None)) // 시험 표적 순회
                 { // 피해 처리 시작
                     if (target.IntersectsBeam(beam, out bool weak)) // 광선 접촉 확인
                     { // 접촉 처리 시작
-                        target.ApplyDamage(220f * (weak ? 1.5f : 1f)); // 시험 약점 피해 적용
+                        target.ReceiveDamage(220f * (weak ? 1.5f : 1f), this); // 시험 약점 피해 적용
                     } // 접촉 처리 종료
                 } // 피해 처리 종료
                 BeamDamageRequested?.Invoke(beam, 220); // 실제 적 연결용 피해 요청
@@ -109,11 +110,15 @@ namespace ProjectG // 프로젝트 영역
             } // 저격 필살기 종료
             return true; // 필살기 발동
         } // 사용 종료
-        public void RegisterEnemyDefeat(EnemyRank rank) // 적 처치 보상
+        public void RegisterEnemyDefeat(EnemyRank rank, int experience = 0) // 적 처치 보상
         { // 보상 시작
             if (Skills != null && Survival != null && Survival.IsAlive) // 생존 상태 확인
             { // 충전 시작
                 Skills.GainDefeat(rank); // 적 종류별 에너지 충전
+                if (experience > 0) // 경험치 보상 확인
+                { // 보상 알림 시작
+                    ExperienceRewarded?.Invoke(experience); // 경험치 연결 알림
+                } // 보상 알림 종료
             } // 충전 종료
         } // 보상 종료
         public PlayerSurvival Survival // 플레이어 생존 상태
@@ -222,6 +227,12 @@ namespace ProjectG // 프로젝트 영역
         public void Begin(Vector2 start, CharacterType type = CharacterType.Rapid) // 플레이어 시작
         { // 초기화 시작
             Character = type; // 캐릭터 선택
+            SpriteRenderer image = GetComponent<SpriteRenderer>(); // 캐릭터 표시 요소
+            if (image != null) // 표시 요소 확인
+            { // 이미지 변경 시작
+                image.sprite = BattleSprites.Player(type); // 선택 캐릭터 이미지
+                image.color = Color.white; // 원본 이미지 색상
+            } // 이미지 변경 종료
             Combo = new RapidCombo(); // 누적 화력 초기화
             session = new BattleSession(start, type); // 캐릭터별 전투 상태 생성
             Skills = new SkillState(); // 스킬과 에너지 초기화

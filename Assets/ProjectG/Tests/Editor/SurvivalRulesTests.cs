@@ -38,4 +38,25 @@ public class SurvivalRulesTests // 생존 규칙 시험
         health.Advance(2f); // 무적 시간 경과
         Assert.That(health.TryHit(1), Is.False); // 실패 후 피해 차단
     } // 시험 종료
+    [Test] // 보호막 1회 방어 시험
+    public void ShieldBlocksOneHitWithoutStartingInvulnerability() // 보호막 단일 방어 확인
+    { // 시험 시작
+        PlayerSurvival health = new PlayerSurvival(100); // 시험 체력 생성
+        health.ActivateShield(1f); // 보호막 활성화
+        Assert.That(health.HasShield, Is.True); // 보호막 존재 확인
+        Assert.That(health.TryHit(10), Is.False); // 첫 피해 방어
+        Assert.That(health.Health, Is.EqualTo(100)); // 체력 보존 확인
+        Assert.That(health.HasShield, Is.False); // 보호막 소모 확인
+        Assert.That(health.TryHit(10), Is.True); // 다음 피해 적용
+    } // 시험 종료
+    [Test] // 보호막 종료 시험
+    public void ShieldExpiresAfterOneSecond() // 보호막 지속 시간 확인
+    { // 시험 시작
+        PlayerSurvival health = new PlayerSurvival(100); // 시험 체력 생성
+        health.ActivateShield(1f); // 보호막 활성화
+        Assert.That(health.HasShield, Is.True); // 초기 보호막 확인
+        health.Advance(1f); // 지속 시간 경과
+        Assert.That(health.HasShield, Is.False); // 보호막 종료 확인
+        Assert.That(health.TryHit(10), Is.True); // 종료 후 피해 확인
+    } // 시험 종료
 } // 시험 종료

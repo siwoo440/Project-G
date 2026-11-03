@@ -3,12 +3,24 @@ namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public sealed class Projectile : MonoBehaviour // 플레이어 탄환
     { // 클래스 시작
+        public int Damage // 탄환 시험 피해량
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
+        public bool IsBasic // 기본 공격 여부
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
         private Vector2 velocity; // 탄환 이동 속도
         private float upperBound; // 화면 위쪽 경계
         private static Sprite sharedSprite; // 공통 임시 이미지
-        public void Begin(Vector2 speed, float top) // 탄환 초기화
+        public void Begin(Vector2 speed, float top, int damage = 0, bool isBasic = true) // 탄환 초기화
         { // 초기화 시작
             velocity = speed; // 이동 속도 보관
+            Damage = damage; // 시험 피해량 보관
+            IsBasic = isBasic; // 기본 공격 구분
             upperBound = top; // 위쪽 경계 보관
             SpriteRenderer image = gameObject.AddComponent<SpriteRenderer>(); // 표시 구성 요소
             image.sprite = GetSprite(); // 임시 이미지 적용

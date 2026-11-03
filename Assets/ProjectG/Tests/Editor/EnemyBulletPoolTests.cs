@@ -45,4 +45,25 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
             Object.DestroyImmediate(holder); // 시험 풀 제거
         } // 정리 종료
     } // 시험 종료
+    [Test] // 필살기 탄막 소거 시험
+    public void UltimateClearsOnlyVisibleClearableBullets() // 소거 대상 확인
+    { // 시험 시작
+        GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
+        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        try // 시험 시작
+        { // 시험 범위 시작
+            EnemyBullet clearable = pool.Spawn(Vector2.zero, Vector2.zero, 0.06f, 10, -5f, null, true); // 화면 안 소거 가능 탄환
+            EnemyBullet protectedBullet = pool.Spawn(Vector2.right, Vector2.zero, 0.06f, 10, -5f, null, false); // 소거 불가 탄환
+            EnemyBullet outside = pool.Spawn(new Vector2(12f, 0f), Vector2.zero, 0.06f, 10, -5f, null, true); // 화면 밖 탄환
+            int removed = pool.ClearVisible(new Rect(-8f, -5f, 16f, 10f)); // 화면 내 소거
+            Assert.That(removed, Is.EqualTo(1)); // 소거 수 확인
+            Assert.That(clearable.gameObject.activeSelf, Is.False); // 소거 가능 탄환 회수
+            Assert.That(protectedBullet.gameObject.activeSelf, Is.True); // 소거 불가 탄환 유지
+            Assert.That(outside.gameObject.activeSelf, Is.True); // 화면 밖 탄환 유지
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.DestroyImmediate(holder); // 시험 풀 제거
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

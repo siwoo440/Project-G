@@ -15,6 +15,7 @@ public class BattleSetupTests // 장면 구성 시험
             Assert.That(player, Is.Not.Null); // 플레이어 존재 확인
             Assert.That(player.GetComponent<BattlePlayer>(), Is.Not.Null); // 플레이어 입력 구성 확인
             Assert.That(player.GetComponent<SpriteRenderer>(), Is.Not.Null); // 플레이어 표시 확인
+            Assert.That(player.GetComponent<SkillHud>(), Is.Not.Null); // 스킬 화면 연결 확인
             Assert.That(camera.orthographic, Is.True); // 직교 카메라 확인
         } // 시험 범위 종료
         finally // 시험 자원 정리

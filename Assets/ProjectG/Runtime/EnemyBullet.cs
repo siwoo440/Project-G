@@ -5,6 +5,12 @@ namespace ProjectG // 프로젝트 영역
     { // 클래스 시작
         private Vector2 velocity; // 적탄 이동 속도
         private float radius; // 시험용 탄환 반경
+        public float Radius => radius; // 현재 탄환 반경
+        public bool Clearable // 필살기 소거 가능 여부
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
         private float bottom; // 화면 아래 경계
         private int damage; // 시험용 탄환 피해
         private BattlePlayer target; // 플레이어 대상
@@ -20,7 +26,7 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             private set; // 값 설정
         } // 속성 종료
-        public void Begin(EnemyBulletPool owner, Vector2 position, Vector2 speed, float size, int damage, float lowerBound, BattlePlayer player) // 적탄 초기화
+        public void Begin(EnemyBulletPool owner, Vector2 position, Vector2 speed, float size, int damage, float lowerBound, BattlePlayer player, bool clearable) // 적탄 초기화
         { // 초기화 시작
             Owner = owner; // 소유 풀 보관
             velocity = speed; // 속도 보관
@@ -28,6 +34,7 @@ namespace ProjectG // 프로젝트 영역
             bottom = lowerBound; // 아래 경계 보관
             this.damage = damage; // 피해량 보관
             target = player; // 플레이어 대상 보관
+            Clearable = clearable; // 소거 가능 여부 초기화
             interaction.Reset(); // 그레이즈 상태 초기화
             transform.position = position; // 시작 위치 설정
             transform.localScale = new Vector3(radius * 2f, radius * 2f, 1f); // 탄환 표시 크기

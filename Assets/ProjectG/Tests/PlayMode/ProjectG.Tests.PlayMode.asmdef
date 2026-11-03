@@ -1,0 +1,10 @@
+{
+  "name": "ProjectG.Tests.PlayMode",
+  "references": [
+    "ProjectG.Runtime",
+    "Unity.InputSystem"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

@@ -1,0 +1,30 @@
+# Unity 자동 생성 캐시
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# 프로젝트 루트의 빌드 출력
+/[Bb]uild/
+/[Bb]uilds/
+
+# IDE 및 자동 생성 프로젝트 파일
+/.vs/
+/.idea/
+/*.csproj
+/*.sln
+/*.slnx
+/*.user
+/*.userprefs
+/*.pidb
+/*.svd
+/*.pdb
+/*.mdb
+/*.opendb
+/*.VC.db
+
+# 운영체제 임시 파일
+.DS_Store
+Thumbs.db

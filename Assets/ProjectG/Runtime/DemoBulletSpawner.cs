@@ -19,8 +19,8 @@ namespace ProjectG // 프로젝트 영역
             warning.transform.SetParent(transform, false); // 카메라에 예고 연결
             warning.transform.localScale = new Vector3(0.32f, 0.32f, 1f); // 예고 표시 크기
             SpriteRenderer image = warning.AddComponent<SpriteRenderer>(); // 예고 표시 요소
-            image.sprite = Projectile.GetSprite(); // 임시 예고 이미지
-            image.color = new Color(1f, 0.8f, 0.15f, 0.8f); // 예고 구별 색상
+            image.sprite = BattleVisuals.Warning; // 공격 경고 아이콘
+            image.color = Color.white; // 경고 이미지 원본 색상
             image.sortingOrder = 4; // 배경 위 예고 표시
             ChooseNextLane(); // 첫 발사 위치 예고
         } // 초기화 종료

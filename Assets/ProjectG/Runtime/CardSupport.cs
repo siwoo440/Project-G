@@ -20,7 +20,7 @@ namespace ProjectG // 프로젝트 영역
             { // 드론 시작
                 if (drone == null) // 드론 표시 확인
                 { // 생성 시작
-                    drone = CreateVisual(player, "CardDrone", new Color(0.4f, 0.9f, 1f)); // 드론 표시 생성
+                    drone = CreateVisual(player, "CardDrone"); // 드론 표시 생성
                 } // 생성 종료
                 drone.position = player.transform.position + new Vector3(-0.7f, 0.1f, 0f); // 드론 위치
                 droneTimer -= elapsed; // 사격 대기 감소
@@ -36,7 +36,7 @@ namespace ProjectG // 프로젝트 영역
             { // 칼날 시작
                 if (blade == null) // 칼날 표시 확인
                 { // 생성 시작
-                    blade = CreateVisual(player, "CardBlade", new Color(1f, 0.85f, 0.4f)); // 칼날 표시 생성
+                    blade = CreateVisual(player, "CardBlade"); // 칼날 표시 생성
                 } // 생성 종료
                 float previousAngle = angle; // 이동 전 회전 각도
                 float turn = elapsed * 180f; // 이번 프레임 회전량
@@ -81,15 +81,15 @@ namespace ProjectG // 프로젝트 영역
             blade = null; // 칼날 참조 초기화
             bladeReady.Clear(); // 대상별 재공격 상태 초기화
         } // 제거 종료
-        private static Transform CreateVisual(BattlePlayer player, string name, Color color) // 보조 임시 표시 생성
+        private static Transform CreateVisual(BattlePlayer player, string name) // 보조 표시 생성
         { // 생성 시작
             GameObject marker = new GameObject(name); // 표시 객체 생성
             marker.transform.SetParent(player.transform, false); // 플레이어에 연결
             float scale = Mathf.Max(0.0001f, Mathf.Abs(player.transform.lossyScale.x)); // 플레이어 표시 배율
             marker.transform.localScale = new Vector3(0.25f / scale, 0.25f / scale, 1f); // 고정 월드 표시 크기
             SpriteRenderer image = marker.AddComponent<SpriteRenderer>(); // 표시 구성 요소
-            image.sprite = Projectile.GetSprite(); // 임시 도형 사용
-            image.color = color; // 보조 공격 구별 색상
+            image.sprite = name == "CardDrone" ? BattleVisuals.Drone : BattleVisuals.Blade; // 보조 공격별 이미지
+            image.color = Color.white; // 보조 이미지 원본 색상
             image.sortingOrder = 2; // 플레이어 위 표시
             return marker.transform; // 표시 객체 반환
         } // 생성 종료

@@ -17,8 +17,8 @@ namespace ProjectG // 프로젝트 영역
             if (image == null) // 표시 요소 확인
             { // 생성 시작
                 image = gameObject.AddComponent<SpriteRenderer>(); // 표시 요소 생성
-                image.sprite = Projectile.GetSprite(); // 시험용 조각 도형
-                image.color = new Color(0.3f, 1f, 0.7f); // 경험치 구별 색상
+                image.sprite = BattleVisuals.Crystal; // 결정 형태 조각 이미지
+                image.color = Color.white; // 생성 이미지 원본 색상
                 image.sortingOrder = 3; // 배경 위 표시
             } // 생성 종료
             gameObject.SetActive(true); // 조각 활성화

@@ -303,18 +303,18 @@ namespace ProjectG // 프로젝트 영역
             image.color = Color.white; // 원본 이미지 색상
             weakMark = new GameObject("EnemyWeakPoint"); // 약점 표시 객체
             weakMark.transform.SetParent(transform, false); // 적에 연결
-            weakMark.transform.localScale = new Vector3(0.4f, IsBoss ? 1.1f : 0.7f, 1f); // 약점 표시 크기
+            weakMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 약점 중심 표시 크기
             SpriteRenderer weakImage = weakMark.AddComponent<SpriteRenderer>(); // 약점 표시 요소
-            weakImage.sprite = Projectile.GetSprite(); // 임시 도형
-            weakImage.color = new Color(1f, 0.85f, 0.2f); // 약점 표시 색상
+            weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
+            weakImage.color = Color.white; // 약점 이미지 원본 색상
             weakImage.sortingOrder = 2; // 몸체 앞 표시
             warningMark = new GameObject("EnemyAttackWarning"); // 공격 예고 객체
             warningMark.transform.SetParent(transform, false); // 적에 연결
             warningMark.transform.localPosition = new Vector3(0f, -1.95f, 0f); // 확대된 몸체 아래 예고
-            warningMark.transform.localScale = new Vector3(2.1f, 0.36f, 1f); // 예고 표시 크기 세 배
+            warningMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 경고 아이콘 크기
             SpriteRenderer warningImage = warningMark.AddComponent<SpriteRenderer>(); // 예고 표시 요소
-            warningImage.sprite = Projectile.GetSprite(); // 임시 도형
-            warningImage.color = new Color(1f, 0.55f, 0.1f); // 예고 표시 색상
+            warningImage.sprite = BattleVisuals.Warning; // 공격 경고 아이콘
+            warningImage.color = Color.white; // 경고 이미지 원본 색상
             warningImage.sortingOrder = 3; // 전경 표시
         } // 생성 종료
         private void UpdateVisual() // 표시 상태 갱신

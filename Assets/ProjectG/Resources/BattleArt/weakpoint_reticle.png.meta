@@ -1,0 +1,1365 @@
+fileFormatVersion: 2
+guid: a0ea0ab0e0cdbd748a3a06cda40c5032
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3197629148153119130
+    second: weakpoint_reticle_0
+  - first:
+      213: 4724864228193476909
+    second: weakpoint_reticle_1
+  - first:
+      213: 3789921288522759953
+    second: weakpoint_reticle_2
+  - first:
+      213: -7031042423204507694
+    second: weakpoint_reticle_3
+  - first:
+      213: 754663930583307487
+    second: weakpoint_reticle_4
+  - first:
+      213: 4888280109111548038
+    second: weakpoint_reticle_5
+  - first:
+      213: -2965539996909111814
+    second: weakpoint_reticle_6
+  - first:
+      213: 5390386061175287532
+    second: weakpoint_reticle_7
+  - first:
+      213: -4173916180083301270
+    second: weakpoint_reticle_8
+  - first:
+      213: -8686746875158218161
+    second: weakpoint_reticle_9
+  - first:
+      213: 5302493425124779307
+    second: weakpoint_reticle_10
+  - first:
+      213: 1984224251709820272
+    second: weakpoint_reticle_11
+  - first:
+      213: 7404387942288830436
+    second: weakpoint_reticle_12
+  - first:
+      213: -1017469262233839786
+    second: weakpoint_reticle_13
+  - first:
+      213: 9103872542245519741
+    second: weakpoint_reticle_14
+  - first:
+      213: 8340013374100952448
+    second: weakpoint_reticle_15
+  - first:
+      213: 1738078963261064131
+    second: weakpoint_reticle_16
+  - first:
+      213: 5882703003234827076
+    second: weakpoint_reticle_17
+  - first:
+      213: 6787664634407161806
+    second: weakpoint_reticle_18
+  - first:
+      213: -338646327447141629
+    second: weakpoint_reticle_19
+  - first:
+      213: -3969253013186636599
+    second: weakpoint_reticle_20
+  - first:
+      213: -4811314452636639479
+    second: weakpoint_reticle_21
+  - first:
+      213: -7586861263827070321
+    second: weakpoint_reticle_22
+  - first:
+      213: 9082673516895706502
+    second: weakpoint_reticle_23
+  - first:
+      213: -2691004472370462236
+    second: weakpoint_reticle_24
+  - first:
+      213: 6060403458614837731
+    second: weakpoint_reticle_25
+  - first:
+      213: 4015743264168082827
+    second: weakpoint_reticle_26
+  - first:
+      213: -7036686553196752404
+    second: weakpoint_reticle_27
+  - first:
+      213: 2585694624390416486
+    second: weakpoint_reticle_28
+  - first:
+      213: 8398531250902402769
+    second: weakpoint_reticle_29
+  - first:
+      213: -6568432406328299920
+    second: weakpoint_reticle_30
+  - first:
+      213: 6971545865638320997
+    second: weakpoint_reticle_31
+  - first:
+      213: -6172100956376418280
+    second: weakpoint_reticle_32
+  - first:
+      213: -5903818238480892433
+    second: weakpoint_reticle_33
+  - first:
+      213: 8027360960908725382
+    second: weakpoint_reticle_34
+  - first:
+      213: 2966970724746652115
+    second: weakpoint_reticle_35
+  - first:
+      213: 2001223886499540915
+    second: weakpoint_reticle_36
+  - first:
+      213: -6688365605065566385
+    second: weakpoint_reticle_37
+  - first:
+      213: -4194480727652608444
+    second: weakpoint_reticle_38
+  - first:
+      213: -631268748797120736
+    second: weakpoint_reticle_39
+  - first:
+      213: 5043144244939214731
+    second: weakpoint_reticle_40
+  - first:
+      213: -2738819942526322877
+    second: weakpoint_reticle_41
+  - first:
+      213: -979168047837274815
+    second: weakpoint_reticle_42
+  - first:
+      213: 2807868115103570377
+    second: weakpoint_reticle_43
+  - first:
+      213: -4189743361814549737
+    second: weakpoint_reticle_44
+  - first:
+      213: 3688296295562925859
+    second: weakpoint_reticle_45
+  - first:
+      213: 1652187222280246696
+    second: weakpoint_reticle_46
+  - first:
+      213: 7168351675350873999
+    second: weakpoint_reticle_47
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: weakpoint_reticle_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1513
+        height: 1024
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 66ef5e44b3dbf93d0800000000000000
+      internalID: -3197629148153119130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_1
+      rect:
+        serializedVersion: 2
+        x: 190
+        y: 833
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d212c6d6bf6129140800000000000000
+      internalID: 4724864228193476909
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_2
+      rect:
+        serializedVersion: 2
+        x: 236
+        y: 785
+        width: 17
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11ff6110551889430800000000000000
+      internalID: 3789921288522759953
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_3
+      rect:
+        serializedVersion: 2
+        x: 1278
+        y: 783
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2df813c0b28bc6e90800000000000000
+      internalID: -7031042423204507694
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_4
+      rect:
+        serializedVersion: 2
+        x: 208
+        y: 755
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fd4d733b8da197a00800000000000000
+      internalID: 754663930583307487
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_5
+      rect:
+        serializedVersion: 2
+        x: 198
+        y: 733
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 688933a2cd8a6d340800000000000000
+      internalID: 4888280109111548038
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_6
+      rect:
+        serializedVersion: 2
+        x: 226
+        y: 739
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af5f40db51948d6d0800000000000000
+      internalID: -2965539996909111814
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_7
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 737
+        width: 11
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ceee19a209f7eca40800000000000000
+      internalID: 5390386061175287532
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_8
+      rect:
+        serializedVersion: 2
+        x: 1302
+        y: 710
+        width: 11
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6421eb39554316c0800000000000000
+      internalID: -4173916180083301270
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_9
+      rect:
+        serializedVersion: 2
+        x: 1296
+        y: 711
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f4ab57ccdb9727780800000000000000
+      internalID: -8686746875158218161
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_10
+      rect:
+        serializedVersion: 2
+        x: 206
+        y: 683
+        width: 11
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2528642dad369940800000000000000
+      internalID: 5302493425124779307
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_11
+      rect:
+        serializedVersion: 2
+        x: 216
+        y: 679
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 07d01eda171698b10800000000000000
+      internalID: 1984224251709820272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_12
+      rect:
+        serializedVersion: 2
+        x: 1278
+        y: 641
+        width: 67
+        height: 55
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4efaf477a9ba1c660800000000000000
+      internalID: 7404387942288830436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_13
+      rect:
+        serializedVersion: 2
+        x: 1358
+        y: 689
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6575ca6c81931e1f0800000000000000
+      internalID: -1017469262233839786
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_14
+      rect:
+        serializedVersion: 2
+        x: 230
+        y: 677
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d710af0c7d3775e70800000000000000
+      internalID: 9103872542245519741
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_15
+      rect:
+        serializedVersion: 2
+        x: 1374
+        y: 657
+        width: 9
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0855b49f9fdadb370800000000000000
+      internalID: 8340013374100952448
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_16
+      rect:
+        serializedVersion: 2
+        x: 1338
+        y: 630
+        width: 21
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3c341ccbb95ee1810800000000000000
+      internalID: 1738078963261064131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_17
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 647
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44b7feaa63f83a150800000000000000
+      internalID: 5882703003234827076
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_18
+      rect:
+        serializedVersion: 2
+        x: 1358
+        y: 597
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ecf025cb501a23e50800000000000000
+      internalID: 6787664634407161806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_19
+      rect:
+        serializedVersion: 2
+        x: 1406
+        y: 607
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 303c50c95f2ec4bf0800000000000000
+      internalID: -338646327447141629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_20
+      rect:
+        serializedVersion: 2
+        x: 1422
+        y: 597
+        width: 11
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9c49c5d1a616ae8c0800000000000000
+      internalID: -3969253013186636599
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_21
+      rect:
+        serializedVersion: 2
+        x: 1304
+        y: 559
+        width: 9
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90fd3eb2ff6ca3db0800000000000000
+      internalID: -4811314452636639479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_22
+      rect:
+        serializedVersion: 2
+        x: 1374
+        y: 559
+        width: 15
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f829a61a0ed06b690800000000000000
+      internalID: -7586861263827070321
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_23
+      rect:
+        serializedVersion: 2
+        x: 214
+        y: 519
+        width: 9
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68d9a6901732c0e70800000000000000
+      internalID: 9082673516895706502
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_24
+      rect:
+        serializedVersion: 2
+        x: 1336
+        y: 493
+        width: 31
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e10f5f90b1a7aad0800000000000000
+      internalID: -2691004472370462236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_25
+      rect:
+        serializedVersion: 2
+        x: 96
+        y: 495
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3e1494216d0ea1450800000000000000
+      internalID: 6060403458614837731
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_26
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 457
+        width: 37
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b8df7e1f839cab730800000000000000
+      internalID: 4015743264168082827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_27
+      rect:
+        serializedVersion: 2
+        x: 214
+        y: 497
+        width: 11
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce190f0acdaa85e90800000000000000
+      internalID: -7036686553196752404
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_28
+      rect:
+        serializedVersion: 2
+        x: 1376
+        y: 469
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6688d60bf8b32e320800000000000000
+      internalID: 2585694624390416486
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_29
+      rect:
+        serializedVersion: 2
+        x: 1438
+        y: 462
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1d60e05eca39d8470800000000000000
+      internalID: 8398531250902402769
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_30
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 447
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 07e23a9078d38d4a0800000000000000
+      internalID: -6568432406328299920
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_31
+      rect:
+        serializedVersion: 2
+        x: 1301
+        y: 431
+        width: 13
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 56b17b82708efb060800000000000000
+      internalID: 6971545865638320997
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_32
+      rect:
+        serializedVersion: 2
+        x: 1358
+        y: 433
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 818b551a1ea485aa0800000000000000
+      internalID: -6172100956376418280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_33
+      rect:
+        serializedVersion: 2
+        x: 1278
+        y: 365
+        width: 43
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fedbfd4879c611ea0800000000000000
+      internalID: -5903818238480892433
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_34
+      rect:
+        serializedVersion: 2
+        x: 1280
+        y: 409
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68c8dce534ae66f60800000000000000
+      internalID: 8027360960908725382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_35
+      rect:
+        serializedVersion: 2
+        x: 1330
+        y: 405
+        width: 7
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3d9e18b872ccc2920800000000000000
+      internalID: 2966970724746652115
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_36
+      rect:
+        serializedVersion: 2
+        x: 1346
+        y: 409
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bfe4d69586c5cb10800000000000000
+      internalID: 2001223886499540915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_37
+      rect:
+        serializedVersion: 2
+        x: 1350
+        y: 395
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f47502e2be62e23a0800000000000000
+      internalID: -6688365605065566385
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_38
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 369
+        width: 21
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4465b0360063ac5c0800000000000000
+      internalID: -4194480727652608444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_39
+      rect:
+        serializedVersion: 2
+        x: 166
+        y: 375
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 02f6426ea684d37f0800000000000000
+      internalID: -631268748797120736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_40
+      rect:
+        serializedVersion: 2
+        x: 150
+        y: 353
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b8f48a698f8dcf540800000000000000
+      internalID: 5043144244939214731
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_41
+      rect:
+        serializedVersion: 2
+        x: 210
+        y: 340
+        width: 17
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34776fde5c1cdf9d0800000000000000
+      internalID: -2738819942526322877
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_42
+      rect:
+        serializedVersion: 2
+        x: 1094
+        y: 181
+        width: 201
+        height: 189
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 14d1f3d29db4962f0800000000000000
+      internalID: -979168047837274815
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_43
+      rect:
+        serializedVersion: 2
+        x: 1302
+        y: 352
+        width: 11
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9c9d4e88c2d87f620800000000000000
+      internalID: 2807868115103570377
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_44
+      rect:
+        serializedVersion: 2
+        x: 1352
+        y: 351
+        width: 7
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71b2ef25c9a0bd5c0800000000000000
+      internalID: -4189743361814549737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_45
+      rect:
+        serializedVersion: 2
+        x: 184
+        y: 273
+        width: 39
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 327da6b70f57f2330800000000000000
+      internalID: 3688296295562925859
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_46
+      rect:
+        serializedVersion: 2
+        x: 216
+        y: 301
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a51476668fbde610800000000000000
+      internalID: 1652187222280246696
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: weakpoint_reticle_47
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 273
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f877d528ed91b7360800000000000000
+      internalID: 7168351675350873999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      weakpoint_reticle_0: -3197629148153119130
+      weakpoint_reticle_1: 4724864228193476909
+      weakpoint_reticle_10: 5302493425124779307
+      weakpoint_reticle_11: 1984224251709820272
+      weakpoint_reticle_12: 7404387942288830436
+      weakpoint_reticle_13: -1017469262233839786
+      weakpoint_reticle_14: 9103872542245519741
+      weakpoint_reticle_15: 8340013374100952448
+      weakpoint_reticle_16: 1738078963261064131
+      weakpoint_reticle_17: 5882703003234827076
+      weakpoint_reticle_18: 6787664634407161806
+      weakpoint_reticle_19: -338646327447141629
+      weakpoint_reticle_2: 3789921288522759953
+      weakpoint_reticle_20: -3969253013186636599
+      weakpoint_reticle_21: -4811314452636639479
+      weakpoint_reticle_22: -7586861263827070321
+      weakpoint_reticle_23: 9082673516895706502
+      weakpoint_reticle_24: -2691004472370462236
+      weakpoint_reticle_25: 6060403458614837731
+      weakpoint_reticle_26: 4015743264168082827
+      weakpoint_reticle_27: -7036686553196752404
+      weakpoint_reticle_28: 2585694624390416486
+      weakpoint_reticle_29: 8398531250902402769
+      weakpoint_reticle_3: -7031042423204507694
+      weakpoint_reticle_30: -6568432406328299920
+      weakpoint_reticle_31: 6971545865638320997
+      weakpoint_reticle_32: -6172100956376418280
+      weakpoint_reticle_33: -5903818238480892433
+      weakpoint_reticle_34: 8027360960908725382
+      weakpoint_reticle_35: 2966970724746652115
+      weakpoint_reticle_36: 2001223886499540915
+      weakpoint_reticle_37: -6688365605065566385
+      weakpoint_reticle_38: -4194480727652608444
+      weakpoint_reticle_39: -631268748797120736
+      weakpoint_reticle_4: 754663930583307487
+      weakpoint_reticle_40: 5043144244939214731
+      weakpoint_reticle_41: -2738819942526322877
+      weakpoint_reticle_42: -979168047837274815
+      weakpoint_reticle_43: 2807868115103570377
+      weakpoint_reticle_44: -4189743361814549737
+      weakpoint_reticle_45: 3688296295562925859
+      weakpoint_reticle_46: 1652187222280246696
+      weakpoint_reticle_47: 7168351675350873999
+      weakpoint_reticle_5: 4888280109111548038
+      weakpoint_reticle_6: -2965539996909111814
+      weakpoint_reticle_7: 5390386061175287532
+      weakpoint_reticle_8: -4173916180083301270
+      weakpoint_reticle_9: -8686746875158218161
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

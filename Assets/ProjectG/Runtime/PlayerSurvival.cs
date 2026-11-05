@@ -4,6 +4,8 @@ namespace ProjectG // 프로젝트 영역
     public sealed class PlayerSurvival // 플레이어 생존 상태
     { // 클래스 시작
         private float invulnerability; // 남은 무적 시간
+        private bool upgradeSafe; // 강화 선택 안전 상태
+        private float transitionSafety; // 선택 후 안전 유예
         private float shieldTime; // 남은 보호막 시간
         private bool reactiveShield; // 피격 후 보호 장치
         private float reactiveCooldown; // 보호 장치 재충전
@@ -26,7 +28,15 @@ namespace ProjectG // 프로젝트 영역
             } // 보호막 적용 종료
         } // 활성화 종료
         public bool IsAlive => Health > 0; // 생존 여부
-        public bool IsInvulnerable => invulnerability > 0.000001f; // 무적 여부
+        public bool IsInvulnerable => upgradeSafe || transitionSafety > 0.000001f || invulnerability > 0.000001f; // 선택 안전과 피격 무적
+        public void SetUpgradeSafe(bool safe) // 강화 선택 안전 설정
+        { // 설정 시작
+            upgradeSafe = safe; // 선택 안전 상태 보관
+        } // 설정 종료
+        public void GrantTransitionSafety(float duration) // 전환 후 안전 유예
+        { // 설정 시작
+            transitionSafety = Mathf.Max(transitionSafety, Mathf.Max(0f, duration)); // 더 긴 안전 시간 유지
+        } // 설정 종료
         public PlayerSurvival(int maximum) // 초기 체력 설정
         { // 초기화 시작
             MaximumHealth = Mathf.Max(0, maximum); // 최대 체력 보관
@@ -35,6 +45,7 @@ namespace ProjectG // 프로젝트 영역
         public void Advance(float elapsed) // 무적 시간 진행
         { // 진행 시작
             invulnerability = Mathf.Max(0f, invulnerability - Mathf.Max(0f, elapsed)); // 남은 무적 시간 갱신
+            transitionSafety = Mathf.Max(0f, transitionSafety - Mathf.Max(0f, elapsed)); // 남은 전환 안전 시간 갱신
             shieldTime = Mathf.Max(0f, shieldTime - Mathf.Max(0f, elapsed)); // 남은 보호막 시간 갱신
             reactiveCooldown = Mathf.Max(0f, reactiveCooldown - Mathf.Max(0f, elapsed)); // 보호 장치 재충전
         } // 진행 종료

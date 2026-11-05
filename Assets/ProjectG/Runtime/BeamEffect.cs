@@ -8,10 +8,11 @@ namespace ProjectG // 프로젝트 영역
         { // 생성 시작
             GameObject beam = new GameObject("SniperBeam"); // 광선 객체
             beam.transform.position = area.center; // 광선 중심
-            beam.transform.localScale = new Vector3(area.width, area.height, 1f); // 광선 크기
             SpriteRenderer image = beam.AddComponent<SpriteRenderer>(); // 광선 표시 요소
-            image.sprite = Projectile.GetSprite(); // 임시 이미지
-            image.color = new Color(0.4f, 0.9f, 1f, 0.65f); // 시험 광선 색상
+            image.sprite = BattleSprites.Load("beam_magic"); // 생성된 광선 이미지
+            Vector3 bounds = image.sprite.bounds.size; // 이미지 원본 비율
+            beam.transform.localScale = new Vector3(area.width / bounds.x, area.height / bounds.y, 1f); // 피해 영역에 맞춘 광선 크기
+            image.color = Color.white; // 광선 이미지 원본 색상
             image.sortingOrder = 3; // 표시 순서
             beam.AddComponent<BeamEffect>(); // 표시 시간 연결
         } // 생성 종료

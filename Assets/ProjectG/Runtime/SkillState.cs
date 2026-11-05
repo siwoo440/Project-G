@@ -14,11 +14,8 @@ namespace ProjectG // 프로젝트 영역
     } // 종류 종료
     public sealed class SkillState // 스킬과 자원 상태
     { // 클래스 시작
-        public int Energy // 필살기 에너지
-        { // 속성 시작
-            get; // 값 조회
-            private set; // 값 설정
-        } // 속성 종료
+        private float energy; // 소수 포함 필살기 에너지
+        public int Energy => Mathf.FloorToInt(energy + 0.00001f); // 표시용 정수 에너지
         public float UniqueCooldownReduction; // 고유 스킬 쿨타임 감소율
         public float RapidActive // 고유 스킬 남은 활성 시간
         { // 속성 시작
@@ -48,24 +45,24 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         public void GainEnergy(int amount) // 에너지 보급
         { // 충전 시작
-            Energy = Mathf.Min(100, Energy + Mathf.Max(0, amount)); // 충전 상한 적용
+            energy = Mathf.Min(100f, energy + Mathf.Max(0, amount)); // 충전 상한 적용
         } // 충전 종료
-        public void GainGraze() // 그레이즈 충전
+        public void GainGraze(float multiplier = 1f) // 그레이즈 충전
         { // 충전 시작
-            Energy = Mathf.Min(100, Energy + 1); // 적탄당 에너지 충전
+            energy = Mathf.Min(100f, energy + Mathf.Max(0f, multiplier)); // 소수 포함 에너지 충전
         } // 충전 종료
         public void GainDefeat(EnemyRank rank) // 처치 충전
         { // 충전 시작
             int gain = rank == EnemyRank.Normal ? 2 : rank == EnemyRank.MidBoss ? 10 : rank == EnemyRank.FinalBoss ? 20 : 0; // 처치 대상별 시험 충전량
-            Energy = Mathf.Min(100, Energy + gain); // 에너지 상한 적용
+            energy = Mathf.Min(100f, energy + gain); // 에너지 상한 적용
         } // 충전 종료
         public bool TryUltimate(bool alive) // 필살기 사용
         { // 사용 시작
-            if (!alive || Blocked || Energy < 100) // 발동 조건 확인
+            if (!alive || Blocked || energy < 100f) // 발동 조건 확인
             { // 차단 시작
                 return false; // 발동 차단
             } // 차단 종료
-            Energy -= 100; // 에너지 소모
+            energy -= 100f; // 에너지 소모
             return true; // 필살기 발동
         } // 사용 종료
         public bool TryRapid(bool alive) // 고유 스킬 사용

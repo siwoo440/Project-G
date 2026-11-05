@@ -19,6 +19,7 @@ namespace ProjectG // 프로젝트 영역
         private int pendingSwap = -1; // 교체 확인 카드 번호
         private GUIStyle textStyle; // 카드 설명 글자
         private GUIStyle titleStyle; // 카드 제목 글자
+        private Texture2D cardFrame; // 카드 배경 이미지
         private Font koreanFont; // 한글 글꼴
         public BattlePlayer Player // 플레이어 참조
         { // 속성 시작
@@ -51,6 +52,7 @@ namespace ProjectG // 프로젝트 영역
             ReleasePause(); // 기존 정지 해제
             Player = player; // 플레이어 보관
             battleCamera = camera; // 카메라 보관
+            cardFrame = Resources.Load<Texture2D>("BattleArt/ui_card_frame"); // 카드 배경 불러오기
             Level = new LevelState(); // 레벨 초기화
             Offer = null; // 기존 카드 제거
             pendingSwap = -1; // 교체 확인 초기화
@@ -309,8 +311,9 @@ namespace ProjectG // 프로젝트 영역
             { // 카드 표시 시작
                 CardData card = displayed[index]; // 현재 카드
                 Rect area = CardUiLayout.Card(view, index); // 카드 위치
-                GUI.Box(area, GUIContent.none); // 카드 배경 표시
-                Texture2D icon = Resources.Load<Texture2D>(card.Category == CardCategory.Skill ? "SkillIcons/scatter" : card.Category == CardCategory.Survival ? "SkillIcons/shield" : "SkillIcons/rapid"); // 시험용 분류 이미지
+                DrawPanel(area); // 생성 카드 배경 표시
+                string iconPath = card.Id == CardId.C07 ? "BattleArt/support_drone" : card.Id == CardId.C08 ? "BattleArt/support_blade" : card.Id == CardId.C09 ? "BattleArt/experience_pickup" : card.Category == CardCategory.Skill ? "SkillIcons/scatter" : card.Category == CardCategory.Survival ? "SkillIcons/shield" : "SkillIcons/rapid"; // 카드 역할별 이미지 경로
+                Texture2D icon = Resources.Load<Texture2D>(iconPath); // 카드 이미지 조회
                 if (icon != null) // 이미지 자원 확인
                 { // 이미지 표시 시작
                     GUI.DrawTexture(new Rect(area.x + width * 0.25f, area.y + height * 0.06f, width * 0.5f, height * 0.35f), icon, ScaleMode.ScaleToFit); // 카드 이미지 표시
@@ -325,14 +328,28 @@ namespace ProjectG // 프로젝트 영역
             if (ConfirmingSwap) // 스킬 교체 확인 표시
             { // 확인 화면 시작
                 Rect box = CardUiLayout.SwapBox(view); // 확인 화면 영역
-                GUI.Box(box, GUIContent.none); // 확인 배경
+                DrawPanel(box); // 확인 배경 이미지
                 GUI.Label(new Rect(box.x + 10f, box.y + 8f, box.width - 20f, box.height * 0.55f), "K 보호막: 1회 방어 · 12초\n→ 산탄: 3발 × 피해 12 · 10초\n남은 대기 " + Mathf.CeilToInt(Player.Skills.CommonCooldown) + "초 유지 · 강화 비계승", textStyle); // 교체 내용
-                GUIStyle buttonStyle = new GUIStyle(GUI.skin.button); // 확인 버튼 글꼴
+                GUIStyle buttonStyle = new GUIStyle(textStyle); // 확인 버튼 글꼴
                 buttonStyle.font = koreanFont != null ? koreanFont : GUI.skin.font; // 한글 글꼴 적용
-                GUI.Box(CardUiLayout.Confirm(view), "확인 Enter", buttonStyle); // 확인 버튼 표시
-                GUI.Box(CardUiLayout.Cancel(view), "취소 Esc", buttonStyle); // 취소 버튼 표시
+                buttonStyle.alignment = TextAnchor.MiddleCenter; // 버튼 글자 중앙 정렬
+                DrawPanel(CardUiLayout.Confirm(view)); // 확인 버튼 배경
+                DrawPanel(CardUiLayout.Cancel(view)); // 취소 버튼 배경
+                GUI.Label(CardUiLayout.Confirm(view), "확인 Enter", buttonStyle); // 확인 버튼 표시
+                GUI.Label(CardUiLayout.Cancel(view), "취소 Esc", buttonStyle); // 취소 버튼 표시
             } // 확인 화면 종료
             GUI.color = previous; // 기존 화면 색상 복원
+        } // 표시 종료
+        private void DrawPanel(Rect area) // 카드 배경 표시
+        { // 표시 시작
+            if (cardFrame != null) // 이미지 자원 확인
+            { // 이미지 시작
+                GUI.DrawTexture(area, cardFrame, ScaleMode.StretchToFill); // 카드 배경 이미지
+            } // 이미지 종료
+            else // 자원 누락 시 대체
+            { // 대체 시작
+                GUI.Box(area, GUIContent.none); // 기본 배경 표시
+            } // 대체 종료
         } // 표시 종료
         private static string CategoryName(CardCategory category) // 카드 분류 이름
         { // 변환 시작

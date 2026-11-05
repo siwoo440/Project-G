@@ -72,15 +72,15 @@ namespace ProjectG // 프로젝트 영역
             GameObject body = new GameObject("TrainingTarget"); // 표적 객체
             body.transform.position = position; // 표적 위치
             SpriteRenderer image = body.AddComponent<SpriteRenderer>(); // 몸체 표시
-            image.sprite = Projectile.GetSprite(); // 임시 이미지
-            image.color = new Color(0.45f, 0.35f, 0.65f); // 몸체 색상
+            image.sprite = BattleSprites.Load("training_target"); // 시험 표적 이미지
+            image.color = Color.white; // 표적 이미지 원본 색상
             body.transform.localScale = new Vector3(3.9f, 2.1f, 1f); // 시험 몸체 표시 크기 세 배
             GameObject mark = new GameObject("WeakPoint"); // 약점 표시 객체
             mark.transform.SetParent(body.transform, false); // 몸체 자식 연결
             mark.transform.localScale = new Vector3(0.32f / 3.9f, 0.7f / 2.1f, 1f); // 기존 약점 판정 표시 크기 유지
             SpriteRenderer weakImage = mark.AddComponent<SpriteRenderer>(); // 약점 표시
-            weakImage.sprite = Projectile.GetSprite(); // 임시 이미지
-            weakImage.color = new Color(1f, 0.75f, 0.2f); // 약점 구별 색상
+            weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
+            weakImage.color = Color.white; // 약점 이미지 원본 색상
             weakImage.sortingOrder = 2; // 몸체 앞 표시
             return body.AddComponent<TrainingTarget>(); // 표적 구성 요소 반환
         } // 생성 종료

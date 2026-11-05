@@ -326,7 +326,7 @@ namespace ProjectG // 프로젝트 영역
             if (Survival != null && Survival.IsAlive) // 생존 상태 확인
             { // 기록 처리 시작
                 GrazeCount++; // 그레이즈 횟수 증가
-                Skills.GainGraze(); // 필살기 에너지 충전
+                Skills.GainGraze(1f + Build.Upgrades.Count(UpgradeItemId.Graze) * 0.20f); // 강화 배율과 소수 충전
             } // 기록 처리 종료
         } // 기록 종료
     } // 클래스 종료

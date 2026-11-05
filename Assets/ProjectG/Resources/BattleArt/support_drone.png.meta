@@ -1,0 +1,663 @@
+fileFormatVersion: 2
+guid: 84b16ee451ccb444b92bdb3d98e8009a
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7639050715481976581
+    second: support_drone_0
+  - first:
+      213: -4400368474015752464
+    second: support_drone_1
+  - first:
+      213: -9182358365897857982
+    second: support_drone_2
+  - first:
+      213: 2231416732006924031
+    second: support_drone_3
+  - first:
+      213: 4768067071626405728
+    second: support_drone_4
+  - first:
+      213: 7383531847957497646
+    second: support_drone_5
+  - first:
+      213: 8713687168690952835
+    second: support_drone_6
+  - first:
+      213: 6902192789951443917
+    second: support_drone_7
+  - first:
+      213: -2019872766684444335
+    second: support_drone_8
+  - first:
+      213: 7573849077528099065
+    second: support_drone_9
+  - first:
+      213: 4651996030662760923
+    second: support_drone_10
+  - first:
+      213: 6282642841364931840
+    second: support_drone_11
+  - first:
+      213: -2891135262514849278
+    second: support_drone_12
+  - first:
+      213: -7233925916362112820
+    second: support_drone_13
+  - first:
+      213: 6800513613655255454
+    second: support_drone_14
+  - first:
+      213: 7526134016117887529
+    second: support_drone_15
+  - first:
+      213: 1776250087981207122
+    second: support_drone_16
+  - first:
+      213: -2474088286145556107
+    second: support_drone_17
+  - first:
+      213: -2671622291436268511
+    second: support_drone_18
+  - first:
+      213: -6334171562256976646
+    second: support_drone_19
+  - first:
+      213: -1456650298313061299
+    second: support_drone_20
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: support_drone_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 39
+        width: 1271
+        height: 1156
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bf0d08209d3acf590800000000000000
+      internalID: -7639050715481976581
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_1
+      rect:
+        serializedVersion: 2
+        x: 584
+        y: 1194
+        width: 75
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0fe9671ef20cee2c0800000000000000
+      internalID: -4400368474015752464
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_2
+      rect:
+        serializedVersion: 2
+        x: 728
+        y: 1178
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 244625867b5b19080800000000000000
+      internalID: -9182358365897857982
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_3
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 1133
+        width: 17
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ffeb229f1b597fe10800000000000000
+      internalID: 2231416732006924031
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_4
+      rect:
+        serializedVersion: 2
+        x: 736
+        y: 1116
+        width: 25
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06767854db39b2240800000000000000
+      internalID: 4768067071626405728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_5
+      rect:
+        serializedVersion: 2
+        x: 760
+        y: 1095
+        width: 22
+        height: 57
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e274a499813977660800000000000000
+      internalID: 7383531847957497646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_6
+      rect:
+        serializedVersion: 2
+        x: 776
+        y: 1117
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 38a14b5105c3de870800000000000000
+      internalID: 8713687168690952835
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_7
+      rect:
+        serializedVersion: 2
+        x: 843
+        y: 1104
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc37158e5c389cf50800000000000000
+      internalID: 6902192789951443917
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_8
+      rect:
+        serializedVersion: 2
+        x: 712
+        y: 1079
+        width: 9
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 159c942ab68f7f3e0800000000000000
+      internalID: -2019872766684444335
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_9
+      rect:
+        serializedVersion: 2
+        x: 776
+        y: 1099
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f87b78ab97bb1960800000000000000
+      internalID: 7573849077528099065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_10
+      rect:
+        serializedVersion: 2
+        x: 782
+        y: 1093
+        width: 13
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bd95e281eb53f8040800000000000000
+      internalID: 4651996030662760923
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_11
+      rect:
+        serializedVersion: 2
+        x: 794
+        y: 1095
+        width: 12
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 005253a906e603750800000000000000
+      internalID: 6282642841364931840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_12
+      rect:
+        serializedVersion: 2
+        x: 441
+        y: 1075
+        width: 9
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 20a5230fbcf90e7d0800000000000000
+      internalID: -2891135262514849278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_13
+      rect:
+        serializedVersion: 2
+        x: 776
+        y: 1087
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc08ebfb4beeb9b90800000000000000
+      internalID: -7233925916362112820
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_14
+      rect:
+        serializedVersion: 2
+        x: 784
+        y: 1071
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e992128d917406e50800000000000000
+      internalID: 6800513613655255454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_15
+      rect:
+        serializedVersion: 2
+        x: 824
+        y: 1069
+        width: 6
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 922d0b23303327860800000000000000
+      internalID: 7526134016117887529
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_16
+      rect:
+        serializedVersion: 2
+        x: 859
+        y: 174
+        width: 37
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 25e40664b0286a810800000000000000
+      internalID: 1776250087981207122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_17
+      rect:
+        serializedVersion: 2
+        x: 487
+        y: 134
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 571d651efc54aadd0800000000000000
+      internalID: -2474088286145556107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_18
+      rect:
+        serializedVersion: 2
+        x: 634
+        y: 77
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1241de84ead7cead0800000000000000
+      internalID: -2671622291436268511
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_19
+      rect:
+        serializedVersion: 2
+        x: 614
+        y: 0
+        width: 37
+        height: 45
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af4ba4526808818a0800000000000000
+      internalID: -6334171562256976646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: support_drone_20
+      rect:
+        serializedVersion: 2
+        x: 646
+        y: 25
+        width: 29
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d4c45177540f8cbe0800000000000000
+      internalID: -1456650298313061299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      support_drone_0: -7639050715481976581
+      support_drone_1: -4400368474015752464
+      support_drone_10: 4651996030662760923
+      support_drone_11: 6282642841364931840
+      support_drone_12: -2891135262514849278
+      support_drone_13: -7233925916362112820
+      support_drone_14: 6800513613655255454
+      support_drone_15: 7526134016117887529
+      support_drone_16: 1776250087981207122
+      support_drone_17: -2474088286145556107
+      support_drone_18: -2671622291436268511
+      support_drone_19: -6334171562256976646
+      support_drone_2: -9182358365897857982
+      support_drone_20: -1456650298313061299
+      support_drone_3: 2231416732006924031
+      support_drone_4: 4768067071626405728
+      support_drone_5: 7383531847957497646
+      support_drone_6: 8713687168690952835
+      support_drone_7: 6902192789951443917
+      support_drone_8: -2019872766684444335
+      support_drone_9: 7573849077528099065
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

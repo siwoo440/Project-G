@@ -12,13 +12,13 @@ namespace ProjectG // 프로젝트 영역
         } // 등록 종료
         private static void InitializeSampleScene(Scene scene, LoadSceneMode mode) // 기본 장면 연결
         { // 연결 시작
-            if (scene.path != "Assets/Scenes/SampleScene.unity" || Object.FindFirstObjectByType<BattlePlayer>() != null) // 장면과 중복 확인
+            if (scene.path != "Assets/Scenes/SampleScene.unity" || Object.FindFirstObjectByType<BattlePlayer>() != null || Object.FindFirstObjectByType<GameSessionHost>() != null) // 장면과 중복 확인
             { // 생략 시작
                 return; // 다른 장면 또는 기존 플레이어 유지
             } // 생략 종료
             if (Camera.main != null) // 주 카메라 확인
             { // 생성 시작
-                Create(Camera.main); // 임시 전투 화면 생성
+                Camera.main.gameObject.AddComponent<GameSessionHost>().Begin(Camera.main); // 타이틀과 출격 화면 연결
             } // 생성 종료
         } // 연결 종료
         public static Rect CalculateViewport(float width, float height) // 표시 영역 계산

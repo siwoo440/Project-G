@@ -28,6 +28,7 @@ namespace ProjectG // 프로젝트 영역
                 { // 사격 시작
                     droneTimer = 1f; // 다음 사격 시간
                     GameObject shot = new GameObject("DroneBullet"); // 보조 탄환 생성
+                    shot.transform.SetParent(player.TransientRoot, true); // 전투 생성물 소속
                     shot.transform.position = drone.position; // 보조 탄환 위치
                     shot.AddComponent<Projectile>().Begin(Vector2.up * 10f, top, 3f + player.Build.DroneLevel * 3f, false, player); // 드론 시험 피해
                 } // 사격 종료

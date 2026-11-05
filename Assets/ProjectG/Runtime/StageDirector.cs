@@ -224,6 +224,7 @@ namespace ProjectG // 프로젝트 영역
             } // 보스 준비 종료
             else if (phase == StagePhase.Result || phase == StagePhase.Failed) // 출격 종료 확인
             { // 종료 처리 시작
+                player.Statistics?.Complete(phase == StagePhase.Result, State.CombatSeconds, State.TotalSeconds); // 최종 전투 기록 확정
                 choicePending = false; // 대기 선택 취소
                 if (selection != null) // 선택 객체 확인
                 { // 선택 정리 시작
@@ -367,6 +368,9 @@ namespace ProjectG // 프로젝트 영역
             Rect view = battleCamera.pixelRect; // 전투 화면 좌표
             textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 50f)); // 화면 비례 글자 크기
             float top = Screen.height - view.yMax + 10f; // 전투 화면 상단
+            Color previous = GUI.color; // 기존 화면 색상
+            float opacity = HudOcclusion.Alpha(new Rect(view.center.x - 350f, top, 700f, 102f), HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
+            GUI.color = new Color(previous.r, previous.g, previous.b, previous.a * opacity); // 상단 HUD 투명도 적용
             string label = State.Phase == StagePhase.Result ? "STAGE CLEAR" : State.Phase == StagePhase.Failed ? "STAGE FAILED" : State.Phase.ToString().ToUpperInvariant(); // 시험 구간 이름
             string health = boss != null && boss.IsAlive ? "   BOSS " + Mathf.CeilToInt(boss.Health) + " / " + Mathf.CeilToInt(boss.MaximumHealth) : ""; // 보스 체력 표시
             string time = "   COMBAT " + Mathf.FloorToInt(State.CombatSeconds) + "s   TOTAL " + Mathf.FloorToInt(State.TotalSeconds) + "s"; // 전투와 전체 시간 구분
@@ -391,6 +395,7 @@ namespace ProjectG // 프로젝트 영역
                 contextStyle.fontSize = textStyle.fontSize; // 화면 비례 글자 크기
                 GUI.Label(new Rect(view.center.x - 350f, top + 70f, 700f, 32f), ContextMessage, contextStyle); // 첫 사건과 조사 안내 표시
             } // 사건 표시 종료
+            GUI.color = previous; // 기존 화면 색상 복원
         } // 표시 종료
     } // 클래스 종료
 } // 영역 종료

@@ -4,9 +4,10 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BeamEffect : MonoBehaviour // 임시 광선 표시
     { // 클래스 시작
         private float remaining = 0.25f; // 시험 표시 시간
-        public static void Create(Rect area) // 광선 표시 생성
+        public static void Create(Rect area, Transform parent = null) // 광선 표시 생성
         { // 생성 시작
             GameObject beam = new GameObject("SniperBeam"); // 광선 객체
+            beam.transform.SetParent(parent, true); // 전투 생성물 소속
             beam.transform.position = area.center; // 광선 중심
             SpriteRenderer image = beam.AddComponent<SpriteRenderer>(); // 광선 표시 요소
             image.sprite = BattleSprites.Load("beam_magic"); // 생성된 광선 이미지

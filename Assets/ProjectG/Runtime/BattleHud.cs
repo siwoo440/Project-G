@@ -19,11 +19,15 @@ namespace ProjectG // 프로젝트 영역
             Rect view = battleCamera.pixelRect; // 전투 화면 영역
             float left = view.xMin + 12f; // 왼쪽 여백
             float top = Screen.height - view.yMax + 10f; // 위쪽 여백
+            Color previous = GUI.color; // 기존 화면 색상
+            float opacity = HudOcclusion.Alpha(new Rect(left, top, 600f, 90f), HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
+            GUI.color = new Color(previous.r, previous.g, previous.b, previous.a * opacity); // 전투 HUD 투명도 적용
             GUIStyle text = new GUIStyle(GUI.skin.label); // 기본 글자 설정
             text.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 45f)); // 화면 비례 글자 크기
             text.normal.textColor = Color.white; // 글자 색상
             GUI.Label(new Rect(left, top, 500f, 34f), "HP " + player.Survival.Health + "   GRAZE " + player.GrazeCount + "   ENERGY " + (player.Skills != null ? player.Skills.Energy : 0) + "/100", text); // 체력과 그레이즈 표시
-            GUI.Label(new Rect(left, top + 28f, 600f, 34f), (player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT") + "   F1 RAPID / F2 SNIPER", text); // 캐릭터 시험 상태
+            string debugKeys = player.AllowDebugCharacterSwitch ? "   F1 RAPID / F2 SNIPER" : ""; // 시험 선택 키 안내
+            GUI.Label(new Rect(left, top + 28f, 600f, 34f), (player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT") + debugKeys, text); // 캐릭터 전투 상태
             BattleProgress progress = player.GetComponent<BattleProgress>(); // 경험치 상태 조회
             if (progress != null && progress.Level != null) // 레벨 상태 확인
             { // 레벨 표시 시작
@@ -33,6 +37,7 @@ namespace ProjectG // 프로젝트 영역
             { // 실패 표시 시작
                 GUI.Label(new Rect(left, top + 34f, 260f, 34f), "MISSION FAILED", text); // 실패 상태 표시
             } // 실패 표시 종료
+            GUI.color = previous; // 기존 화면 색상 복원
         } // 표시 종료
     } // 클래스 종료
 } // 영역 종료

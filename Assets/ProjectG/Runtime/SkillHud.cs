@@ -32,10 +32,10 @@ namespace ProjectG // 프로젝트 영역
             Rect second = SkillHudLayout.Slot(view, 1); // K 사각형 위치
             Rect third = SkillHudLayout.Slot(view, 2); // L 사각형 위치
             bool blocked = !player.Survival.IsAlive || player.Skills.Blocked; // 공통 사용 제한
-            DrawSlot(first, rapidIcon, "J", player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f); // 고유 스킬 표시
+            DrawSlot(first, rapidIcon, player.ControlLabel(PlayerAction.Unique), player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f); // 고유 스킬 표시
             Texture2D commonIcon = player.Skills.Common == CommonSkill.Shield ? shieldIcon : scatterIcon; // 공용 스킬 이미지 선택
-            DrawSlot(second, commonIcon, "K", player.Skills.CommonCooldown, blocked, player.Survival.HasShield); // 공용 스킬 표시
-            DrawSlot(third, ultimateIcon, "L", 0f, blocked || player.Skills.Energy < 100, false); // 필살기 에너지 상태 표시
+            DrawSlot(second, commonIcon, player.ControlLabel(PlayerAction.Common), player.Skills.CommonCooldown, blocked, player.Survival.HasShield); // 공용 스킬 표시
+            DrawSlot(third, ultimateIcon, player.ControlLabel(PlayerAction.Ultimate), 0f, blocked || player.Skills.Energy < 100, false); // 필살기 에너지 상태 표시
         } // 표시 종료
         private void DrawSlot(Rect slot, Texture2D icon, string key, float cooldown, bool unavailable, bool active) // 스킬 한 칸 표시
         { // 표시 시작
@@ -52,16 +52,17 @@ namespace ProjectG // 프로젝트 영역
             countdownStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(slot.height * 0.48f)); // 숫자 크기 설정
             keyStyle.fontSize = Mathf.Max(11, Mathf.RoundToInt(slot.height * 0.20f)); // 키 크기 설정
             Color previous = GUI.color; // 기존 화면 색상 보관
-            GUI.color = Color.white; // 원본 이미지 색상
+            float opacity = HudOcclusion.Alpha(slot, HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
+            GUI.color = new Color(1f, 1f, 1f, opacity); // 원본 이미지와 투명도
             GUI.DrawTexture(slot, icon != null ? icon : Texture2D.whiteTexture, ScaleMode.ScaleToFit); // 스킬 이미지 표시
             if (cooldown > 0.000001f || unavailable) // 사용 불가 상태 확인
             { // 어두운 덮개 시작
-                GUI.color = new Color(0f, 0f, 0f, 0.65f); // 사용 불가 음영
+                GUI.color = new Color(0f, 0f, 0f, 0.65f * opacity); // 사용 불가 음영
                 GUI.DrawTexture(slot, Texture2D.whiteTexture); // 이미지 위 음영 표시
             } // 어두운 덮개 종료
-            GUI.color = active ? new Color(0.3f, 1f, 1f) : Color.white; // 활성 상태 테두리 색상
+            GUI.color = active ? new Color(0.3f, 1f, 1f, opacity) : new Color(1f, 1f, 1f, opacity); // 활성 상태 테두리 색상
             DrawFrame(slot); // 사각형 테두리 표시
-            GUI.color = Color.white; // 흰색 글자 설정
+            GUI.color = new Color(1f, 1f, 1f, opacity); // 흰색 글자와 투명도
             GUI.Label(slot, SkillHudLayout.Countdown(cooldown), countdownStyle); // 남은 쿨타임 숫자
             GUI.Label(new Rect(slot.x + 4f, slot.yMax - keyStyle.fontSize - 4f, slot.width - 8f, keyStyle.fontSize + 4f), key, keyStyle); // 스킬 입력 키 표시
             GUI.color = previous; // 기존 화면 색상 복원

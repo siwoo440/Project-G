@@ -9,6 +9,7 @@ namespace ProjectG // 프로젝트 영역
         private float shieldTime; // 남은 보호막 시간
         private bool reactiveShield; // 피격 후 보호 장치
         private float reactiveCooldown; // 보호 장치 재충전
+        public event System.Action Damaged; // 실제 체력 피해 알림
         public int MaximumHealth // 최대 체력
         { // 속성 시작
             get; // 값 조회
@@ -78,6 +79,7 @@ namespace ProjectG // 프로젝트 영역
                 return false; // 체력 피해 방어
             } // 방어 종료
             Health = Mathf.Max(0, Health - damage); // 체력 감소와 하한
+            Damaged?.Invoke(); // 실제 피격 횟수 알림
             invulnerability = 1f; // 피격 후 무적 시간
             if (IsAlive && reactiveShield && reactiveCooldown <= 0f) // 보호 장치 발동 조건
             { // 보호 장치 시작

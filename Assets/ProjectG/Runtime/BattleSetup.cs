@@ -44,6 +44,15 @@ namespace ProjectG // 프로젝트 영역
             camera.aspect = 16f / 9f; // 목표 화면 비율
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.16f); // 임시 배경 색상
             camera.gameObject.AddComponent<BattleViewport>(); // 화면 비율 유지
+            GameObject background = new GameObject("StageBackground"); // 하늘섬 배경 객체
+            background.transform.SetParent(camera.transform, false); // 카메라에 배경 연결
+            background.transform.localPosition = new Vector3(0f, 0f, 10f); // 카메라 앞 배경 배치
+            SpriteRenderer backdrop = background.AddComponent<SpriteRenderer>(); // 배경 표시 요소
+            backdrop.sprite = BattleSprites.Load("stage_sky_outskirts"); // 하늘섬 외곽 이미지
+            backdrop.sortingOrder = -100; // 전투 요소 뒤에 표시
+            Vector3 backgroundSize = backdrop.sprite.bounds.size; // 배경 원본 비율
+            float cover = Mathf.Max(camera.orthographicSize * 2f * 16f / 9f / backgroundSize.x, camera.orthographicSize * 2f / backgroundSize.y); // 전투 화면을 채우는 배율
+            background.transform.localScale = new Vector3(cover, cover, 1f); // 이미지 비율을 유지한 확대
             GameObject player = new GameObject("ProjectG Player"); // 플레이어 객체 생성
             SpriteRenderer image = player.AddComponent<SpriteRenderer>(); // 플레이어 표시 요소
             image.sprite = BattleSprites.Player(CharacterType.Rapid); // 속사형 시험 이미지
@@ -57,14 +66,12 @@ namespace ProjectG // 프로젝트 영역
             marker.AddComponent<HitboxIndicator>().Begin(controller); // 상태별 피격 표시 연결
             player.AddComponent<BattleHud>().Begin(controller, camera); // 시험용 체력 표시
             player.AddComponent<SkillHud>().Begin(controller, camera); // 스킬 세 칸 표시
-            player.AddComponent<BattleProgress>().Begin(controller, camera); // 경험치와 카드 연결
+            BattleProgress progress = player.AddComponent<BattleProgress>(); // 경험치와 카드 구성
+            progress.Begin(controller, camera); // 경험치와 카드 연결
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
-            TrainingTarget training = TrainingTarget.Create(new Vector2(0f, 2.5f)); // 임시 약점 표적
-            training.transform.SetParent(camera.transform, true); // 카메라에 표적 연결
-            DemoBulletSpawner demo = camera.gameObject.AddComponent<DemoBulletSpawner>(); // 기존 시험 발사기
-            demo.Begin(pool, controller, camera); // 초기 시험 적탄 연결
-            camera.gameObject.AddComponent<EnemyDemoEncounter>().Begin(pool, controller, camera, demo, training); // 적과 보스 시험 연결
+            UpgradeItemSelection selection = camera.gameObject.AddComponent<UpgradeItemSelection>(); // 강화 아이템 선택 구성
+            camera.gameObject.AddComponent<StageDirector>().Begin(controller, camera, pool, progress, selection); // 시험 스테이지 연결
             return player; // 생성 플레이어 반환
         } // 생성 종료
     } // 클래스 종료

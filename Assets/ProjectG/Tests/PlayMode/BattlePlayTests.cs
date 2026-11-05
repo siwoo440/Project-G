@@ -61,7 +61,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator SampleSceneSpawnsEnemyBullet() // 적탄 자동 생성 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        yield return new WaitForSeconds(1.5f); // 시험 적탄 생성 대기
+        yield return new WaitForSeconds(3.8f); // 첫 적 등장과 사격 대기
         Assert.That(Object.FindFirstObjectByType<EnemyBulletPool>(), Is.Not.Null); // 적탄 풀 존재 확인
         Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 활성 적탄 확인
     } // 시험 종료
@@ -92,16 +92,23 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator EnemyShotIsTelegraphedBeforeSpawning() // 적탄 사전 예고 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        yield return null; // 장면 초기화 대기
-        Assert.That(GameObject.Find("EnemyShotWarning"), Is.Not.Null); // 예고 표시 확인
-        yield return new WaitForSeconds(0.5f); // 사전 경고 대기
+        yield return new WaitForSeconds(3.2f); // 첫 적 공격 예고 대기
+        EnemyActor enemy = Object.FindFirstObjectByType<EnemyActor>(); // 현재 웨이브 적 조회
+        Assert.That(enemy, Is.Not.Null); // 적 등장 확인
+        Assert.That(enemy.IsTelegraphing, Is.True); // 공격 예고 상태 확인
+        Assert.That(enemy.transform.Find("EnemyAttackWarning").gameObject.activeSelf, Is.True); // 경고 이미지 표시 확인
         Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.Zero); // 조기 발사 방지
-        yield return new WaitForSeconds(0.7f); // 발사 시점 대기
+        yield return new WaitForSeconds(0.5f); // 발사 시점 대기
         Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 예고 후 발사 확인
     } // 시험 종료
     [UnityTest] // 이동·집중·스킬 동시 입력 시험
     public IEnumerator MovementFocusAndThreeSkillsWorkTogether() // 동시 입력 연결 확인
     { // 시험 시작
+        CombatTarget[] previousTargets = Object.FindObjectsByType<CombatTarget>(FindObjectsSortMode.None); // 다른 시험의 기존 표적
+        foreach (CombatTarget target in previousTargets) // 기존 표적 순회
+        { // 격리 시작
+            target.gameObject.SetActive(false); // 필살기 시험에서 제외
+        } // 격리 종료
         var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 기존 편집기 입력 설정
         InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 게임 입력 허용
         var previousBackground = InputSystem.settings.backgroundBehavior; // 기존 백그라운드 설정
@@ -139,6 +146,13 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             } // 정리 종료
             Object.Destroy(playerObject); // 시험 플레이어 제거
             Object.Destroy(cameraObject); // 시험 카메라 제거
+            foreach (CombatTarget target in previousTargets) // 이전 표적 순회
+            { // 복원 시작
+                if (target != null) // 표적 존재 확인
+                { // 복원 처리 시작
+                    target.gameObject.SetActive(true); // 이전 표적 복원
+                } // 복원 처리 종료
+            } // 복원 종료
             InputSystem.RemoveDevice(keyboard); // 가상 키보드 제거
             InputSystem.settings.backgroundBehavior = previousBackground; // 입력 설정 복원
             InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
@@ -150,7 +164,8 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
         yield return null; // 초기화 대기
         BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
-        TrainingTarget target = Object.FindFirstObjectByType<TrainingTarget>(); // 시험 표적 확인
+        TrainingTarget target = TrainingTarget.Create(new Vector2(0f, 2.5f)); // 독립 시험 표적 생성
+        target.transform.SetParent(Camera.main.transform, true); // 현재 장면에 표적 연결
         Assert.That(target, Is.Not.Null); // 표적 생성 확인
         yield return new WaitForSeconds(1.2f); // 실제 탄환 이동 대기
         Assert.That(target.TotalDamage, Is.GreaterThan(0f)); // 표적 피해 확인
@@ -198,11 +213,11 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
         yield return new WaitForSeconds(2.3f); // 시험 적 등장 대기
-        EnemyDemoEncounter encounter = Object.FindFirstObjectByType<EnemyDemoEncounter>(); // 적 등장기 확인
+        StageDirector encounter = Object.FindFirstObjectByType<StageDirector>(); // 스테이지 등장기 확인
         BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
         Assert.That(encounter, Is.Not.Null); // 등장기 존재 확인
-        Assert.That(encounter.Current, Is.Not.Null); // 적 등장 확인
-        EnemyActor enemy = encounter.Current; // 현재 적 보관
+        EnemyActor enemy = encounter.GetComponentInChildren<EnemyActor>(); // 현재 적 조회
+        Assert.That(enemy, Is.Not.Null); // 적 등장 확인
         int experience = 0; // 보상 기록
         player.ExperienceRewarded += value => experience += value; // 경험치 보상 연결
         int before = player.Skills.Energy; // 기존 에너지 보관
@@ -222,19 +237,35 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
         GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
         BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
-        EnemyDemoEncounter encounter = cameraObject.GetComponent<EnemyDemoEncounter>(); // 적 등장기 참조
+        StageDirector encounter = cameraObject.GetComponent<StageDirector>(); // 스테이지 등장기 참조
+        UpgradeItemSelection selection = cameraObject.GetComponent<UpgradeItemSelection>(); // 강화 선택 참조
         try // 시험 시작
         { // 시험 범위 시작
-            encounter.Advance(2.1f); // 첫 적 등장
-            for (int index = 0; index < 5; index++) // 적과 보스 순회
+            encounter.Advance(2.1f, 2.1f); // 첫 적 등장
+            EnemyActor first = encounter.GetComponentInChildren<EnemyActor>(); // 일반 적 조회
+            Assert.That(first, Is.Not.Null); // 일반 적 생성 확인
+            Transform firstBody = first.transform.Find("EnemyBody"); // 일반 적 몸체 조회
+            Assert.That(first.transform.position.y + firstBody.lossyScale.y * 0.5f, Is.LessThanOrEqualTo(camera.transform.position.y + camera.orthographicSize)); // 일반 적 화면 경계
+            encounter.Advance(63f, 63f); // 첫 강화 구간 진입
+            Assert.That(selection.TryChoose(0), Is.True); // 첫 강화 선택
+            encounter.Advance(2.1f, 2.1f); // 중간 보스 등장
+            for (int index = 0; index < 2; index++) // 두 보스 순회
             { // 순회 시작
-                EnemyActor enemy = encounter.Current; // 현재 적 확인
+                EnemyActor enemy = encounter.Boss; // 현재 보스 확인
                 Assert.That(enemy, Is.Not.Null); // 적 생성 확인
                 Transform body = enemy.transform.Find("EnemyBody"); // 적 몸체 조회
                 float top = enemy.transform.position.y + body.lossyScale.y * 0.5f; // 표시 상단 위치
                 Assert.That(top, Is.LessThanOrEqualTo(camera.transform.position.y + camera.orthographicSize)); // 화면 상단 이탈 방지
                 enemy.ApplyDamage(10000f, player); // 다음 적 진행
-                encounter.Advance(1.6f); // 다음 적 등장
+                enemy.ApplyDamage(10000f, player); // 다음 체력 단계 진행
+                enemy.ApplyDamage(10000f, player); // 마지막 체력 단계 진행
+                encounter.Advance(0.1f, 0.1f); // 보스 처치 처리
+                if (index == 0) // 중간 보스 종료 확인
+                { // 다음 보스 시작
+                    encounter.Advance(50f, 50f); // 두 번째 일반 전투 진행
+                    Assert.That(selection.TryChoose(0), Is.True); // 둘째 강화 선택
+                    encounter.Advance(2.1f, 2.1f); // 최종 보스 등장
+                } // 다음 보스 종료
             } // 순회 종료
             yield return null; // 정리 프레임 대기
         } // 시험 범위 종료

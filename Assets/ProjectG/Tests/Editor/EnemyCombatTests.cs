@@ -40,6 +40,8 @@ public class EnemyCombatTests // 적과 보스 시험
             int xp = 0; // 경험치 보상 기록
             player.ExperienceRewarded += value => xp += value; // 보상 이벤트 연결
             enemy.ApplyDamage(5000f, player); // 적 처치
+            enemy.ApplyDamage(5000f, player); // 보스 둘째 단계 진행
+            enemy.ApplyDamage(5000f, player); // 보스 마지막 단계 처치
             enemy.ApplyDamage(5000f, player); // 중복 피해 시도
             Assert.That(enemy.IsAlive, Is.False); // 처치 상태 확인
             Assert.That(player.Skills.Energy, Is.EqualTo(energy)); // 적 등급별 에너지 확인
@@ -189,7 +191,15 @@ public class EnemyCombatTests // 적과 보스 시험
             enemyObject.transform.position = new Vector2(0f, 3f); // 적 위치
             EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
             enemy.Begin(kind, player, pool, camera); // 적 초기화
-            enemy.ApplyDamage(startingDamage, player); // 시험 단계 진입
+            if (kind == EnemyKind.FinalBoss && startingDamage >= 1000f) // 세 번째 단계 확인
+            { // 단계 처리 시작
+                enemy.ApplyDamage(500f, player); // 첫 체력 경계 진입
+                enemy.ApplyDamage(startingDamage - 500f, player); // 둘째 체력 경계 진입
+            } // 단계 처리 종료
+            else // 다른 적과 단계
+            { // 일반 처리 시작
+                enemy.ApplyDamage(startingDamage, player); // 시험 단계 진입
+            } // 일반 처리 종료
             enemy.Advance(elapsed); // 패턴 시간 진행
             Assert.That(pool.GetComponentsInChildren<EnemyBullet>().Length, Is.EqualTo(count)); // 적탄 수 확인
         } // 시험 범위 종료

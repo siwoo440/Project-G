@@ -31,6 +31,7 @@ namespace ProjectG // 프로젝트 영역
         private bool dashContact; // 돌진 접촉 처리 여부
         private GameObject warningMark; // 공격 예고 표시
         private GameObject weakMark; // 약점 표시
+        public event System.Action<int> PhaseChanged; // 보스 단계 변경 알림
         public float Health // 현재 체력
         { // 속성 시작
             get; // 값 조회
@@ -88,7 +89,13 @@ namespace ProjectG // 프로젝트 영역
             { // 무시 시작
                 return; // 중복 피해 차단
             } // 무시 종료
-            Health = Mathf.Max(0f, Health - damage); // 체력 감소
+            int previousPhase = PatternIndex; // 피해 전 단계
+            float boundary = kind == EnemyKind.FinalBoss && previousPhase < 2 ? MaximumHealth * (2 - previousPhase) / 3f : 0f; // 다음 체력 경계
+            Health = Mathf.Max(boundary, Health - damage); // 한 타격의 경계 초과 피해 제한
+            if (kind == EnemyKind.FinalBoss && PatternIndex != previousPhase) // 단계 변경 확인
+            { // 전환 알림 시작
+                PhaseChanged?.Invoke(PatternIndex); // 현재 단계 알림
+            } // 전환 알림 종료
             if (Health <= 0f) // 처치 확인
             { // 처치 시작
                 if (source != null) // 공격자 확인

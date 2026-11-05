@@ -6,7 +6,7 @@ namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public enum GameFlowScreen // 메뉴와 전투 화면 종류
     { // 목록 시작
-        Title, CharacterSelect, Preparation, Battle, Result // 화면 순서
+        Title, CharacterSelect, Preparation, Battle, Result, Growth // 화면 순서
     } // 목록 종료
     public sealed class GameFlowController : MonoBehaviour // 타이틀부터 결과까지 흐름
     { // 클래스 시작
@@ -14,7 +14,28 @@ namespace ProjectG // 프로젝트 영역
         { // 목록 시작
             None, Retry, Preparation // 대기와 이동 종류
         } // 목록 종료
+        private enum SettlementAction // 저장 후 이어갈 화면
+        { // 목록 시작
+            None, ClearResult, FailedResult, Retry, Preparation // 정산 후 동작
+        } // 목록 종료
         private Camera menuCamera; // 메뉴 화면 카메라
+        private SettlementAction settlementAction; // 저장 재시도 대기 동작
+        private float settlementPreviousScale; // 정산 대기 전 시간 배율
+        private bool ownsSettlementPause; // 정산 대기 시간 정지 소유
+        private SettlementReceipt receipt; // 저장된 정산 영수증
+        public Func<bool, bool> SettlementRequested; // 출격 결과 저장 요청
+        public Func<CharacterType, string> ProgressDescription; // 캐릭터 성장 설명 조회
+        public bool SettlementPending => settlementAction != SettlementAction.None; // 정산 재시도 대기
+        public string RecoveryNotice // 이전 출격 복구 안내
+        { // 속성 시작
+            get; // 안내 조회
+            private set; // 안내 변경
+        } // 속성 종료
+        public string ErrorText // 저장 실패 안내
+        { // 속성 시작
+            get; // 오류 조회
+            private set; // 오류 변경
+        } // 속성 종료
         private BattlePlayer battlePlayer; // 마지막 출격 플레이어
         private StageProgression observedStage; // 결과 알림 연결
         private ExitChoice pendingExit; // 확인 대기 작업
@@ -60,6 +81,11 @@ namespace ProjectG // 프로젝트 영역
         public void Begin(Camera camera) // 메뉴 흐름 초기화
         { // 초기화 시작
             ReleaseResultPause(); // 이전 결과 정지 복원
+            ReleaseSettlementPause(); // 이전 저장 대기 정지 복원
+            settlementAction = SettlementAction.None; // 이전 저장 대기 초기화
+            ErrorText = ""; // 이전 오류 초기화
+            RecoveryNotice = ""; // 이전 복구 안내 초기화
+            receipt = null; // 이전 영수증 초기화
             DetachBattle(); // 이전 전투 알림 해제
             menuCamera = camera; // 메뉴 카메라 보관
             InputBlocked = false; // 이전 모달 제한 초기화
@@ -100,6 +126,32 @@ namespace ProjectG // 프로젝트 영역
             SetScreen(GameFlowScreen.Preparation); // 출격 준비 표시
             return true; // 전환 완료
         } // 전환 종료
+        public bool OpenGrowth() // 영구 성장 화면 열기
+        { // 전환 시작
+            if (Screen != GameFlowScreen.Preparation || InputBlocked || SettlementPending) // 화면과 입력 확인
+            { // 차단 시작
+                return false; // 다른 상황의 전환 차단
+            } // 차단 종료
+            SetScreen(GameFlowScreen.Growth); // 선택 캐릭터 성장 화면
+            return true; // 화면 전환 완료
+        } // 전환 종료
+        public bool SelectGrowthCharacter(CharacterType character) // 성장 화면 캐릭터 선택
+        { // 선택 시작
+            if (Screen != GameFlowScreen.Growth || InputBlocked || SettlementPending || (character != CharacterType.Rapid && character != CharacterType.Sniper)) // 화면과 선택 확인
+            { // 차단 시작
+                return false; // 잘못된 선택 차단
+            } // 차단 종료
+            SelectedCharacter = character; // 준비와 출격 캐릭터 동기화
+            return true; // 캐릭터 선택 완료
+        } // 선택 종료
+        public string GrowthSummary() // 선택 캐릭터 성장 정보
+        { // 정보 생성 시작
+            string character = SelectedCharacter == CharacterType.Rapid ? "아리아" : "리안"; // 선택 캐릭터 이름
+            CardData first = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R01 : CardId.S01); // 첫 기본 후보 조회
+            CardData second = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R02 : CardId.S02); // 두 번째 기본 후보 조회
+            string progress = ProgressDescription != null ? ProgressDescription(SelectedCharacter) : "영구 성장 정보를 불러올 수 없습니다."; // 실제 보유량 또는 오류 안내
+            return character + "  영구 성장\n\n" + progress + "\n\n무료 기본 후보 · 레벨업 시 제시 가능\n" + first.Name + "  :  " + first.Description + "\n" + second.Name + "  :  " + second.Description + "\n\n유료 해금 상품: 미정\n고유 도전 과제: 조건·보상 미정"; // 저장된 성장과 확정되지 않은 항목
+        } // 정보 생성 종료
         public bool SelectCommonSkill(CommonSkill skill) // 공용 스킬 선택
         { // 선택 시작
             if (Screen != GameFlowScreen.Preparation || InputBlocked || (skill != CommonSkill.Shield && skill != CommonSkill.Scatter)) // 선택 조건 확인
@@ -115,8 +167,9 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 잘못된 출격 차단
             } // 차단 종료
+            ErrorText = ""; // 이전 출격 오류 초기화
             BeginRun(); // 선택 캐릭터 출격
-            return true; // 출격 요청 완료
+            return Screen == GameFlowScreen.Battle; // 출격 기록과 시작 결과
         } // 출격 종료
         public void AttachBattle(BattlePlayer player, StageDirector stage) // 출격 전투 연결
         { // 연결 시작
@@ -134,12 +187,7 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return; // 중복 결과 차단
             } // 차단 종료
-            resultCleared = cleared; // 클리어 여부 보관
-            previousTimeScale = Time.timeScale; // 이전 시간 배율 보관
-            Time.timeScale = 0f; // 결과 화면 전투 정지
-            ownsResultPause = true; // 정지 소유 기록
-            pendingExit = ExitChoice.None; // 이전 확인 초기화
-            SetScreen(GameFlowScreen.Result); // 결과 표시
+            RequestSettlement(cleared ? SettlementAction.ClearResult : SettlementAction.FailedResult, cleared); // 저장 후 결과 표시
         } // 전환 종료
         public bool RequestRetry() // 결과 재시도 확인
         { // 요청 시작
@@ -200,6 +248,12 @@ namespace ProjectG // 프로젝트 영역
                 SetScreen(GameFlowScreen.Title); // 타이틀 표시
                 return true; // 복귀 완료
             } // 타이틀 복귀 종료
+            if (Screen == GameFlowScreen.Growth) // 영구 성장 화면 확인
+            { // 준비 복귀 시작
+                SetScreen(GameFlowScreen.Preparation); // 출격 준비 화면 표시
+                focus = 2; // 성장 버튼 포커스 복원
+                return true; // 복귀 완료
+            } // 준비 복귀 종료
             if (Screen == GameFlowScreen.Preparation) // 준비 화면 확인
             { // 캐릭터 복귀 시작
                 SetScreen(GameFlowScreen.CharacterSelect); // 캐릭터 화면 표시
@@ -213,10 +267,7 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 다른 화면 복귀 차단
             } // 차단 종료
-            DetachBattle(); // 기존 전투 알림 해제
-            LeaveBattleRequested?.Invoke(); // 이전 출격 정리
-            SetScreen(GameFlowScreen.Preparation); // 출격 준비 표시
-            return true; // 복귀 완료
+            return RequestSettlement(SettlementAction.Preparation, false); // 실패 정산 후 준비 화면 복귀
         } // 복귀 종료
         public bool RetryFromPause() // 일시정지에서 현재 조건 재출격
         { // 재시도 시작
@@ -224,16 +275,100 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 다른 화면 재시도 차단
             } // 차단 종료
-            DetachBattle(); // 기존 전투 알림 해제
-            LeaveBattleRequested?.Invoke(); // 이전 출격 정리
-            BeginRun(); // 같은 조건으로 재출격
-            return true; // 재시도 요청 완료
+            return RequestSettlement(SettlementAction.Retry, false); // 실패 정산 후 같은 조건 재출격
         } // 재시도 종료
         public bool ReturnFromBattle() => ReturnFromPause(); // 전투에서 출격 준비 복귀
         public bool RetryBattle() => RetryFromPause(); // 전투에서 같은 조건 재출격
+        public void SetRecoveryNotice(string message) // 중단 출격 복구 결과 안내
+        { // 안내 시작
+            RecoveryNotice = message ?? ""; // 실제 복구 결과 보관
+        } // 안내 종료
+        public void ReportStartError(string error) // 출격 시작 오류 표시
+        { // 오류 처리 시작
+            ErrorText = string.IsNullOrWhiteSpace(error) ? "출격 기록을 저장하지 못했습니다." : error; // 읽기 가능한 오류 안내
+            SetScreen(GameFlowScreen.Preparation); // 출격 준비 화면 유지
+        } // 오류 처리 종료
+        public void ReportSettlementError(string error) // 정산 저장 오류 표시
+        { // 오류 처리 시작
+            ErrorText = string.IsNullOrWhiteSpace(error) ? "정산 내용을 저장하지 못했습니다." : error; // 읽기 가능한 오류 안내
+        } // 오류 처리 종료
+        public void SetReceipt(SettlementReceipt value) // 저장된 영수증 연결
+        { // 연결 시작
+            receipt = value; // 정산 결과 보관
+        } // 연결 종료
+        private bool RequestSettlement(SettlementAction action, bool cleared) // 저장과 화면 전환 요청
+        { // 요청 시작
+            if (SettlementPending) // 기존 저장 대기 확인
+            { // 차단 시작
+                return false; // 중복 정산 차단
+            } // 차단 종료
+            if (SettlementRequested != null && !SettlementRequested(cleared)) // 실제 저장 성공 확인
+            { // 저장 실패 시작
+                settlementAction = action; // 저장 후 동작 보관
+                settlementPreviousScale = Time.timeScale; // 이전 시간 배율 보관
+                Time.timeScale = 0f; // 전투 정지 유지
+                ownsSettlementPause = true; // 정산 정지 소유
+                enteredFrame = Time.frameCount; // 같은 프레임 중복 입력 방지
+                return false; // 출격 상태와 재시도 표시
+            } // 저장 실패 종료
+            ErrorText = ""; // 이전 오류 해제
+            CompleteSettlementAction(action); // 저장 후 화면 진행
+            return true; // 정산과 전환 성공
+        } // 요청 종료
+        public bool RetrySettlement() // 실패한 정산 재시도
+        { // 재시도 시작
+            if (!SettlementPending) // 대기 상태 확인
+            { // 차단 시작
+                return false; // 불필요한 재시도 차단
+            } // 차단 종료
+            SettlementAction action = settlementAction; // 대기 동작 보관
+            bool cleared = action == SettlementAction.ClearResult; // 클리어 정산 여부
+            if (SettlementRequested != null && !SettlementRequested(cleared)) // 저장 재시도 확인
+            { // 실패 시작
+                enteredFrame = Time.frameCount; // 같은 입력 재처리 방지
+                return false; // 데이터와 대기 화면 유지
+            } // 실패 종료
+            settlementAction = SettlementAction.None; // 대기 동작 해제
+            ReleaseSettlementPause(); // 이전 시간 배율 복원
+            ErrorText = ""; // 오류 표시 해제
+            CompleteSettlementAction(action); // 저장 후 화면 진행
+            return true; // 정산 재시도 성공
+        } // 재시도 종료
+        private void CompleteSettlementAction(SettlementAction action) // 정산 성공 후 화면 전환
+        { // 전환 시작
+            if (action == SettlementAction.ClearResult || action == SettlementAction.FailedResult) // 결과 화면 확인
+            { // 결과 표시 시작
+                resultCleared = action == SettlementAction.ClearResult; // 클리어 여부 보관
+                previousTimeScale = Time.timeScale; // 이전 시간 배율 보관
+                Time.timeScale = 0f; // 결과 화면 전투 정지
+                ownsResultPause = true; // 결과 정지 소유 기록
+                pendingExit = ExitChoice.None; // 이전 확인 초기화
+                SetScreen(GameFlowScreen.Result); // 저장된 결과 표시
+                return; // 전투 정리 생략
+            } // 결과 표시 종료
+            DetachBattle(); // 기존 전투 알림 해제
+            LeaveBattleRequested?.Invoke(); // 이전 출격 정리
+            if (action == SettlementAction.Retry) // 재출격 확인
+            { // 재출격 시작
+                BeginRun(); // 같은 조건으로 재출격
+            } // 재출격 종료
+            else if (action == SettlementAction.Preparation) // 준비 복귀 확인
+            { // 준비 복귀 시작
+                SetScreen(GameFlowScreen.Preparation); // 출격 준비 표시
+            } // 준비 복귀 종료
+        } // 전환 종료
+        private void ReleaseSettlementPause() // 저장 대기 시간 복원
+        { // 복원 시작
+            if (ownsSettlementPause) // 정지 소유 확인
+            { // 복원 처리 시작
+                Time.timeScale = settlementPreviousScale; // 이전 배율 복원
+                ownsSettlementPause = false; // 정지 소유 해제
+            } // 복원 처리 종료
+        } // 복원 종료
         private void BeginRun() // 선택한 조건으로 출격
         { // 출격 시작
             ReleaseResultPause(); // 이전 결과 시간 복원
+            receipt = null; // 이전 출격 영수증 해제
             SetScreen(GameFlowScreen.Battle); // 전투 화면 표시
             RunRequested?.Invoke(SelectedCharacter, SelectedCommonSkill); // 출격 요청 알림
         } // 출격 종료
@@ -271,9 +406,33 @@ namespace ProjectG // 프로젝트 영역
         { // 정리 시작
             DetachBattle(); // 스테이지 알림 해제
             ReleaseResultPause(); // 결과 정지 해제
+            ReleaseSettlementPause(); // 정산 대기 정지 해제
         } // 정리 종료
         private void Update() // 메뉴 입력 처리
         { // 입력 시작
+            if (SettlementPending) // 저장 재시도 대기 확인
+            { // 재시도 입력 시작
+                if (Time.frameCount == enteredFrame) // 동일 프레임 확인
+                { // 입력 차단 시작
+                    return; // 중복 입력 차단
+                } // 입력 차단 종료
+                Keyboard pendingKeyboard = Keyboard.current; // 현재 키보드 확인
+                Mouse pendingMouse = Mouse.current; // 현재 포인터 확인
+                if (pendingKeyboard != null && (pendingKeyboard.enterKey.wasPressedThisFrame || pendingKeyboard.numpadEnterKey.wasPressedThisFrame || pendingKeyboard.spaceKey.wasPressedThisFrame)) // 재시도 키 확인
+                { // 키 입력 시작
+                    RetrySettlement(); // 저장 다시 시도
+                } // 키 입력 종료
+                else if (pendingMouse != null && pendingMouse.leftButton.wasPressedThisFrame) // 마우스 입력 확인
+                { // 마우스 입력 시작
+                    Vector2 point = pendingMouse.position.ReadValue(); // 화면 좌표 읽기
+                    point.y = UnityEngine.Screen.height - point.y; // 위쪽 기준 좌표 변환
+                    if (SettlementRetryRect(View()).Contains(point)) // 재시도 버튼 확인
+                    { // 버튼 시작
+                        RetrySettlement(); // 저장 다시 시도
+                    } // 버튼 종료
+                } // 마우스 입력 종료
+                return; // 다른 메뉴 입력 차단
+            } // 재시도 입력 종료
             if (InputBlocked || Screen == GameFlowScreen.Battle || Time.frameCount == enteredFrame) // 입력 가능 확인
             { // 생략 시작
                 return; // 전환 프레임과 전투 입력 제외
@@ -325,9 +484,13 @@ namespace ProjectG // 프로젝트 영역
             { // 스킬 선택 시작
                 SelectCommonSkill(SelectedCommonSkill == CommonSkill.Shield ? CommonSkill.Scatter : CommonSkill.Shield); // 공용 스킬 전환
             } // 스킬 선택 종료
+            else if (Screen == GameFlowScreen.Growth && (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame)) // 성장 캐릭터 이동 확인
+            { // 캐릭터 선택 시작
+                SelectGrowthCharacter(SelectedCharacter == CharacterType.Rapid ? CharacterType.Sniper : CharacterType.Rapid); // 두 캐릭터 전환
+            } // 캐릭터 선택 종료
             else if (previous || next) // 메뉴 포커스 이동 확인
             { // 이동 시작
-                int count = Screen == GameFlowScreen.Preparation ? 2 : 2; // 화면별 버튼 수
+                int count = Screen == GameFlowScreen.Preparation ? 3 : Screen == GameFlowScreen.Growth ? 1 : 2; // 화면별 버튼 수
                 focus = (focus + (next ? 1 : -1) + count) % count; // 포커스 순환
             } // 이동 종료
             if (submit) // 확인 입력 확인
@@ -362,11 +525,19 @@ namespace ProjectG // 프로젝트 영역
                 { // 출격 시작
                     StartRun(); // 출격 요청
                 } // 출격 종료
-                else // 뒤로 버튼
+                else if (focus == 1) // 뒤로 버튼 확인
                 { // 뒤로 시작
                     Back(); // 캐릭터 선택 복귀
                 } // 뒤로 종료
+                else // 성장 버튼 확인
+                { // 성장 시작
+                    OpenGrowth(); // 영구 성장 화면 열기
+                } // 성장 종료
             } // 준비 종료
+            else if (Screen == GameFlowScreen.Growth) // 영구 성장 화면 확인
+            { // 복귀 시작
+                Back(); // 출격 준비 화면 복귀
+            } // 복귀 종료
             else if (Screen == GameFlowScreen.Result) // 결과 화면 확인
             { // 결과 시작
                 if (focus == 0) // 재시도 버튼
@@ -393,11 +564,29 @@ namespace ProjectG // 프로젝트 영역
                 } // 취소 종료
                 return; // 배경 버튼 차단
             } // 확인 클릭 종료
+            if (Screen == GameFlowScreen.Growth) // 성장 화면 클릭 확인
+            { // 성장 클릭 시작
+                if (GrowthCharacterRect(view, 0).Contains(position)) // 아리아 성장 선택
+                { // 속사형 선택 시작
+                    SelectGrowthCharacter(CharacterType.Rapid); // 속사형 성장 표시
+                } // 속사형 선택 종료
+                else if (GrowthCharacterRect(view, 1).Contains(position)) // 리안 성장 선택
+                { // 저격형 선택 시작
+                    SelectGrowthCharacter(CharacterType.Sniper); // 저격형 성장 표시
+                } // 저격형 선택 종료
+                else if (ContinueRect(view).Contains(position)) // 준비 화면 복귀 확인
+                { // 성장 복귀 시작
+                    Back(); // 출격 준비 복귀
+                } // 성장 복귀 종료
+                return; // 다른 화면 클릭 차단
+            } // 성장 클릭 종료
             if (Screen == GameFlowScreen.Title || Screen == GameFlowScreen.Preparation || Screen == GameFlowScreen.Result) // 공통 버튼 화면
             { // 버튼 확인 시작
-                for (int index = 0; index < 2; index++) // 두 버튼 순회
+                int count = Screen == GameFlowScreen.Preparation ? 3 : 2; // 화면별 버튼 수
+                for (int index = 0; index < count; index++) // 버튼 목록 순회
                 { // 순회 시작
-                    if (ButtonRect(view, index).Contains(position)) // 버튼 영역 확인
+                    Rect button = Screen == GameFlowScreen.Preparation && index == 2 ? GrowthButtonRect(view) : ButtonRect(view, index); // 성장 버튼 위치 구분
+                    if (button.Contains(position)) // 버튼 영역 확인
                     { // 선택 시작
                         focus = index; // 클릭 포커스 설정
                         ActivateFocused(); // 버튼 실행
@@ -434,6 +623,11 @@ namespace ProjectG // 프로젝트 영역
         } // 처리 종료
         private void OnGUI() // 메뉴 화면 그리기
         { // 표시 시작
+            if (SettlementPending) // 저장 재시도 화면 확인
+            { // 오류 표시 시작
+                DrawSettlementError(); // 저장 오류와 재시도 표시
+                return; // 다른 메뉴 표시 생략
+            } // 오류 표시 종료
             if (Screen == GameFlowScreen.Battle || menuCamera == null) // 메뉴 표시 조건
             { // 생략 시작
                 return; // 전투 화면 제외
@@ -462,15 +656,27 @@ namespace ProjectG // 프로젝트 영역
             { // 준비 표시 시작
                 DrawPreparation(view); // 선택 정보 표시
             } // 준비 표시 종료
+            else if (Screen == GameFlowScreen.Growth) // 영구 성장 화면
+            { // 성장 표시 시작
+                DrawGrowth(view); // 선택 캐릭터 성장 표시
+            } // 성장 표시 종료
             else if (Screen == GameFlowScreen.Result) // 결과 화면
             { // 결과 표시 시작
                 DrawResult(view); // 결과와 기록 표시
             } // 결과 표시 종료
+            if (Screen == GameFlowScreen.Preparation && !string.IsNullOrEmpty(RecoveryNotice)) // 이전 출격 복구 확인
+            { // 복구 안내 시작
+                GUI.Label(new Rect(view.x + view.width * 0.10f, view.y + view.height * 0.12f, view.width * 0.80f, view.height * 0.05f), RecoveryNotice, textStyle); // 복구된 참여 보상 표시
+            } // 복구 안내 종료
+            if (Screen == GameFlowScreen.Preparation && !string.IsNullOrEmpty(ErrorText)) // 출격 저장 오류 확인
+            { // 오류 표시 시작
+                GUI.Label(new Rect(view.x + view.width * 0.10f, view.y + view.height * 0.91f, view.width * 0.80f, view.height * 0.07f), "출격 불가: " + ErrorText, textStyle); // 출격 오류 표시
+            } // 오류 표시 종료
             if (ConfirmingResultExit) // 결과 이동 확인
             { // 확인 표시 시작
                 Rect box = new Rect(view.x + view.width * 0.25f, view.y + view.height * 0.32f, view.width * 0.5f, view.height * 0.32f); // 확인 패널 영역
                 DrawPanel(box); // 확인 패널 이미지
-                GUI.Label(new Rect(box.x + box.width * 0.08f, box.y + box.height * 0.12f, box.width * 0.84f, box.height * 0.35f), "전투 기록은 저장되지 않습니다.\n계속하시겠습니까?", textStyle); // 진행 손실 안내
+                GUI.Label(new Rect(box.x + box.width * 0.08f, box.y + box.height * 0.12f, box.width * 0.84f, box.height * 0.35f), "전투 중 임시 강화가 초기화됩니다.\n계속하시겠습니까?", textStyle); // 진행 손실 안내
                 DrawButton(ConfirmRect(view, true), "확인", confirmSelected); // 이동 확인
                 DrawButton(ConfirmRect(view, false), "취소", !confirmSelected); // 이동 취소
             } // 확인 표시 종료
@@ -503,8 +709,24 @@ namespace ProjectG // 프로젝트 영역
                 DrawButton(SkillRect(view, 1), "K 산탄", SelectedCommonSkill == CommonSkill.Scatter); // 산탄 선택
                 DrawButton(ButtonRect(view, 0), "출격", focus == 0); // 출격 버튼
                 DrawButton(ButtonRect(view, 1), "뒤로", focus == 1); // 뒤로 버튼
+                DrawButton(GrowthButtonRect(view), "영구 성장", focus == 2); // 성장 화면 버튼
                 GUI.Label(new Rect(view.x + view.width * 0.20f, view.y + view.height * 0.70f, view.width * 0.31f, view.height * 0.06f), "좌우: K 선택 · Enter: 확인", textStyle); // 키 조작 안내
+                if (ProgressDescription != null) // 영구 성장 정보 연결 확인
+                { // 성장 표시 시작
+                    GUI.Label(new Rect(view.x + view.width * 0.53f, view.y + view.height * 0.70f, view.width * 0.40f, view.height * 0.09f), ProgressDescription(SelectedCharacter), textStyle); // 보유 성장과 해금 안내
+                } // 성장 표시 종료
             } // 스킬 표시 종료
+        } // 표시 종료
+        private void DrawGrowth(Rect view) // 영구 성장 정보 표시
+        { // 표시 시작
+            GUI.Label(new Rect(view.x, view.y + view.height * 0.05f, view.width, view.height * 0.10f), "영구 성장", titleStyle); // 성장 화면 제목
+            DrawButton(GrowthCharacterRect(view, 0), "아리아", SelectedCharacter == CharacterType.Rapid); // 속사형 성장 선택
+            DrawButton(GrowthCharacterRect(view, 1), "리안", SelectedCharacter == CharacterType.Sniper); // 저격형 성장 선택
+            Rect area = new Rect(view.x + view.width * 0.20f, view.y + view.height * 0.26f, view.width * 0.60f, view.height * 0.49f); // 성장 정보 영역
+            DrawPanel(area); // 성장 정보 배경
+            GUI.Label(new Rect(area.x + area.width * 0.08f, area.y + area.height * 0.08f, area.width * 0.84f, area.height * 0.84f), GrowthSummary(), textStyle); // 실제 보유량과 기본 후보
+            GUI.Label(new Rect(view.x + view.width * 0.25f, view.y + view.height * 0.76f, view.width * 0.50f, view.height * 0.04f), "좌우 / A·D: 캐릭터 선택 · Esc: 돌아가기", textStyle); // 성장 화면 조작 안내
+            DrawButton(ContinueRect(view), "출격 준비로 돌아가기", true); // 준비 화면 복귀 버튼
         } // 표시 종료
         private void DrawResult(Rect view) // 출격 결과와 기록 표시
         { // 표시 시작
@@ -534,8 +756,32 @@ namespace ProjectG // 프로젝트 영역
                 cards.Append(CardCatalog.Find(card).Name); // 실제 선택 카드 이름
             } // 카드 기록 종료
             string chosen = cards.Length == 0 ? "없음" : cards.ToString(); // 카드 미선택 표시
-            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n보상·숙련도·재료·과제: 미구현\n전투 기록은 저장되지 않습니다."; // 실제 기록과 미구현 구분
+            string reward = receipt == null ? "정산 정보 없음" : "숙련도 +" + receipt.MasteryGained + "   공통 재료 +" + receipt.CommonMaterialsGained + "   전용 재료 +" + receipt.CharacterMaterialsGained; // 저장된 지급 내역
+            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n" + reward + "\n고유 도전 과제: 조건·보상 미정, 진행 측정 대기\n전투 기록은 저장되지 않습니다."; // 실제 기록과 정산 표시
         } // 요약 종료
+        private void DrawSettlementError() // 정산 오류와 재시도 화면
+        { // 표시 시작
+            if (menuCamera == null) // 화면 연결 확인
+            { // 생략 시작
+                return; // 화면 없이 표시 생략
+            } // 생략 종료
+            int previousDepth = GUI.depth; // 기존 표시 순서 보관
+            GUI.depth = -200; // 오류 화면 우선 표시
+            PrepareStyles(); // 한글 글꼴 준비
+            Rect view = View(); // 전투 화면 영역
+            Color previous = GUI.color; // 기존 색상 보관
+            GUI.color = new Color(0f, 0f, 0f, 0.90f); // 오류 배경 색상
+            GUI.DrawTexture(view, Texture2D.whiteTexture); // 전투 화면 가림
+            GUI.color = Color.white; // 표시 색상 복원
+            Rect panelArea = new Rect(view.x + view.width * 0.20f, view.y + view.height * 0.25f, view.width * 0.60f, view.height * 0.50f); // 오류 패널 영역
+            DrawPanel(panelArea); // 오류 패널 표시
+            textStyle.fontSize = Mathf.Max(16, Mathf.RoundToInt(view.height * 0.028f)); // 오류 글자 크기
+            buttonStyle.fontSize = Mathf.Max(16, Mathf.RoundToInt(view.height * 0.028f)); // 버튼 글자 크기
+            GUI.Label(new Rect(panelArea.x + panelArea.width * 0.08f, panelArea.y + panelArea.height * 0.10f, panelArea.width * 0.84f, panelArea.height * 0.50f), "보상 저장 실패: " + ErrorText + "\n출격 기록을 보존하고 있습니다. 저장 공간과 권한을 확인해 주세요.", textStyle); // 저장 실패 안내
+            DrawButton(SettlementRetryRect(view), "저장 다시 시도  Enter", true); // 재시도 버튼
+            GUI.color = previous; // 기존 색상 복원
+            GUI.depth = previousDepth; // 기존 표시 순서 복원
+        } // 표시 종료
         private void DrawPanel(Rect area) // 생성 프레임 표시
         { // 표시 시작
             if (panel != null) // 프레임 존재 확인
@@ -586,6 +832,14 @@ namespace ProjectG // 프로젝트 영역
         { // 계산 시작
             return new Rect(view.x + view.width * (0.29f + index * 0.23f), view.y + view.height * 0.80f, view.width * 0.19f, view.height * 0.09f); // 버튼 영역 반환
         } // 계산 종료
+        private static Rect GrowthCharacterRect(Rect view, int index) // 성장 화면 캐릭터 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * (0.30f + index * 0.25f), view.y + view.height * 0.16f, view.width * 0.19f, view.height * 0.08f); // 캐릭터 선택 버튼
+        } // 계산 종료
+        private static Rect GrowthButtonRect(Rect view) // 영구 성장 버튼 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.75f, view.y + view.height * 0.80f, view.width * 0.19f, view.height * 0.09f); // 준비 화면 성장 버튼
+        } // 계산 종료
         private static Rect CharacterRect(Rect view, int index) // 캐릭터 목록 위치
         { // 계산 시작
             return new Rect(view.x + view.width * 0.035f, view.y + view.height * (0.25f + index * 0.14f), view.width * 0.18f, view.height * 0.10f); // 캐릭터 버튼 영역
@@ -597,6 +851,10 @@ namespace ProjectG // 프로젝트 영역
         private static Rect SkillRect(Rect view, int index) // 공용 스킬 버튼 위치
         { // 계산 시작
             return new Rect(view.x + view.width * (0.25f + index * 0.16f), view.y + view.height * 0.60f, view.width * 0.14f, view.height * 0.08f); // 스킬 버튼 영역
+        } // 계산 종료
+        private static Rect SettlementRetryRect(Rect view) // 저장 재시도 버튼 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.36f, view.y + view.height * 0.61f, view.width * 0.28f, view.height * 0.09f); // 재시도 버튼 영역
         } // 계산 종료
         private static Rect ConfirmRect(Rect view, bool confirm) // 이탈 확인 버튼 위치
         { // 계산 시작

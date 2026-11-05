@@ -53,7 +53,7 @@ namespace ProjectG // 프로젝트 영역
                 warning.SetActive(false); // 예고 표시 중지
                 return; // 발사 중지
             } // 실패 처리 종료
-            if (Time.deltaTime <= 0f) // 일시 정지 확인
+            if (Time.timeScale <= 0f || Time.deltaTime <= 0f) // 일시 정지 확인
             { // 정지 처리 시작
                 return; // 시간 진행 중지
             } // 정지 처리 종료

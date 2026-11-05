@@ -34,7 +34,10 @@ namespace ProjectG // 프로젝트 영역
         } // 초기화 종료
         private void Update() // 시험 진행
         { // 진행 시작
-            Advance(Time.deltaTime); // 경과 시간 적용
+            if (Time.timeScale > 0f) // 전투 시간 확인
+            { // 진행 시작
+                Advance(Time.deltaTime); // 경과 시간 적용
+            } // 진행 종료
         } // 진행 종료
         public void Advance(float elapsed) // 등장 진행
         { // 진행 시작

@@ -17,11 +17,21 @@ namespace ProjectG // 프로젝트 영역
         { // 적용 시작
             TotalDamage += Mathf.Max(0f, damage); // 누적 피해 기록
         } // 적용 종료
-        public override bool Intersects(Vector2 from, Vector2 to, out bool weak) // 탄환 이동 구간 판정
+        public override bool Intersects(Vector2 from, Vector2 to, out bool weak, float padding = 0f, float verticalPadding = 0f) // 탄환 이동 구간 판정
         { // 판정 시작
             Vector2 center = transform.position; // 표적 중심
             Rect body = new Rect(center.x - 0.65f, center.y - 0.35f, 1.3f, 0.7f); // 시험용 몸체 영역
             Rect weakArea = new Rect(center.x - 0.16f, center.y - 0.35f, 0.32f, 0.7f); // 시험용 약점 영역
+            float extra = Mathf.Max(0f, padding); // 탄환 가로 폭
+            body.xMin -= extra; // 몸체 왼쪽 확장
+            body.xMax += extra; // 몸체 오른쪽 확장
+            weakArea.xMin -= extra; // 약점 왼쪽 확장
+            weakArea.xMax += extra; // 약점 오른쪽 확장
+            float vertical = Mathf.Max(0f, verticalPadding); // 탄환 세로 폭
+            body.yMin -= vertical; // 몸체 아래쪽 확장
+            body.yMax += vertical; // 몸체 위쪽 확장
+            weakArea.yMin -= vertical; // 약점 아래쪽 확장
+            weakArea.yMax += vertical; // 약점 위쪽 확장
             weak = SegmentHits(weakArea, from, to); // 약점 접촉 확인
             return SegmentHits(body, from, to); // 몸체 접촉 확인
         } // 판정 종료

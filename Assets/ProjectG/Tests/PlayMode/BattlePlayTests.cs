@@ -248,4 +248,297 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             Object.Destroy(cameraObject); // 카메라 제거
         } // 정리 종료
     } // 시험 종료
+    [UnityTest] // 실제 키보드 레벨업 선택 시험
+    public IEnumerator LevelUpPausesAndKeyboardSelectsCardsInOrder() // 연속 카드 선택 확인
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 편집기 입력 설정
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 게임 입력 허용
+        var previousBackground = InputSystem.settings.backgroundBehavior; // 백그라운드 입력 설정
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus; // 비대화형 입력 허용
+        Keyboard keyboard = InputSystem.AddDevice<Keyboard>(); // 가상 키보드 생성
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 시험 시간 설정
+            yield return null; // 초기화 대기
+            progress.CollectExperience(30); // 두 번 레벨업
+            Assert.That(Time.timeScale, Is.Zero); // 전투 정지 확인
+            for (int choice = 0; choice < 2; choice++) // 두 번 선택
+            { // 선택 반복 시작
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Digit1)); // 첫 카드 선택
+                yield return null; // 입력 처리 대기
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+                yield return null; // 해제 처리 대기
+                if (progress.ConfirmingSwap) // 스킬 교체 확인 여부
+                { // 확인 시작
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 교체 확인 입력
+                    yield return null; // 확인 처리 대기
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+                    yield return null; // 해제 처리 대기
+                } // 확인 종료
+                Assert.That(progress.Level.PendingChoices, Is.EqualTo(1 - choice)); // 보상 순서 확인
+            } // 선택 반복 종료
+            Assert.That(progress.Offer, Is.Null); // 선택 화면 종료
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 재개
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            InputSystem.RemoveDevice(keyboard); // 키보드 제거
+            InputSystem.settings.backgroundBehavior = previousBackground; // 입력 설정 복원
+            InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 선택 화면 중 구성 요소 제거 시험
+    public IEnumerator DestroyingProgressDuringChoiceRestoresTimeScale() // 실제 정리 시 시간 복원
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 0.5f; // 기존 게임 속도
+            yield return null; // 초기화 대기
+            progress.CollectExperience(10); // 레벨업 선택
+            Assert.That(Time.timeScale, Is.Zero); // 선택 중 전투 정지
+            Object.Destroy(progress); // 성장 구성 제거
+            yield return null; // 제거 처리 대기
+            Assert.That(Time.timeScale, Is.EqualTo(0.5f)); // 이전 시간 배율 복원
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 적 경험치 조각 연결 시험
+    public IEnumerator EnemyDefeatDropsExperienceBeforePickup() // 처치와 수집 분리 확인
+    { // 시험 시작
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        GameObject enemyObject = new GameObject("TestEnemy"); // 시험 적 생성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            enemyObject.transform.position = playerObject.transform.position + Vector3.up * 3f; // 회수 범위 밖 적 위치
+            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성 요소
+            enemy.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 일반 적 초기화
+            enemy.ApplyDamage(100f, player); // 적 처치
+            ExperienceShard shard = Object.FindFirstObjectByType<ExperienceShard>(); // 경험치 조각 조회
+            Assert.That(shard, Is.Not.Null); // 경험치 조각 생성 확인
+            Assert.That(progress.Level.Experience, Is.Zero); // 즉시 경험치 지급 방지
+            shard.transform.position = playerObject.transform.position + Vector3.right * 0.1f; // 회수 범위로 이동
+            yield return null; // 자동 수집 대기
+            yield return null; // 수집 처리 대기
+            Assert.That(progress.Level.Experience, Is.EqualTo(6)); // 조각 수집 보상 확인
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(enemyObject); // 시험 적 제거
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 실제 포인터 카드 선택 시험
+    public IEnumerator LevelUpAcceptsMouseSelectionWhilePaused() // 포인터 선택 확인
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 편집기 입력 설정
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 게임 입력 허용
+        var previousBackground = InputSystem.settings.backgroundBehavior; // 백그라운드 입력 설정
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus; // 비대화형 입력 허용
+        Mouse mouse = InputSystem.AddDevice<Mouse>(); // 가상 마우스 생성
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 시험 시간 설정
+            yield return null; // 초기화 대기
+            progress.CollectExperience(10); // 카드 선택 열기
+            Assert.That(Time.timeScale, Is.Zero); // 전투 정지 확인
+            int index = System.Array.FindIndex(progress.Offer, card => card.Id != CardId.C06); // 교체 없는 카드 선택
+            Rect pixels = camera.pixelRect; // 카메라 화면 영역
+            Rect view = new Rect(pixels.xMin, Screen.height - pixels.yMax, pixels.width, pixels.height); // 화면 좌표 변환
+            Vector2 point = CardUiLayout.Card(view, index).center; // 선택 카드 중심
+            MouseState state = new MouseState(); // 마우스 상태 생성
+            state.position = new Vector2(point.x, Screen.height - point.y); // 화면 좌표 설정
+            state = state.WithButton(MouseButton.Left); // 왼쪽 버튼 누르기
+            InputSystem.QueueStateEvent(mouse, state); // 포인터 입력 전달
+            yield return null; // 입력 처리 대기
+            Assert.That(progress.Level.PendingChoices, Is.Zero); // 카드 선택 확인
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 재개 확인
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            InputSystem.RemoveDevice(mouse); // 마우스 제거
+            InputSystem.settings.backgroundBehavior = previousBackground; // 입력 설정 복원
+            InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 포인터 스킬 교체 확인 시험
+    public IEnumerator MouseCanCancelAndConfirmSkillReplacement() // 포인터 교체 흐름 확인
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 편집기 입력 설정
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 게임 입력 허용
+        var previousBackground = InputSystem.settings.backgroundBehavior; // 백그라운드 입력 설정
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus; // 비대화형 입력 허용
+        Mouse mouse = InputSystem.AddDevice<Mouse>(); // 가상 마우스 생성
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 조회
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 시험 시간 설정
+            yield return null; // 초기화 대기
+            progress.CollectExperience(10); // 카드 선택 열기
+            progress.Offer[0] = CardCatalog.Find(CardId.C06); // 교체 카드 설정
+            Rect view = CardUiLayout.View(camera, Screen.height); // 화면 좌표 변환
+            Vector2 point = CardUiLayout.Card(view, 0).center; // 교체 카드 위치
+            MouseState state = new MouseState(); // 마우스 상태
+            state.position = new Vector2(point.x, Screen.height - point.y); // 카드 화면 위치
+            InputSystem.QueueStateEvent(mouse, state.WithButton(MouseButton.Left)); // 카드 클릭
+            yield return null; // 입력 처리 대기
+            Assert.That(progress.ConfirmingSwap, Is.True); // 교체 확인 표시
+            InputSystem.QueueStateEvent(mouse, new MouseState()); // 버튼 해제
+            yield return null; // 해제 처리 대기
+            point = CardUiLayout.Cancel(view).center; // 취소 버튼 위치
+            state.position = new Vector2(point.x, Screen.height - point.y); // 취소 화면 위치
+            InputSystem.QueueStateEvent(mouse, state.WithButton(MouseButton.Left)); // 취소 클릭
+            yield return null; // 취소 처리 대기
+            Assert.That(progress.ConfirmingSwap, Is.False); // 확인 화면 닫힘
+            Assert.That(player.Skills.Common, Is.EqualTo(CommonSkill.Shield)); // 기존 스킬 유지
+            InputSystem.QueueStateEvent(mouse, new MouseState()); // 버튼 해제
+            yield return null; // 해제 처리 대기
+            point = CardUiLayout.Card(view, 0).center; // 교체 카드 위치
+            state.position = new Vector2(point.x, Screen.height - point.y); // 카드 화면 위치
+            InputSystem.QueueStateEvent(mouse, state.WithButton(MouseButton.Left)); // 카드 클릭
+            yield return null; // 입력 처리 대기
+            Assert.That(progress.ConfirmingSwap, Is.True); // 교체 재확인
+            InputSystem.QueueStateEvent(mouse, new MouseState()); // 버튼 해제
+            yield return null; // 해제 처리 대기
+            point = CardUiLayout.Confirm(view).center; // 확인 버튼 위치
+            state.position = new Vector2(point.x, Screen.height - point.y); // 확인 화면 위치
+            InputSystem.QueueStateEvent(mouse, state.WithButton(MouseButton.Left)); // 확인 클릭
+            yield return null; // 확인 처리 대기
+            Assert.That(player.Skills.Common, Is.EqualTo(CommonSkill.Scatter)); // 산탄 교체 확인
+            Assert.That(progress.Level.PendingChoices, Is.Zero); // 카드 선택 완료
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 재개 확인
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            InputSystem.RemoveDevice(mouse); // 마우스 제거
+            InputSystem.settings.backgroundBehavior = previousBackground; // 입력 설정 복원
+            InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 편집기 입력 설정 복원
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 레벨업 직후 탄막 정지 시험
+    public IEnumerator LevelUpImmediatelyStopsEnemyBullets() // 같은 프레임 정지 확인
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
+        EnemyBulletPool pool = cameraObject.GetComponent<EnemyBulletPool>(); // 적탄 풀 조회
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 시험 시간 설정
+            yield return null; // 초기 프레임 대기
+            EnemyBullet bullet = pool.Spawn(new Vector2(2f, 2f), Vector2.down, 0.06f, 10, -5f, player); // 시험 적탄 생성
+            GameObject shotObject = new GameObject("PauseShot"); // 시험 아군탄 생성
+            shotObject.transform.SetParent(cameraObject.transform, false); // 시험 장면에 연결
+            shotObject.transform.position = new Vector2(4f, 0f); // 아군탄 위치
+            Projectile shot = shotObject.AddComponent<Projectile>(); // 아군탄 구성
+            shot.Begin(Vector2.up, 5f); // 아군탄 초기화
+            GameObject enemyObject = new GameObject("PauseEnemy"); // 시험 적 생성
+            enemyObject.transform.SetParent(cameraObject.transform, false); // 시험 장면에 연결
+            enemyObject.transform.position = new Vector2(-4f, 2f); // 적 위치
+            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            enemy.Begin(EnemyKind.Aimed, player, pool, camera); // 적 초기화
+            Vector2 before = bullet.transform.position; // 정지 전 적탄 위치
+            Vector2 shotBefore = shot.transform.position; // 정지 전 아군탄 위치
+            Vector2 enemyBefore = enemy.transform.position; // 정지 전 적 위치
+            progress.CollectExperience(10); // 즉시 카드 선택 열기
+            Assert.That(Time.timeScale, Is.Zero); // 전투 정지 확인
+            bullet.SendMessage("LateUpdate"); // 같은 프레임 적탄 처리 시도
+            shot.SendMessage("Update"); // 같은 프레임 아군탄 처리 시도
+            enemy.SendMessage("Update"); // 같은 프레임 적 처리 시도
+            Assert.That((Vector2)bullet.transform.position, Is.EqualTo(before)); // 적탄 즉시 정지
+            Assert.That((Vector2)shot.transform.position, Is.EqualTo(shotBefore)); // 아군탄 즉시 정지
+            Assert.That((Vector2)enemy.transform.position, Is.EqualTo(enemyBefore)); // 적 즉시 정지
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [UnityTest] // 처치부터 레벨업까지 통합 시험
+    public IEnumerator DefeatsPickupAndCardSelectionResumeBattle() // 경험치부터 전투 복귀
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라
+        Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
+        GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 구성
+        BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
+        BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 참조
+        GameObject firstObject = new GameObject("EnemyOne"); // 첫 적 생성
+        GameObject secondObject = new GameObject("EnemyTwo"); // 둘째 적 생성
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 시험 시간 설정
+            firstObject.transform.position = playerObject.transform.position + Vector3.right * 0.1f; // 첫 위치
+            secondObject.transform.position = playerObject.transform.position + Vector3.left * 0.1f; // 둘째 위치
+            EnemyActor first = firstObject.AddComponent<EnemyActor>(); // 첫 적 구성
+            EnemyActor second = secondObject.AddComponent<EnemyActor>(); // 둘째 적 구성
+            first.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 첫 적 시작
+            second.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 둘째 적 시작
+            first.ApplyDamage(100f, player); // 첫 적 처치
+            second.ApplyDamage(100f, player); // 둘째 적 처치
+            yield return null; // 경험치 흡수 대기
+            yield return null; // 카드 화면 대기
+            Assert.That(progress.Level.Level, Is.EqualTo(2)); // 레벨 증가 확인
+            Assert.That(progress.Level.Experience, Is.EqualTo(2)); // 이월 경험치 확인
+            Assert.That(progress.Level.PendingChoices, Is.EqualTo(1)); // 선택 예약 확인
+            Assert.That(progress.Offer, Is.Not.Null); // 카드 화면 확인
+            Assert.That(Time.timeScale, Is.Zero); // 전투 정지 확인
+            int index = System.Array.FindIndex(progress.Offer, card => card.Id != CardId.C06); // 교체 없는 선택지
+            CardId selected = progress.Offer[index].Id; // 선택 카드 기록
+            Assert.That(progress.Select(index), Is.True); // 카드 적용
+            Assert.That(player.Build.Cards.Count(selected), Is.EqualTo(1)); // 효과 보관 확인
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 재개 확인
+        } // 시험 범위 종료
+        finally // 시험 자원 정리
+        { // 정리 시작
+            Object.Destroy(firstObject); // 첫 적 제거
+            Object.Destroy(secondObject); // 둘째 적 제거
+            Object.Destroy(playerObject); // 플레이어 제거
+            Object.Destroy(cameraObject); // 카메라 제거
+            Time.timeScale = previousScale; // 기존 시간 복원
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

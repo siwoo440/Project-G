@@ -24,6 +24,11 @@ namespace ProjectG // 프로젝트 영역
             text.normal.textColor = Color.white; // 글자 색상
             GUI.Label(new Rect(left, top, 500f, 34f), "HP " + player.Survival.Health + "   GRAZE " + player.GrazeCount + "   ENERGY " + (player.Skills != null ? player.Skills.Energy : 0) + "/100", text); // 체력과 그레이즈 표시
             GUI.Label(new Rect(left, top + 28f, 600f, 34f), (player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT") + "   F1 RAPID / F2 SNIPER", text); // 캐릭터 시험 상태
+            BattleProgress progress = player.GetComponent<BattleProgress>(); // 경험치 상태 조회
+            if (progress != null && progress.Level != null) // 레벨 상태 확인
+            { // 레벨 표시 시작
+                GUI.Label(new Rect(left, top + 56f, 300f, 30f), "LEVEL " + progress.Level.Level + "   XP " + progress.Level.Experience + "/" + progress.Level.Required, text); // 전투 레벨과 경험치
+            } // 레벨 표시 종료
             if (!player.Survival.IsAlive) // 출격 실패 확인
             { // 실패 표시 시작
                 GUI.Label(new Rect(left, top + 34f, 260f, 34f), "MISSION FAILED", text); // 실패 상태 표시

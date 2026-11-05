@@ -10,6 +10,13 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             private set; // 값 설정
         } // 속성 종료
+        public CardBuild Build // 전투 카드 효과
+        { // 속성 시작
+            get; // 값 조회
+            private set; // 값 설정
+        } // 속성 종료
+        private CardSupport support; // 보조 공격 상태
+        public event System.Action BattleRestarted; // 출격 초기화 알림
         public RapidCombo Combo // 속사 누적 상태
         { // 속성 시작
             get; // 값 조회
@@ -24,10 +31,46 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         public event System.Action<int> UltimateDamageRequested; // 필살기 피해 요청
         public event System.Action<int> ExperienceRewarded; // 경험치 보상 알림
+        public event System.Action<int, Vector2> ExperienceDropRequested; // 경험치 조각 생성 요청
         public void AssignBulletPool(EnemyBulletPool pool) // 적탄 풀 연결
         { // 연결 시작
             bulletPool = pool; // 적탄 풀 보관
         } // 연결 종료
+        public bool ApplyCard(CardId id) // 카드 효과 적용
+        { // 적용 시작
+            if (Build == null || Skills == null || Survival == null || !Survival.IsAlive || !CardCatalog.IsEligible(id, Build.Cards, Character, Skills.Common, Survival.Health < Survival.MaximumHealth, Skills.Energy < 100)) // 적용 조건 확인
+            { // 차단 시작
+                return false; // 무효 카드 차단
+            } // 차단 종료
+            Build.Cards.Add(id); // 카드 단계 증가
+            Skills.UniqueCooldownReduction = Build.UniqueCooldownReduction; // 고유기 쿨타임 효과
+            Combo.GracePeriod = 2f + Build.Cards.Count(CardId.R01); // 속사 유지 시간 효과
+            if (id == CardId.C06) // 공용 산탄 카드 확인
+            { // 교체 시작
+                Skills.Equip(CommonSkill.Scatter); // 공용 스킬 교체
+            } // 교체 종료
+            if (id == CardId.C10) // 보호 장치 확인
+            { // 장착 시작
+                Survival.InstallReactiveShield(); // 피격 후 보호 장치
+            } // 장착 종료
+            if (id == CardId.C12) // 응급 회복 확인
+            { // 회복 시작
+                Survival.Heal(20); // 시험 체력 회복
+            } // 회복 종료
+            if (id == CardId.F01 || id == CardId.F02 || id == CardId.F03) // 대체 보상 확인
+            { // 대체 시작
+                Survival.IncreaseMaximum(id == CardId.F01 ? 1 : id == CardId.F02 ? 2 : 3); // 시험용 안전 보급
+            } // 대체 종료
+            if (id == CardId.F04) // 대체 회복 확인
+            { // 회복 시작
+                Survival.Heal(10); // 시험 회복량
+            } // 회복 종료
+            if (id == CardId.F05) // 대체 충전 확인
+            { // 충전 시작
+                Skills.GainEnergy(5); // 시험 충전량
+            } // 충전 종료
+            return true; // 적용 성공
+        } // 적용 종료
         public bool TryUseRapid() // 고유 스킬 사용
         { // 사용 시작
             if (Skills == null || Survival == null) // 초기화 확인
@@ -102,7 +145,7 @@ namespace ProjectG // 프로젝트 영역
                 { // 피해 처리 시작
                     if (target.IntersectsBeam(beam, out bool weak)) // 광선 접촉 확인
                     { // 접촉 처리 시작
-                        target.ReceiveDamage(220f * (weak ? 1.5f : 1f), this); // 시험 약점 피해 적용
+                        target.ReceiveDamage(220f * (weak ? Build.WeakMultiplier : 1f), this); // 시험 약점 피해 적용
                     } // 접촉 처리 종료
                 } // 피해 처리 종료
                 BeamDamageRequested?.Invoke(beam, 220); // 실제 적 연결용 피해 요청
@@ -110,14 +153,15 @@ namespace ProjectG // 프로젝트 영역
             } // 저격 필살기 종료
             return true; // 필살기 발동
         } // 사용 종료
-        public void RegisterEnemyDefeat(EnemyRank rank, int experience = 0) // 적 처치 보상
+        public void RegisterEnemyDefeat(EnemyRank rank, int experience = 0, Vector2? dropPosition = null) // 적 처치 보상
         { // 보상 시작
             if (Skills != null && Survival != null && Survival.IsAlive) // 생존 상태 확인
             { // 충전 시작
                 Skills.GainDefeat(rank); // 적 종류별 에너지 충전
                 if (experience > 0) // 경험치 보상 확인
                 { // 보상 알림 시작
-                    ExperienceRewarded?.Invoke(experience); // 경험치 연결 알림
+                    ExperienceRewarded?.Invoke(experience); // 기존 경험치 보상 알림
+                    ExperienceDropRequested?.Invoke(experience, dropPosition ?? (Vector2)transform.position); // 경험치 조각 생성 요청
                 } // 보상 알림 종료
             } // 충전 종료
         } // 보상 종료
@@ -194,7 +238,7 @@ namespace ProjectG // 프로젝트 영역
         } // 시작 종료
         private void Update() // 매 프레임 처리
         { // 처리 시작
-            if (battleCamera == null || moveAction == null || focusAction == null) // 실행 조건 확인
+            if (Time.timeScale <= 0f || battleCamera == null || moveAction == null || focusAction == null) // 실행 조건 확인
             { // 실행 불가 시작
                 return; // 입력 처리 생략
             } // 실행 불가 종료
@@ -233,13 +277,17 @@ namespace ProjectG // 프로젝트 영역
                 image.sprite = BattleSprites.Player(type); // 선택 캐릭터 이미지
                 image.color = Color.white; // 원본 이미지 색상
             } // 이미지 변경 종료
+            support?.Clear(); // 이전 보조 표시 정리
             Combo = new RapidCombo(); // 누적 화력 초기화
+            Build = new CardBuild(); // 전투 카드 초기화
+            support = new CardSupport(); // 보조 공격 초기화
             session = new BattleSession(start, type); // 캐릭터별 전투 상태 생성
             Skills = new SkillState(); // 스킬과 에너지 초기화
             Survival = new PlayerSurvival(100); // 시험용 최대 체력
             GrazeCount = 0; // 그레이즈 기록 초기화
             PreviousPosition = start; // 이전 위치 초기화
             transform.position = new Vector3(start.x, start.y, 0f); // 시작 위치 적용
+            BattleRestarted?.Invoke(); // 새 출격 알림
         } // 초기화 종료
         public void Step(Vector2 input, bool pressed, bool held, bool toggle, float elapsed, float left, float right, float bottom, float top) // 플레이어 진행
         { // 진행 시작
@@ -255,15 +303,23 @@ namespace ProjectG // 프로젝트 영역
             Survival.Advance(elapsed); // 무적 시간 진행
             Skills.Advance(elapsed); // 스킬 활성과 쿨타임 진행
             Combo.Advance(elapsed); // 누적 화력 유지와 감소
-            int shots = session.Advance(input, pressed, held, toggle, elapsed, left, right, bottom, top, Skills.AttackIntervalScale); // 이동과 공격 계산
+            int shots = session.Advance(input, pressed, held, toggle, elapsed, left, right, bottom, top, Skills.AttackIntervalScale * Build.IntervalScale); // 이동과 공격 계산
             transform.position = new Vector3(session.Position.x, session.Position.y, 0f); // 계산 위치 적용
             for (int index = 0; index < shots; index++) // 발사 탄환 순회
             { // 발사 시작
                 float spread = shots == 2 ? (index == 0 ? -0.7f : 0.7f) : 0f; // 시험용 확산 방향
+                spread *= Character == CharacterType.Rapid && !session.Focused && Build.Cards.Count(CardId.R02) > 0 ? 1.2f : 1f; // 기본 공격 사격 폭 강화
                 GameObject bullet = new GameObject("PlayerBullet"); // 탄환 객체 생성
                 bullet.transform.position = transform.position + new Vector3(spread * 0.15f, 0.25f, 0f); // 발사 시작 위치
-                bullet.AddComponent<Projectile>().Begin(new Vector2(spread, 10f), top, Character == CharacterType.Sniper ? (session.Focused ? 30 : 14) : (session.Focused ? 7 : 3), true, this, Character == CharacterType.Sniper ? 2 : 1); // 캐릭터별 기본 탄환
+                float baseDamage = Character == CharacterType.Sniper ? (session.Focused ? 30f : 14f) : (session.Focused ? 7f : 3f); // 캐릭터별 기본 피해
+                Projectile projectile = bullet.AddComponent<Projectile>(); // 탄환 구성 요소
+                projectile.Begin(new Vector2(spread, 10f), top, Build.Damage(baseDamage, session.Focused), true, this, (Character == CharacterType.Sniper ? 2 : 1) + Build.ExtraPierce); // 카드 효과 적용 탄환
+                if (session.Focused) // 집중 공격 확인
+                { // 집중 판정 시작
+                    projectile.SetFocusWidth(Build.FocusWidth); // 집중탄 시험 폭 적용
+                } // 집중 판정 종료
             } // 발사 종료
+            support.Advance(elapsed, this, top); // 보조 공격 진행
         } // 진행 종료
         public void RegisterGraze() // 그레이즈 기록
         { // 기록 시작

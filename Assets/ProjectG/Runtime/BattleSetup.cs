@@ -57,6 +57,7 @@ namespace ProjectG // 프로젝트 영역
             marker.AddComponent<HitboxIndicator>().Begin(controller); // 상태별 피격 표시 연결
             player.AddComponent<BattleHud>().Begin(controller, camera); // 시험용 체력 표시
             player.AddComponent<SkillHud>().Begin(controller, camera); // 스킬 세 칸 표시
+            player.AddComponent<BattleProgress>().Begin(controller, camera); // 경험치와 카드 연결
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
             TrainingTarget training = TrainingTarget.Create(new Vector2(0f, 2.5f)); // 임시 약점 표적

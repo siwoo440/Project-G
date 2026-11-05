@@ -51,7 +51,10 @@ namespace ProjectG // 프로젝트 영역
         } // 초기화 종료
         private void LateUpdate() // 매 프레임 이동
         { // 이동 시작
-            Simulate(Time.deltaTime); // 경과 시간 적용
+            if (Time.timeScale > 0f) // 전투 시간 확인
+            { // 진행 시작
+                Simulate(Time.deltaTime); // 경과 시간 적용
+            } // 진행 종료
         } // 이동 종료
         public void Simulate(float elapsed) // 적탄 이동
         { // 이동 시작

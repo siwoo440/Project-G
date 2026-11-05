@@ -17,6 +17,10 @@ namespace ProjectG // 프로젝트 영역
         } // 생성 종료
         private void Update() // 표시 시간 진행
         { // 진행 시작
+            if (Time.timeScale <= 0f) // 전투 정지 확인
+            { // 정지 처리 시작
+                return; // 표시 시간 유지
+            } // 정지 처리 종료
             remaining -= Time.deltaTime; // 경과 시간 차감
             if (remaining <= 0f) // 표시 종료 확인
             { // 제거 시작

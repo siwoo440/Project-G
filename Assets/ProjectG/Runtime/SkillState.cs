@@ -19,6 +19,7 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             private set; // 값 설정
         } // 속성 종료
+        public float UniqueCooldownReduction; // 고유 스킬 쿨타임 감소율
         public float RapidActive // 고유 스킬 남은 활성 시간
         { // 속성 시작
             get; // 값 조회
@@ -45,6 +46,10 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             set; // 값 설정
         } // 속성 종료
+        public void GainEnergy(int amount) // 에너지 보급
+        { // 충전 시작
+            Energy = Mathf.Min(100, Energy + Mathf.Max(0, amount)); // 충전 상한 적용
+        } // 충전 종료
         public void GainGraze() // 그레이즈 충전
         { // 충전 시작
             Energy = Mathf.Min(100, Energy + 1); // 적탄당 에너지 충전
@@ -78,7 +83,7 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 발동 차단
             } // 차단 종료
-            RapidCooldown = 10f; // 관통 사격 시험 쿨타임
+            RapidCooldown = 10f * (1f - Mathf.Clamp(UniqueCooldownReduction, 0f, 0.4f)); // 관통 사격 시험 쿨타임
             return true; // 고유 스킬 발동
         } // 사용 종료
         public bool TryCommon(bool alive) // 공용 스킬 사용
@@ -109,7 +114,7 @@ namespace ProjectG // 프로젝트 영역
                 if (RapidActive <= 0.000001f) // 활성 종료 확인
                 { // 종료 처리 시작
                     RapidActive = 0f; // 활성 시간 종료
-                    RapidCooldown = 8f; // 종료 후 시험 쿨타임 시작
+                    RapidCooldown = 8f * (1f - Mathf.Clamp(UniqueCooldownReduction, 0f, 0.4f)); // 종료 후 시험 쿨타임 시작
                 } // 종료 처리 종료
             } // 활성 처리 종료
             if (RapidActive <= 0f && remaining > 0f) // 쿨타임 진행 확인

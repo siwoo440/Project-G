@@ -93,19 +93,29 @@ namespace ProjectG // 프로젝트 영역
             { // 처치 시작
                 if (source != null) // 공격자 확인
                 { // 보상 시작
-                    source.RegisterEnemyDefeat(Rank, ExperienceReward); // 종류별 보상 전달
+                    source.RegisterEnemyDefeat(Rank, ExperienceReward, transform.position); // 처치 위치와 보상 전달
                 } // 보상 종료
                 gameObject.SetActive(false); // 적 퇴장
             } // 처치 종료
             UpdateVisual(); // 현재 상태 표시
         } // 처리 종료
-        public override bool Intersects(Vector2 from, Vector2 to, out bool weak) // 탄환 구간 판정
+        public override bool Intersects(Vector2 from, Vector2 to, out bool weak, float padding = 0f, float verticalPadding = 0f) // 탄환 구간 판정
         { // 판정 시작
             Vector2 center = transform.position; // 적 중심
             float halfWidth = IsBoss ? 1.1f : 0.5f; // 종류별 몸체 폭
             float halfHeight = IsBoss ? 0.55f : 0.35f; // 종류별 몸체 높이
             Rect body = new Rect(center.x - halfWidth, center.y - halfHeight, halfWidth * 2f, halfHeight * 2f); // 몸체 판정 영역
             Rect weakArea = new Rect(center.x - 0.2f, center.y - halfHeight, 0.4f, halfHeight * 2f); // 시험 약점 영역
+            float extra = Mathf.Max(0f, padding); // 탄환 가로 폭
+            body.xMin -= extra; // 몸체 왼쪽 확장
+            body.xMax += extra; // 몸체 오른쪽 확장
+            weakArea.xMin -= extra; // 약점 왼쪽 확장
+            weakArea.xMax += extra; // 약점 오른쪽 확장
+            float vertical = Mathf.Max(0f, verticalPadding); // 탄환 세로 폭
+            body.yMin -= vertical; // 몸체 아래쪽 확장
+            body.yMax += vertical; // 몸체 위쪽 확장
+            weakArea.yMin -= vertical; // 약점 아래쪽 확장
+            weakArea.yMax += vertical; // 약점 위쪽 확장
             weak = WeakExposed && TrainingTarget.SegmentHits(weakArea, from, to); // 노출 중 약점 확인
             return IsAlive && TrainingTarget.SegmentHits(body, from, to); // 몸체 접촉 확인
         } // 판정 종료
@@ -121,7 +131,10 @@ namespace ProjectG // 프로젝트 영역
         } // 판정 종료
         private void Update() // 매 프레임 진행
         { // 진행 시작
-            Advance(Time.deltaTime); // 경과 시간 적용
+            if (Time.timeScale > 0f) // 전투 시간 확인
+            { // 진행 시작
+                Advance(Time.deltaTime); // 경과 시간 적용
+            } // 진행 종료
         } // 진행 종료
         public void Advance(float elapsed) // 적 행동 진행
         { // 진행 시작

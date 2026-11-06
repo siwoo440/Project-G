@@ -13,7 +13,7 @@ public class EnemyHealthBarTests // 적 체력바 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, kind); // 적 구성
             enemy.Begin(kind, null, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             Assert.That(bar, Is.Not.Null); // 체력바 존재 확인
@@ -24,7 +24,7 @@ public class EnemyHealthBarTests // 적 체력바 시험
             SpriteRenderer fill = bar.Find("Fill").GetComponent<SpriteRenderer>(); // 체력 이미지
             SpriteRenderer body = holder.transform.Find("EnemyBody").GetComponent<SpriteRenderer>(); // 몸체 이미지
             Assert.That(frame.sprite.texture.name, Is.EqualTo("ui_card_frame")); // 기존 시각 자산 확인
-            Assert.That(fill.sprite.texture, Is.SameAs(Texture2D.whiteTexture)); // 연속 게이지 확인
+            Assert.That(fill.sprite.texture.name, Is.EqualTo("white_persistent")); // 연속 게이지 확인
             Assert.That(frame.bounds.max.y, Is.LessThan(body.bounds.min.y)); // 확대된 몸체 아래 배치 확인
             Assert.That(fill.bounds.size.x / frame.bounds.size.x, Is.EqualTo(0.72f).Within(0.02f)); // 가장자리 여백과 체력 비율 확인
         } // 범위 종료
@@ -43,14 +43,14 @@ public class EnemyHealthBarTests // 적 체력바 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, null, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             EnemyHealthBar gauge = bar.GetComponent<EnemyHealthBar>(); // 게이지 구성
             gauge.Show(ratio); // 체력 비율 적용
             SpriteRenderer frame = bar.Find("Frame").GetComponent<SpriteRenderer>(); // 외곽 표시
             SpriteRenderer fill = bar.Find("Fill").GetComponent<SpriteRenderer>(); // 내부 표시
-            Assert.That(fill.sprite.texture, Is.SameAs(Texture2D.whiteTexture)); // 빈틈 없는 단색 원본
+            Assert.That(fill.sprite.texture.name, Is.EqualTo("white_persistent")); // 빈틈 없는 단색 원본
             Assert.That(fill.color.a, Is.EqualTo(1f).Within(0.001f)); // 불투명 게이지 확인
             Assert.That(fill.color.g, Is.GreaterThan(fill.color.r)); // 청록 계열 확인
             Assert.That(fill.bounds.size.x, Is.EqualTo(frame.bounds.size.x * 0.9f * ratio).Within(0.001f)); // 연속 게이지 폭 확인
@@ -69,7 +69,7 @@ public class EnemyHealthBarTests // 적 체력바 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, null, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             enemy.ApplyDamage(0f, null); // 영 피해 시도
@@ -97,7 +97,7 @@ public class EnemyHealthBarTests // 적 체력바 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Aimed); // 적 구성
             enemy.Begin(EnemyKind.Aimed, null, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             enemy.ApplyDamage(1f, null); // 실제 피해
@@ -126,7 +126,7 @@ public class EnemyHealthBarTests // 적 체력바 시험
         { // 범위 시작
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 플레이어 초기화
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, player, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             enemy.ApplyDamage(1f, null); // 실제 피해

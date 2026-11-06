@@ -11,7 +11,7 @@ public sealed class DemoSpawnerWarningPlayTests // 시험 발사기 경고 제�
         float previousScale = Time.timeScale; // 기존 시간 배율
         GameObject cameraObject = new GameObject("DemoSpawnerCamera"); // 시험 카메라
         Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
-        EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀
+        EnemyBulletPool pool = EnemyBulletPlayTestFactory.Create(cameraObject); // 적탄 풀
         GameObject playerObject = new GameObject("DemoSpawnerPlayer"); // 시험 플레이어
         BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
         GameObject spawnerObject = new GameObject("DemoSpawner"); // 시험 발사기
@@ -29,7 +29,7 @@ public sealed class DemoSpawnerWarningPlayTests // 시험 발사기 경고 제�
             yield return new WaitUntil(() => pool.ActiveCount == 1 || Time.realtimeSinceStartup >= deadline); // 발사 또는 제한 시간 대기
             Assert.That(pool.ActiveCount, Is.EqualTo(1)); // 제한 시간 안의 첫 발사 확인
             EnemyBullet[] first = pool.GetComponentsInChildren<EnemyBullet>(); // 첫 활성 탄환 조회
-            Assert.That(first[0].transform.position.x, Is.EqualTo(-5f * 16f / 9f * 0.6f).Within(0.001f)); // 첫 가로 경로 확인
+            Assert.That(first[0].transform.position.x, Is.EqualTo(-camera.orthographicSize * camera.aspect * 0.6f).Within(0.001f)); // 실제 전투 폭의 첫 가로 경로
             Assert.That(first[0].transform.position.y, Is.EqualTo(4.85f).Within(0.001f)); // 발사 순간 세로 위치 확인
             yield return new WaitForSeconds(0.9f); // 두 번째 발사 전 대기
             Assert.That(pool.ActiveCount, Is.EqualTo(1)); // 발사 간격 유지 확인

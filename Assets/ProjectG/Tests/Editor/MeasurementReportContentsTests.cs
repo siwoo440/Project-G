@@ -13,8 +13,8 @@ public class MeasurementReportContentsTests // 보고서의 스테이지 정보 
             Camera camera = cameraObject.AddComponent<Camera>(); // 전투 카메라 구성
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 출격 초기화
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 구성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             MeasurementContext context = new MeasurementContext(); // 시험 환경 정보
             context.Stage = "하늘섬 외곽 시험 스테이지"; // 실제 스테이지 이름
@@ -52,8 +52,8 @@ public class MeasurementReportContentsTests // 보고서의 스테이지 정보 
             camera.orthographicSize = 5f; // 시험 화면 높이
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 출격 초기화
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 구성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 측정 수집기
             recorder.Begin(player, stage, pool, 42); // 실제 전투 기록 연결

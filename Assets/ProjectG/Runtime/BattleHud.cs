@@ -3,10 +3,12 @@ namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public sealed class BattleHud : MonoBehaviour // 시험용 전투 정보 표시
     { // 클래스 시작
+        private bool scenePanel; // 실제 씬 패널의 중복 표시 차단
         private BattlePlayer player; // 플레이어 상태
         private Camera battleCamera; // 전투 화면 기준
-        public void Begin(BattlePlayer target, Camera camera) // 표시 초기화
+        public void Begin(BattlePlayer target, Camera camera, bool useScenePanel = false) // 표시 초기화
         { // 초기화 시작
+            scenePanel = useScenePanel; // 씬 패널 사용 여부
             player = target; // 플레이어 참조
             battleCamera = camera; // 카메라 참조
         } // 초기화 종료
@@ -19,7 +21,7 @@ namespace ProjectG // 프로젝트 영역
         } // 배치 종료
         private void OnGUI() // 전투 정보 표시
         { // 표시 시작
-            if (player == null || player.Survival == null || battleCamera == null) // 표시 조건 확인
+            if (scenePanel || player == null || player.Survival == null || battleCamera == null) // 표시 조건 확인
             { // 생략 시작
                 return; // 표시 생략
             } // 생략 종료

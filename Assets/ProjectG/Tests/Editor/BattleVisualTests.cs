@@ -29,7 +29,7 @@ public class BattleVisualTests // 전투 표시 시험
         GameObject holder = new GameObject("Boss"); // 보스 객체 생성
         try // 시험 시작
         { // 시험 범위 시작
-            EnemyActor boss = holder.AddComponent<EnemyActor>(); // 보스 구성 요소
+            EnemyActor boss = EnemyActorTestFactory.AttachActor(holder, EnemyKind.FinalBoss); // 보스 구성 요소
             boss.Begin(EnemyKind.FinalBoss, null, null, null); // 보스 표시 생성
             Assert.That(holder.transform.Find("EnemyAttackWarning"), Is.Null); // 탄막 경고 표시 제거
             Transform weakObject = holder.transform.Find("EnemyWeakPoint"); // 약점 표시 객체
@@ -56,7 +56,7 @@ public class BattleVisualTests // 전투 표시 시험
         GameObject holder = new GameObject("Enemy"); // 시험 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, kind); // 적 구성
             enemy.Begin(kind, null, null, null); // 적 초기화
             enemy.Advance(kind == EnemyKind.Aimed ? 1.2f : kind == EnemyKind.Spread ? 1.7f : 0.6f); // 기존 발사 준비 시점
             Assert.That(holder.transform.Find("EnemyAttackWarning"), Is.Null); // 사격 전 경고 객체 없음
@@ -72,7 +72,7 @@ public class BattleVisualTests // 전투 표시 시험
         GameObject holder = new GameObject("Dash"); // 시험 돌진 적
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, null, null, null); // 돌진 적 초기화
             Transform warning = holder.transform.Find("EnemyAttackWarning"); // 돌진 경고 객체
             Assert.That(warning, Is.Not.Null); // 돌진 경고 보존

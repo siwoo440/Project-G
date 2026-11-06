@@ -13,7 +13,7 @@ public class EnemyDashPathTests // 돌진 경로 시험
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(new Vector2(0f, -3f)); // 최초 대상 위치
             holder.transform.position = new Vector2(0f, 3f); // 적 시작 위치
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, player, null, null); // 돌진 경고 시작
             Transform path = holder.transform.Find("EnemyDashPath"); // 화면상 경로
             Assert.That(path, Is.Not.Null); // 경로 표시 존재
@@ -42,7 +42,7 @@ public class EnemyDashPathTests // 돌진 경로 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, null, null, null); // 첫 돌진 시작
             Transform path = holder.transform.Find("EnemyDashPath"); // 첫 경로 객체
             Assert.That(path, Is.Not.Null); // 경로 생성 확인

@@ -28,6 +28,7 @@ namespace ProjectG // 프로젝트 영역
         private readonly Dictionary<string, Sprite> skillSprites = new Dictionary<string, Sprite>(); // 기존 스킬 이미지 재사용
         private BattlePlayer player; // 출격 플레이어
         private Camera battleCamera; // 전투 카메라
+        private StageDirector stage; // 실제 전투 모달 상태
         private IUpgradeDropEffects effects; // 등급 효과 연결
         private UpgradeDropRoller roller; // 유효 후보 추첨기
         private int? replaySeed; // 같은 출격 조건 재현 시드
@@ -37,6 +38,11 @@ namespace ProjectG // 프로젝트 영역
         private Texture2D infoFrame; // 전투 정보 배경 이미지
         private float feedbackRemaining; // 획득 안내 남은 시간
         public int ActiveCount => drops.Count; // 현재 필드 아이템 수
+        public bool CanDisplayHud => battleCamera != null && (stage == null || stage.IsHudVisible); // 실제 모달 중 아이템 안내 차단
+        public void SetStage(StageDirector currentStage) // 실제 스테이지 상태 연결
+        { // 연결 시작
+            stage = currentStage; // 현재 출격 스테이지 보관
+        } // 연결 종료
         public bool IsInfoVisible => player != null && player.isActiveAndEnabled && player.Survival != null && player.Survival.IsAlive && Time.timeScale > 0f && Keyboard.current != null && Keyboard.current.tabKey.isPressed; // 전투 중 탭을 누른 상태
         public string LastFeedback // 최근 획득 안내
         { // 속성 시작
@@ -210,6 +216,7 @@ namespace ProjectG // 프로젝트 영역
             Clear(); // 이전 드롭 정리
             player = null; // 이전 플레이어 해제
             battleCamera = null; // 이전 카메라 해제
+            stage = null; // 이전 스테이지 연결 해제
             effects = null; // 이전 효과 해제
             roller = null; // 이전 난수 해제
             replaySeed = null; // 이전 출격 시드 해제
@@ -266,6 +273,10 @@ namespace ProjectG // 프로젝트 영역
         } // 색상 선택 종료
         private void OnGUI() // 필드 이름과 획득 결과 표시
         { // 표시 시작
+            if (!CanDisplayHud) // 실제 모달 표시 상태 확인
+            { // 숨김 시작
+                return; // 아이템 이름과 획득 안내의 모달 중복 차단
+            } // 숨김 종료
             bool showInfo = IsInfoVisible; // 전투 정보 표시 상태
             if (battleCamera == null || (drops.Count == 0 && string.IsNullOrEmpty(LastFeedback) && !showInfo)) // 표시 대상 확인
             { // 생략 시작
@@ -285,7 +296,8 @@ namespace ProjectG // 프로젝트 영역
                 string description = UpgradeItemState.Label(entry.Drop.Id, entry.Drop.Grade); // 기획 시험 효과 이름
                 string name = description.Split('\n')[0]; // 종류 이름만 표시
                 string text = name + " " + entry.Drop.Grade; // 종류와 등급 구분
-                GUI.Label(new Rect(screen.x - 90f, Screen.height - screen.y + 18f, 180f, 35f), text, labelStyle); // 아이템 바로 아래 안내
+                Rect guiView = new Rect(view.xMin, Screen.height - view.yMax, view.width, view.height); // 전투 화면 위쪽 기준 좌표
+                GUI.Label(DropLabelRect(guiView, new Vector2(screen.x, Screen.height - screen.y)), text, labelStyle); // 전투 영역 안 아이템 안내
             } // 표시 반복 종료
             if (!string.IsNullOrEmpty(LastFeedback)) // 실제 획득 안내 확인
             { // 획득 안내 시작
@@ -296,6 +308,11 @@ namespace ProjectG // 프로젝트 영역
                 DrawInfo(view); // 아이템 누적 정보 표시
             } // 정보 표시 종료
         } // 표시 종료
+        public static Rect DropLabelRect(Rect view, Vector2 position) // 아이템 이름의 전투 화면 배치
+        { // 계산 시작
+            Rect requested = new Rect(position.x - 90f, position.y + 18f, 180f, 35f); // 아이템 아래 기본 위치
+            return BattleLayout.ClampRect(requested, view); // 전투 영역 밖 표시 차단
+        } // 계산 종료
         public static Rect InfoArea(Rect view) // 전투 정보의 화면 영역
         { // 계산 시작
             return new Rect(view.x + view.width * 0.02f, Screen.height - view.yMax + view.height * 0.20f, view.width * 0.38f, view.height * 0.45f); // 획득 안내 위쪽 영역
@@ -349,6 +366,7 @@ namespace ProjectG // 프로젝트 영역
             labelStyle = new GUIStyle(GUI.skin.label); // 아이템 안내 글꼴
             labelStyle.font = font != null ? font : GUI.skin.font; // 글꼴 적용
             labelStyle.alignment = TextAnchor.MiddleCenter; // 안내 중앙 정렬
+            labelStyle.clipping = TextClipping.Clip; // 전투 영역 밖 글자 차단
             labelStyle.fontStyle = FontStyle.Bold; // 안내 글자 강조
             labelStyle.normal.textColor = Color.white; // 이름 흰색
             feedbackStyle = new GUIStyle(labelStyle); // 획득 안내 글꼴

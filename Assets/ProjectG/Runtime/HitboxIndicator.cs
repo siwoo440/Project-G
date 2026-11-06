@@ -6,10 +6,27 @@ namespace ProjectG // 프로젝트 영역
         private BattlePlayer player; // 플레이어 상태
         private SpriteRenderer image; // 피격 표시 이미지
         private static Sprite marker; // 공통 원형 이미지
-        public void Begin(BattlePlayer target) // 표시 초기화
+        public bool HasSceneVisual => GetComponent<SpriteRenderer>() != null && GetComponent<SpriteRenderer>().sprite != null; // 씬에 저장된 표시 확인
+        public bool BeginScene(BattlePlayer target) // 편집된 씬 표시 연결
+        { // 연결 시작
+            image = GetComponent<SpriteRenderer>(); // 씬에 저장된 이미지 조회
+            if (target == null || image == null || image.sprite == null) // 실제 표시 참조 확인
+            { // 오류 시작
+                return false; // 잘못된 씬 연결 차단
+            } // 오류 종료
+            player = target; // 실제 플레이어 연결
+            Refresh(); // 현재 집중 상태 반영
+            return true; // 씬 표시 연결 완료
+        } // 연결 종료
+        public void Begin(BattlePlayer target) // 기존 시험용 표시 초기화
         { // 초기화 시작
+            if (HasSceneVisual) // 이미 편집한 이미지 확인
+            { // 씬 연결 시작
+                BeginScene(target); // 편집된 구성 재사용
+                return; // 중복 렌더러 생성 차단
+            } // 씬 연결 종료
             player = target; // 플레이어 참조
-            image = gameObject.AddComponent<SpriteRenderer>(); // 표시 요소 생성
+            image = gameObject.AddComponent<SpriteRenderer>(); // 기존 시험용 표시 생성
             image.sprite = GetMarker(); // 원형 이미지 적용
             image.color = Color.white; // 표시 색상
             image.sortingOrder = 10; // 플레이어 위에 표시

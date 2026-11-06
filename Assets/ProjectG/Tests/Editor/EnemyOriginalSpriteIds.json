@@ -1,0 +1,1600 @@
+{
+    "entries": [
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/ui_card_frame.png",
+            "name": "ui_card_frame_0",
+            "guid": "c6faf58e40ce93a4e8799d5d04761bb8",
+            "id": 2163904271019982348,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1024.0,
+                "height": 1536.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_9",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -8686746875158218161,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1296.0,
+                "y": 711.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_22",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -7586861263827070321,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1374.0,
+                "y": 559.0,
+                "width": 15.0,
+                "height": 19.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_27",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -7036686553196752404,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 214.0,
+                "y": 497.0,
+                "width": 11.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_3",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -7031042423204507694,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1278.0,
+                "y": 783.0,
+                "width": 17.0,
+                "height": 18.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_37",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -6688365605065566385,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1350.0,
+                "y": 395.0,
+                "width": 19.0,
+                "height": 19.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_30",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -6568432406328299920,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 94.0,
+                "y": 447.0,
+                "width": 9.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_32",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -6172100956376418280,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1358.0,
+                "y": 433.0,
+                "width": 13.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_33",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -5903818238480892433,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1278.0,
+                "y": 365.0,
+                "width": 43.0,
+                "height": 47.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_21",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -4811314452636639479,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1304.0,
+                "y": 559.0,
+                "width": 9.0,
+                "height": 16.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_38",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -4194480727652608444,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 126.0,
+                "y": 369.0,
+                "width": 21.0,
+                "height": 27.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_44",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -4189743361814549737,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1352.0,
+                "y": 351.0,
+                "width": 7.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_8",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -4173916180083301270,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1302.0,
+                "y": 710.0,
+                "width": 11.0,
+                "height": 31.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_20",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -3969253013186636599,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1422.0,
+                "y": 597.0,
+                "width": 11.0,
+                "height": 23.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_0",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -3197629148153119130,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1513.0,
+                "height": 1024.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_6",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -2965539996909111814,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 226.0,
+                "y": 739.0,
+                "width": 9.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_41",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -2738819942526322877,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 210.0,
+                "y": 340.0,
+                "width": 17.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_24",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -2691004472370462236,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1336.0,
+                "y": 493.0,
+                "width": 31.0,
+                "height": 51.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_13",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -1017469262233839786,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1358.0,
+                "y": 689.0,
+                "width": 11.0,
+                "height": 19.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_42",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -979168047837274815,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1094.0,
+                "y": 181.0,
+                "width": 201.0,
+                "height": 189.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_39",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -631268748797120736,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 166.0,
+                "y": 375.0,
+                "width": 9.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_19",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": -338646327447141629,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1406.0,
+                "y": 607.0,
+                "width": 9.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_4",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 754663930583307487,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 208.0,
+                "y": 755.0,
+                "width": 9.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_46",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 1652187222280246696,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 216.0,
+                "y": 301.0,
+                "width": 13.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_16",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 1738078963261064131,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1338.0,
+                "y": 630.0,
+                "width": 21.0,
+                "height": 34.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_11",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 1984224251709820272,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 216.0,
+                "y": 679.0,
+                "width": 9.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_36",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 2001223886499540915,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1346.0,
+                "y": 409.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_28",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 2585694624390416486,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1376.0,
+                "y": 469.0,
+                "width": 27.0,
+                "height": 29.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_43",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 2807868115103570377,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1302.0,
+                "y": 352.0,
+                "width": 11.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_35",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 2966970724746652115,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1330.0,
+                "y": 405.0,
+                "width": 7.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_45",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 3688296295562925859,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 184.0,
+                "y": 273.0,
+                "width": 39.0,
+                "height": 68.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_2",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 3789921288522759953,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 236.0,
+                "y": 785.0,
+                "width": 17.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_26",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 4015743264168082827,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 122.0,
+                "y": 457.0,
+                "width": 37.0,
+                "height": 49.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_1",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 4724864228193476909,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 190.0,
+                "y": 833.0,
+                "width": 9.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_5",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 4888280109111548038,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 198.0,
+                "y": 733.0,
+                "width": 9.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_40",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 5043144244939214731,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 150.0,
+                "y": 353.0,
+                "width": 9.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_10",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 5302493425124779307,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 206.0,
+                "y": 683.0,
+                "width": 11.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_7",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 5390386061175287532,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 240.0,
+                "y": 737.0,
+                "width": 11.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_17",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 5882703003234827076,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1400.0,
+                "y": 647.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_25",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 6060403458614837731,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 96.0,
+                "y": 495.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_18",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 6787664634407161806,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1358.0,
+                "y": 597.0,
+                "width": 9.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_31",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 6971545865638320997,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1301.0,
+                "y": 431.0,
+                "width": 13.0,
+                "height": 20.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_47",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 7168351675350873999,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1320.0,
+                "y": 273.0,
+                "width": 7.0,
+                "height": 7.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_12",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 7404387942288830436,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1278.0,
+                "y": 641.0,
+                "width": 67.0,
+                "height": 55.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_34",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 8027360960908725382,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1280.0,
+                "y": 409.0,
+                "width": 9.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_15",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 8340013374100952448,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1374.0,
+                "y": 657.0,
+                "width": 9.0,
+                "height": 23.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_29",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 8398531250902402769,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1438.0,
+                "y": 462.0,
+                "width": 17.0,
+                "height": 18.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_23",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 9082673516895706502,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 214.0,
+                "y": 519.0,
+                "width": 9.0,
+                "height": 19.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/weakpoint_reticle.png",
+            "name": "weakpoint_reticle_14",
+            "guid": "a0ea0ab0e0cdbd748a3a06cda40c5032",
+            "id": 9103872542245519741,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 230.0,
+                "y": 677.0,
+                "width": 9.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_4",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": -3491656246017678315,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 160.0,
+                "y": 215.0,
+                "width": 15.0,
+                "height": 25.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_2",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": -2349699291723077263,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1280.0,
+                "y": 382.0,
+                "width": 15.0,
+                "height": 20.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_3",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": 5131452234216738372,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1314.0,
+                "y": 262.0,
+                "width": 11.0,
+                "height": 10.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_1",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": 5491999970290244099,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1248.0,
+                "y": 414.0,
+                "width": 15.0,
+                "height": 18.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_6",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": 8340121046287639945,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 154.0,
+                "y": 219.0,
+                "width": 9.0,
+                "height": 8.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_0",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": 9078923980561570578,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 16.0,
+                "y": 16.0,
+                "width": 1467.0,
+                "height": 994.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/attack_warning.png",
+            "name": "attack_warning_5",
+            "guid": "28737f1b79c1c024b868d6177e811cd3",
+            "id": 9131336583716206801,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1322.0,
+                "y": 231.0,
+                "width": 13.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_19",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -9041400880700492499,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 519.0,
+                "y": 127.0,
+                "width": 15.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_11",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -8099191753742157037,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1125.0,
+                "y": 154.0,
+                "width": 52.0,
+                "height": 45.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_21",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -7487589598306895644,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 627.0,
+                "y": 88.0,
+                "width": 15.0,
+                "height": 41.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_22",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -7314132513622716284,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 745.0,
+                "y": 128.0,
+                "width": 8.0,
+                "height": 7.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_12",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -6821116193222935202,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1182.0,
+                "y": 192.0,
+                "width": 11.0,
+                "height": 17.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_23",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -6814742163951018791,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 88.0,
+                "y": 111.0,
+                "width": 6.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_10",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -6545683841284293091,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1117.0,
+                "y": 192.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_25",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -5845037774371495120,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 601.0,
+                "y": 103.0,
+                "width": 9.0,
+                "height": 20.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_1",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -5582390976105051485,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 112.0,
+                "y": 1181.0,
+                "width": 6.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_17",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -5352461567060368015,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 713.0,
+                "y": 160.0,
+                "width": 12.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_5",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -2987149808588930271,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 743.0,
+                "y": 191.0,
+                "width": 14.0,
+                "height": 26.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_4",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -2223645355880304180,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 209.0,
+                "y": 216.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_27",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -2171175891434297548,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 609.0,
+                "y": 81.0,
+                "width": 9.0,
+                "height": 10.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_0",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": -967173729703226465,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1241.0,
+                "height": 1232.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_3",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 706011641720000806,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 836.0,
+                "y": 232.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_7",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 881606234340523359,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 145.0,
+                "y": 193.0,
+                "width": 7.0,
+                "height": 16.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_16",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 2105904712526312413,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1093.0,
+                "y": 184.0,
+                "width": 11.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_14",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 3061563342605505036,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1220.0,
+                "y": 194.0,
+                "width": 17.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_8",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 3119011749330527963,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 402.0,
+                "y": 192.0,
+                "width": 7.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_24",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 3275023422856131004,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 553.0,
+                "y": 95.0,
+                "width": 19.0,
+                "height": 28.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_2",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 3512852452486355911,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1164.0,
+                "y": 407.0,
+                "width": 11.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_13",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 4089702405472779915,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1188.0,
+                "y": 192.0,
+                "width": 9.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_18",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 4798836754522332700,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1160.0,
+                "y": 147.0,
+                "width": 10.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_15",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 4942811258164219447,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 64.0,
+                "y": 160.0,
+                "width": 28.0,
+                "height": 27.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_28",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 5036617866890943249,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 617.0,
+                "y": 85.0,
+                "width": 17.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_6",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 5414063794654679916,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 756.0,
+                "y": 184.0,
+                "width": 27.0,
+                "height": 38.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_26",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 6839549505325751474,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 641.0,
+                "y": 95.0,
+                "width": 9.0,
+                "height": 22.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_9",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 6952578441618602906,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1067.0,
+                "y": 198.0,
+                "width": 9.0,
+                "height": 13.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_aimed.png",
+            "name": "enemy_aimed_20",
+            "guid": "b7b404ddb5b86f04c9373cef3deebf88",
+            "id": 9070911588976283082,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 533.0,
+                "y": 128.0,
+                "width": 11.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_11",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -8826676916637683709,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 456.0,
+                "y": 1082.0,
+                "width": 9.0,
+                "height": 14.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_9",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -7455639070179746924,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 711.0,
+                "y": 1092.0,
+                "width": 27.0,
+                "height": 20.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_3",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -7167722465247567506,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 908.0,
+                "y": 1160.0,
+                "width": 21.0,
+                "height": 80.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_0",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -5271869176233044959,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 16.0,
+                "y": 0.0,
+                "width": 1223.0,
+                "height": 1237.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_8",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -3043665665543990906,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 739.0,
+                "y": 1113.0,
+                "width": 14.0,
+                "height": 18.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_1",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -2194270455619514125,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 362.0,
+                "y": 1079.0,
+                "width": 95.0,
+                "height": 153.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_7",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -1886458351626939490,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 736.0,
+                "y": 1106.0,
+                "width": 9.0,
+                "height": 8.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_6",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -1445371428088147217,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 926.0,
+                "y": 1164.0,
+                "width": 10.0,
+                "height": 10.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_2",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": -1318221759012948615,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 739.0,
+                "y": 1197.0,
+                "width": 12.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_5",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": 2527711084068986677,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 183.0,
+                "y": 1165.0,
+                "width": 7.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_4",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": 6882518325129125463,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 177.0,
+                "y": 1164.0,
+                "width": 7.0,
+                "height": 11.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_spread.png",
+            "name": "enemy_spread_10",
+            "guid": "08cbaa2d2a13ed9468c2f03700e707d1",
+            "id": 8103216434237857003,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 737.0,
+                "y": 1100.0,
+                "width": 10.0,
+                "height": 10.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_dash.png",
+            "name": "enemy_dash_2",
+            "guid": "e351c807bae901c42be4fb11c1e5bd56",
+            "id": -3849256479031781206,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 948.0,
+                "y": 128.0,
+                "width": 12.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_dash.png",
+            "name": "enemy_dash_4",
+            "guid": "e351c807bae901c42be4fb11c1e5bd56",
+            "id": -1769578777664123684,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 506.0,
+                "y": 23.0,
+                "width": 12.0,
+                "height": 10.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_dash.png",
+            "name": "enemy_dash_1",
+            "guid": "e351c807bae901c42be4fb11c1e5bd56",
+            "id": -1206360501551861607,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 932.0,
+                "y": 1213.0,
+                "width": 6.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_dash.png",
+            "name": "enemy_dash_0",
+            "guid": "e351c807bae901c42be4fb11c1e5bd56",
+            "id": 4989935544398078607,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1241.0,
+                "height": 1234.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/enemy_dash.png",
+            "name": "enemy_dash_3",
+            "guid": "e351c807bae901c42be4fb11c1e5bd56",
+            "id": 5824226009227990099,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 305.0,
+                "y": 103.0,
+                "width": 6.0,
+                "height": 8.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_7",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": -6626391596388151424,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 948.0,
+                "y": 136.0,
+                "width": 8.0,
+                "height": 7.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_3",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": -4663710294184076973,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 418.0,
+                "y": 132.0,
+                "width": 7.0,
+                "height": 13.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_2",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": -3523470738583499099,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 329.0,
+                "y": 115.0,
+                "width": 6.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_4",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": -1154250167403687026,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 426.0,
+                "y": 130.0,
+                "width": 7.0,
+                "height": 15.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_1",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": -816954105587392362,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 307.0,
+                "y": 119.0,
+                "width": 12.0,
+                "height": 12.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_0",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": 1647275816690877004,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 14.0,
+                "y": 15.0,
+                "width": 1225.0,
+                "height": 1231.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_5",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": 6326424666341110984,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 513.0,
+                "y": 34.0,
+                "width": 17.0,
+                "height": 18.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_8",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": 6926000801322552544,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 954.0,
+                "y": 134.0,
+                "width": 6.0,
+                "height": 6.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_mid.png",
+            "name": "boss_mid_6",
+            "guid": "31933fc0b761639488f60617d8dc101c",
+            "id": 7646252104539911014,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 876.0,
+                "y": 120.0,
+                "width": 7.0,
+                "height": 9.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_final.png",
+            "name": "boss_final_0",
+            "guid": "4e7682af9fa0163488b9995270d4d468",
+            "id": -3532633861849987810,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1254.0,
+                "height": 1254.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_final.png",
+            "name": "boss_final_2",
+            "guid": "4e7682af9fa0163488b9995270d4d468",
+            "id": 5028923692706120973,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 689.0,
+                "y": 53.0,
+                "width": 17.0,
+                "height": 13.0
+            },
+            "pixelsPerUnit": 100.0
+        },
+        {
+            "path": "Assets/ProjectG/Resources/BattleArt/boss_final.png",
+            "name": "boss_final_1",
+            "guid": "4e7682af9fa0163488b9995270d4d468",
+            "id": 8346226631441781835,
+            "rect": {
+                "serializedVersion": "2",
+                "x": 1246.0,
+                "y": 373.0,
+                "width": 6.0,
+                "height": 13.0
+            },
+            "pixelsPerUnit": 100.0
+        }
+    ]
+}

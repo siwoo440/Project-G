@@ -70,7 +70,7 @@ namespace ProjectG // 프로젝트 영역
             { // 이전 적 정리 시작
                 Destroy(Current.gameObject); // 이전 적 제거
             } // 이전 적 정리 종료
-            float halfWidth = battleCamera.orthographicSize * 16f / 9f; // 화면 가로 반경
+            float halfWidth = battleCamera.orthographicSize * battleCamera.aspect; // 실제 전투 가로 반경
             Vector2 center = battleCamera.transform.position; // 화면 중심
             EnemyKind kind = sequence[next % sequence.Length]; // 등장 적 종류
             bool boss = kind == EnemyKind.MidBoss || kind == EnemyKind.FinalBoss; // 보스 구분

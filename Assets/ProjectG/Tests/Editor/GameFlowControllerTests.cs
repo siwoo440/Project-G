@@ -110,11 +110,11 @@ public class GameFlowControllerTests // 화면 이동 시험
             flow.StartRun(); // 출격 요청
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 플레이어 초기화
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀 구성
             BattleProgress progress = playerObject.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             flow.AttachBattle(player, stage); // 결과 감지 연결
             stage.Advance(2f, 3f); // 시험 경과 기록

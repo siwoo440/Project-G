@@ -156,7 +156,7 @@ public class CharacterCombatTests // 캐릭터 전투 시험
     { // 시험 시작
         GameObject cameraObject = new GameObject("TestCamera"); // 카메라 생성
         Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
-        EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀
         GameObject holder = new GameObject("TestPlayer"); // 플레이어 생성
         BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성 요소
         GameObject targetObject = new GameObject("TestTarget"); // 중앙 표적 생성

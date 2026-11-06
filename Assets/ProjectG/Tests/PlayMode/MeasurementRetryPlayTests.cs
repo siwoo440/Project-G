@@ -45,6 +45,7 @@ public class MeasurementRetryPlayTests // 측정 보고서 재시도 시험
             Assert.That(host.Flow.OpenCharacterSelection(), Is.True); // 캐릭터 선택 진입
             Assert.That(host.Flow.OpenPreparation(), Is.True); // 출격 준비 진입
             Assert.That(host.Flow.StartRun(), Is.True); // 첫 출격 시작
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             host.CurrentPlayer.Skills.GainEnergy(100); // 첫 출격 필살기 충전
             Assert.That(host.CurrentPlayer.TryUseUltimate(), Is.True); // 첫 출격 필살기 발동
             host.CurrentStage.State.Fail(); // 첫 출격 실패 정산
@@ -55,6 +56,7 @@ public class MeasurementRetryPlayTests // 측정 보고서 재시도 시험
             Assert.That(host.Flow.MeasurementNotice, Does.Contain("Tab")); // 재시도 키 안내
             Assert.That(host.Flow.RequestRetry(), Is.True); // 재출격 확인
             Assert.That(host.Flow.ConfirmResultExit(true), Is.True); // 같은 조건 재출격
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 재출격 완료
             host.CurrentStage.State.Fail(); // 둘째 출격 실패 정산
             Assert.That(host.PendingMeasurementCount, Is.EqualTo(2)); // 두 보고서 모두 보존
             Assert.That(progress.Mastery(CharacterType.Rapid), Is.EqualTo(20)); // 두 출격의 보상 정상 지급
@@ -109,6 +111,7 @@ public class MeasurementRetryPlayTests // 측정 보고서 재시도 시험
             Assert.That(host.Flow.OpenCharacterSelection(), Is.True); // 캐릭터 선택 진입
             Assert.That(host.Flow.OpenPreparation(), Is.True); // 출격 준비 진입
             Assert.That(host.Flow.StartRun(), Is.True); // 시험 출격 시작
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             host.CurrentStage.State.Fail(); // 출격 종료와 보고 실패
             Assert.That(host.PendingMeasurementCount, Is.EqualTo(1)); // 미저장 보고 확인
             int saved = 0; // 저장 성공 횟수

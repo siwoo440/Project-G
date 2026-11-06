@@ -70,7 +70,7 @@ public class SkillIntegrationTests // 플레이어 스킬 연결 시험
     { // 시험 시작
         GameObject cameraObject = new GameObject("TestCamera"); // 시험 카메라 생성
         Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성 요소
-        EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 생성
         GameObject holder = new GameObject("TestPlayer"); // 시험 플레이어 생성
         BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성 요소
         try // 시험 시작

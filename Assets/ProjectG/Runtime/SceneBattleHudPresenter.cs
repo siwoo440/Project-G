@@ -15,13 +15,24 @@ namespace ProjectG // 프로젝트 영역
         [SerializeField] private Text energyText; // 실제 에너지 숫자
         [SerializeField] private Text levelText; // 현재 레벨 숫자
         [SerializeField] private Text experienceText; // 실제 경험치 숫자
+        [SerializeField] private CanvasGroup panelGroup; // 편집 가능한 오른쪽 정보 패널
+        [SerializeField] private Text grazeText; // 실제 그레이즈 표시
+        [SerializeField] private Text characterText; // 실제 캐릭터 전투 정보
+        [SerializeField] private SceneSkillHudPresenter skills; // 실제 세 스킬 슬롯
         private readonly Vector3[] corners = new Vector3[4]; // 화면 영역 재사용 좌표
         private GameSessionHost host; // 현재 출격 관리자
         private Canvas canvas; // 편집된 캔버스
         private float healthAlpha; // 편집한 체력 투명도
         private float energyAlpha; // 편집한 에너지 투명도
         private float experienceAlpha; // 편집한 경험치 투명도
-        public bool IsReady => menuCamera != null && healthGroup != null && energyGroup != null && experienceGroup != null && healthGroup.transform is RectTransform && energyGroup.transform is RectTransform && experienceGroup.transform is RectTransform && healthFill != null && energyFill != null && experienceFill != null && healthText != null && energyText != null && levelText != null && experienceText != null && Filled(healthFill) && Filled(energyFill) && Filled(experienceFill); // 필수 씬 연결과 채움 설정
+        public bool HasSceneReferences => healthGroup != null && energyGroup != null && experienceGroup != null && healthGroup.transform is RectTransform && energyGroup.transform is RectTransform && experienceGroup.transform is RectTransform && healthFill != null && energyFill != null && experienceFill != null && healthText != null && energyText != null && levelText != null && experienceText != null && Filled(healthFill) && Filled(energyFill) && Filled(experienceFill); // 전투 씬에 저장된 참조 확인
+        public bool HasPanelReferences => panelGroup != null && grazeText != null && characterText != null && skills != null && skills.IsReady; // 실제 정보 패널 연결
+        public bool IsReady => menuCamera != null && HasSceneReferences; // 실행 중 메뉴 연결과 씬 참조 확인
+        public void BindHost(GameSessionHost session) // 씬 로드 후 실제 메뉴 연결
+        { // 연결 시작
+            host = session; // 현재 출격 관리자 보관
+            menuCamera = session != null ? session.GetComponent<Camera>() : null; // 씬 간 카메라 참조 연결
+        } // 연결 종료
         private void Awake() // 화면 구성 확인
         { // 확인 시작
             if (!IsReady) // 참조와 이미지 방식 확인
@@ -52,7 +63,7 @@ namespace ProjectG // 프로젝트 영역
             { // 연결 시작
                 host = menuCamera.GetComponent<GameSessionHost>(); // 씬의 실제 출격 관리자
             } // 연결 종료
-            if (host == null || host.Flow == null || !host.Flow.IsBattleActive || host.Flow.InputBlocked || Time.timeScale <= 0f || host.CurrentPlayer == null) // 전투와 모달 상태 확인
+            if (host == null || host.Flow == null || !host.Flow.IsBattleActive || host.CurrentPlayer == null) // 실제 전투와 플레이어 상태 확인
             { // 숨김 시작
                 Hide(); // 메뉴와 결과 화면 숨김
                 return; // 전투 값 갱신 생략
@@ -76,6 +87,12 @@ namespace ProjectG // 프로젝트 영역
             energyText.text = "ENERGY " + player.Skills.Energy + " / 100"; // 표시용 에너지 수치
             levelText.text = "LV. " + progress.Level.Level; // 현재 레벨
             experienceText.text = "XP " + progress.Level.Experience + " / " + progress.Level.Required; // 경험치 이름과 원본 수치
+            if (HasPanelReferences) // 실제 오른쪽 정보 패널 확인
+            { // 표시 시작
+                grazeText.text = "GRAZE " + player.GrazeCount; // 실제 그레이즈 표시
+                characterText.text = player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT"; // 실제 캐릭터 전투 정보
+                skills.Present(player); // 실제 스킬 표시 갱신
+            } // 표시 종료
             Rect playerRect = HudOcclusion.PlayerRect(camera, player); // 실제 플레이어 표시 범위
             healthGroup.alpha = healthAlpha * HudOcclusion.Alpha(ScreenBounds((RectTransform)healthGroup.transform), playerRect); // 체력 영역 겹침 처리
             energyGroup.alpha = energyAlpha * HudOcclusion.Alpha(ScreenBounds((RectTransform)energyGroup.transform), playerRect); // 에너지 영역 겹침 처리

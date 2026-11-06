@@ -35,7 +35,7 @@ public class UpgradeDropCombatPlayTests // 실제 처치와 획득 통합 시험
             GameObject enemyObject = new GameObject("FirstRealEnemy"); // 실제 일반 적 객체
             enemyObject.transform.SetParent(cameraObject.transform, true); // 전투 장면 소속
             enemyObject.transform.position = spawn; // 실제 처치 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 실제 일반 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Aimed); // 실제 일반 적 구성
             enemy.Begin(EnemyKind.Aimed, player, pool, camera); // 일반 적 초기화
             enemy.ApplyDamage(1000f, player); // 일반 적 실제 처치
             Assert.That(enemy.IsAlive, Is.False); // 적 사망 확인
@@ -54,7 +54,7 @@ public class UpgradeDropCombatPlayTests // 실제 처치와 획득 통합 시험
             GameObject nextEnemyObject = new GameObject("SecondRealEnemy"); // 다음 일반 적 객체
             nextEnemyObject.transform.SetParent(cameraObject.transform, true); // 전투 장면 소속
             nextEnemyObject.transform.position = player.transform.position + Vector3.right * 2f; // 다음 처치 위치
-            EnemyActor nextEnemy = nextEnemyObject.AddComponent<EnemyActor>(); // 다음 일반 적 구성
+            EnemyActor nextEnemy = EnemyActorTestFactory.AttachActor(nextEnemyObject, EnemyKind.Aimed); // 다음 일반 적 구성
             nextEnemy.Begin(EnemyKind.Aimed, player, pool, camera); // 다음 적 초기화
             nextEnemy.ApplyDamage(1000f, player); // 다음 적 실제 처치
             Assert.That(manager.ActiveCount, Is.EqualTo(1)); // 재출격 전 필드 드롭

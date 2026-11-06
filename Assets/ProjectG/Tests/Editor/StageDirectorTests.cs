@@ -15,11 +15,11 @@ public class StageDirectorTests // 스테이지 통합 시험
             camera.orthographicSize = 5f; // 전투 화면 크기
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 시작
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀
             BattleProgress progress = holder.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             stage.Advance(1.9f, 1.9f); // 첫 적 등장 전 진행
             Assert.That(stage.ActiveEnemyCount, Is.Zero); // 등장 전 비어 있음
@@ -28,7 +28,9 @@ public class StageDirectorTests // 스테이지 통합 시험
             EnemyActor enemy = scene.GetComponentInChildren<EnemyActor>(); // 생성 적 조회
             enemy.ApplyDamage(100f, null); // 일반 적 처치
             stage.Advance(0.1f, 0.1f); // 비활성 적 정리
-            Assert.That(scene.GetComponentInChildren<EnemyActor>(true), Is.Null); // 이전 적 객체 제거
+            Assert.That(enemy == null, Is.True); // 처치된 적 객체 제거
+            Assert.That(stage.ActiveEnemyCount, Is.Zero); // 활성 적 목록 정리
+            Assert.That(stage.HasSceneTemplates, Is.True); // 비활성 템플릿 보존
         } // 시험 범위 종료
         finally // 시험 정리
         { // 정리 시작
@@ -48,11 +50,11 @@ public class StageDirectorTests // 스테이지 통합 시험
             camera.orthographicSize = 5f; // 전투 화면 크기
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 시작
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀
             BattleProgress progress = holder.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             EnemyBullet visible = pool.Spawn(Vector2.zero, Vector2.zero, 0.1f, 1, -10f, player); // 화면 안 적탄 생성
             stage.Advance(65f, 65f); // 첫 전투 경계까지 진행
@@ -97,11 +99,11 @@ public class StageDirectorTests // 스테이지 통합 시험
             camera.orthographicSize = 5f; // 전투 화면 크기
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 시작
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀
             BattleProgress progress = holder.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             stage.Advance(65f, 65f); // 중간 보스 전환 시작
             Assert.That(selection.IsOpen, Is.False); // 고정 선택 미표시
@@ -129,11 +131,11 @@ public class StageDirectorTests // 스테이지 통합 시험
             camera.orthographicSize = 5f; // 전투 화면 크기
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 시작
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀
             BattleProgress progress = holder.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             stage.Advance(65f, 65f); // 중간 보스 전환 시작
             Assert.That(selection.IsOpen, Is.False); // 고정 선택 미표시

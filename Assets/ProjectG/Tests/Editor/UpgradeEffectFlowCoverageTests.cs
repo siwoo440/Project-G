@@ -17,6 +17,7 @@ public sealed class UpgradeEffectFlowCoverageTests // 실제 아이템 적용 �
         { // 범위 시작
             Camera camera = cameraObject.AddComponent<Camera>(); // 전투 카메라 구성
             camera.orthographicSize = 5f; // 시험 화면 세로 반경
+            camera.aspect = 4f / 3f; // 실제 전투 화면 가로 비율
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 첫 출격 초기화
             BattleProgress progress = playerObject.AddComponent<BattleProgress>(); // 성장 구성
@@ -31,7 +32,7 @@ public sealed class UpgradeEffectFlowCoverageTests // 실제 아이템 적용 �
                 } // 손상 종료
                 if (id == UpgradeItemId.Magnet) // 자석 범위 시험 확인
                 { // 조각 생성 시작
-                    float edge = grade == UpgradeItemGrade.V ? 5f * 16f / 9f : radius; // 화면 또는 등급 경계
+                    float edge = grade == UpgradeItemGrade.V ? camera.orthographicSize * camera.aspect : radius; // 실제 화면 또는 등급 경계
                     player.RegisterEnemyDefeat(EnemyRank.Normal, 3, new Vector2(edge - 0.1f, 0f)); // 경계 안 경험치
                     player.RegisterEnemyDefeat(EnemyRank.Normal, 4, new Vector2(edge + 0.1f, 0f)); // 경계 밖 경험치
                 } // 조각 생성 종료

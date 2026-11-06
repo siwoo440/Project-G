@@ -5,10 +5,16 @@ namespace ProjectG // 프로젝트 영역
     public sealed class StageDirector : MonoBehaviour // 시험 스테이지 제어
     { // 클래스 시작
         private readonly List<EnemyActor> enemies = new List<EnemyActor>(); // 일반 적 목록
+        [SerializeField] private EnemyActor aimedTemplate; // 조준형 씬 템플릿
+        [SerializeField] private EnemyActor spreadTemplate; // 확산형 씬 템플릿
+        [SerializeField] private EnemyActor dashTemplate; // 돌진형 씬 템플릿
+        [SerializeField] private EnemyActor midBossTemplate; // 중간 보스 씬 템플릿
+        [SerializeField] private EnemyActor finalBossTemplate; // 최종 보스 씬 템플릿
         private BattlePlayer player; // 플레이어 참조
         private Camera battleCamera; // 전투 카메라
         private EnemyBulletPool pool; // 적탄 재사용 풀
         private BattleProgress progress; // 카드 선택 상태
+        private PauseSettingsOverlay modalOverlay; // 실제 일시정지와 설정 상태
         private UpgradeItemSelection selection; // 강화 아이템 선택
         private EnemyActor boss; // 현재 보스
         private float spawnTimer; // 일반 적 등장 대기
@@ -56,9 +62,63 @@ namespace ProjectG // 프로젝트 영역
                 return count; // 생존 적 반환
             } // 조회 종료
         } // 속성 종료
+        public bool HasSceneTemplates => AreValidTemplates(aimedTemplate, spreadTemplate, dashTemplate, midBossTemplate, finalBossTemplate); // 다섯 종류 씬 템플릿 확인
+        public bool IsHudVisible => State != null && battleCamera != null && (modalOverlay == null || !modalOverlay.IsPaused) && (progress == null || progress.Offer == null) && (selection == null || !selection.IsOpen); // 실제 모달 중 스테이지 문구 숨김
+        public void SetModalOverlay(PauseSettingsOverlay overlay) // 실제 일시정지 모달 연결
+        { // 연결 시작
+            modalOverlay = overlay; // 현재 출격의 모달 상태 보관
+        } // 연결 종료
+        public bool SetSceneTemplates(EnemyActor aimed, EnemyActor spread, EnemyActor dash, EnemyActor midBoss, EnemyActor finalBoss) // 다섯 종류 명시적 연결
+        { // 연결 시작
+            if (!AreValidTemplates(aimed, spread, dash, midBoss, finalBoss)) // 전체 연결 유효성 확인
+            { // 오류 시작
+                Debug.LogError("스테이지의 적 템플릿 연결이 유효하지 않습니다", this); // 누락과 중복 오류
+                return false; // 기존 참조 변경 차단
+            } // 오류 종료
+            aimedTemplate = aimed; // 조준형 연결
+            spreadTemplate = spread; // 확산형 연결
+            dashTemplate = dash; // 돌진형 연결
+            midBossTemplate = midBoss; // 중간 보스 연결
+            finalBossTemplate = finalBoss; // 최종 보스 연결
+            return true; // 전체 연결 완료
+        } // 연결 종료
+        private bool AreValidTemplates(EnemyActor aimed, EnemyActor spread, EnemyActor dash, EnemyActor midBoss, EnemyActor finalBoss) // 다섯 종류 연결 검증
+        { // 확인 시작
+            bool valid = IsValidTemplate(aimed, EnemyKind.Aimed) && IsValidTemplate(spread, EnemyKind.Spread) && IsValidTemplate(dash, EnemyKind.Dash) && IsValidTemplate(midBoss, EnemyKind.MidBoss) && IsValidTemplate(finalBoss, EnemyKind.FinalBoss); // 종류별 필수 표시 확인
+            bool distinct = aimed != spread && aimed != dash && aimed != midBoss && aimed != finalBoss && spread != dash && spread != midBoss && spread != finalBoss && dash != midBoss && dash != finalBoss && midBoss != finalBoss; // 서로 다른 템플릿 확인
+            return valid && distinct; // 전체 유효성 결과
+        } // 확인 종료
+        private bool IsValidTemplate(EnemyActor template, EnemyKind kind) // 편집 템플릿 검증
+        { // 확인 시작
+            return template != null && !template.gameObject.activeSelf && template.transform.parent == transform && template.HasSceneVisual(kind); // 비활성 직접 자식과 필수 표시 확인
+        } // 확인 종료
+        private EnemyActor TemplateFor(EnemyKind kind) // 종류별 템플릿 선택
+        { // 선택 시작
+            switch (kind) // 적 종류 확인
+            { // 분기 시작
+                case EnemyKind.Aimed: // 조준형
+                    return aimedTemplate; // 조준형 템플릿
+                case EnemyKind.Spread: // 확산형
+                    return spreadTemplate; // 확산형 템플릿
+                case EnemyKind.Dash: // 돌진형
+                    return dashTemplate; // 돌진형 템플릿
+                case EnemyKind.MidBoss: // 중간 보스
+                    return midBossTemplate; // 중간 보스 템플릿
+                case EnemyKind.FinalBoss: // 최종 보스
+                    return finalBossTemplate; // 최종 보스 템플릿
+                default: // 알 수 없는 종류
+                    return null; // 잘못된 요청 차단
+            } // 분기 종료
+        } // 선택 종료
         public void Begin(BattlePlayer target, Camera camera, EnemyBulletPool bulletPool, BattleProgress battleProgress, UpgradeItemSelection itemSelection) // 시험 출격 초기화
         { // 초기화 시작
             Disconnect(); // 이전 연결 정리
+            if (!HasSceneTemplates) // 다섯 종류 편집 템플릿 확인
+            { // 오류 시작
+                State = null; // 이전 진행 상태 제거
+                Debug.LogError("스테이지의 적 또는 보스 템플릿이 연결되지 않았습니다", this); // 누락 오류 표시
+                return; // 임의 적 생성 차단
+            } // 오류 종료
             player = target; // 플레이어 연결
             battleCamera = camera; // 전투 카메라 연결
             pool = bulletPool; // 적탄 풀 연결
@@ -168,7 +228,7 @@ namespace ProjectG // 프로젝트 영역
         } // 알림 종료
         private EnemyActor Spawn(EnemyKind kind, bool isBoss) // 안전한 적 등장
         { // 등장 시작
-            float halfWidth = battleCamera.orthographicSize * 16f / 9f; // 전투 화면 가로 반경
+            float halfWidth = battleCamera.orthographicSize * battleCamera.aspect; // 실제 전투 가로 반경
             Vector2 center = battleCamera.transform.position; // 전투 화면 중심
             float y = center.y + battleCamera.orthographicSize - (isBoss ? 1.75f : 1.3f); // 종류별 등장 높이
             float x = isBoss ? center.x : center.x + ((spawnIndex % 3) - 1) * halfWidth * 0.55f; // 시험 등장 가로 위치
@@ -181,11 +241,23 @@ namespace ProjectG // 프로젝트 영역
             { // 생략 시작
                 return null; // 가까운 생성 차단
             } // 생략 종료
-            GameObject holder = new GameObject(isBoss ? "StageBoss" : "StageEnemy"); // 적 객체 생성
-            holder.transform.SetParent(transform, false); // 스테이지 소유로 연결
-            holder.transform.position = position; // 등장 위치 설정
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성 요소
+            EnemyActor template = TemplateFor(kind); // 해당 종류 씬 템플릿
+            if (!IsValidTemplate(template, kind)) // 출격 중 템플릿 유효성 확인
+            { // 오류 시작
+                Debug.LogError("스테이지의 적 템플릿이 유효하지 않습니다", this); // 설정 오류 표시
+                return null; // 임의 적 생성 차단
+            } // 오류 종료
+            EnemyActor enemy = Instantiate(template, transform, false); // 편집 템플릿 복제
+            enemy.gameObject.name = isBoss ? "StageBoss" : "StageEnemy"; // 실제 적 객체 이름
+            enemy.transform.position = position; // 등장 위치 설정
+            if (!enemy.HasSceneVisual(kind)) // 복제 참조 확인
+            { // 오류 시작
+                Debug.LogError("복제된 적의 필수 표시 요소가 없습니다", this); // 복제 오류 표시
+                RemoveObject(enemy.gameObject); // 불완전 적 제거
+                return null; // 잘못된 생성 차단
+            } // 오류 종료
             enemy.Begin(kind, player, pool, battleCamera); // 종류별 상태 초기화
+            enemy.gameObject.SetActive(true); // 초기화된 적 활성화
             return enemy; // 생성한 적 반환
         } // 등장 종료
         private void OnPhaseChanged(StagePhase phase) // 구간 전환 처리
@@ -282,7 +354,7 @@ namespace ProjectG // 프로젝트 영역
                 return; // 정리 생략
             } // 생략 종료
             float height = battleCamera.orthographicSize; // 화면 세로 반경
-            float width = height * 16f / 9f; // 화면 가로 반경
+            float width = height * battleCamera.aspect; // 실제 전투 가로 반경
             Vector3 center = battleCamera.transform.position; // 화면 중심
             pool.ClearVisible(new Rect(center.x - width, center.y - height, width * 2f, height * 2f)); // 화면 안 소거 가능 적탄 회수
         } // 정리 종료
@@ -303,6 +375,7 @@ namespace ProjectG // 프로젝트 영역
         } // 제거 종료
         private void Disconnect() // 기존 스테이지 연결 해제
         { // 해제 시작
+            modalOverlay = null; // 이전 출격 모달 연결 해제
             if (player != null) // 플레이어 존재 확인
             { // 해제 처리 시작
                 player.BattleRestarted -= ResetStage; // 새 출격 연결 해제
@@ -329,19 +402,22 @@ namespace ProjectG // 프로젝트 영역
         } // 정리 종료
         public static Rect StageHeaderRect(Rect view) // 진행 정보의 실제 위치
         { // 계산 시작
-            return new Rect(view.center.x - 350f, view.y + 10f, 700f, 32f); // 전투 화면 상단 중앙
+            float width = Mathf.Min(700f, Mathf.Max(0f, view.width)); // 실제 전투 화면 너비
+            return new Rect(view.center.x - width * 0.5f, view.y + 10f, width, 32f); // 전투 영역 상단 중앙
         } // 계산 종료
         public static Rect PhaseNoticeRect(Rect view) // 보스 단계 안내의 실제 위치
         { // 계산 시작
-            return new Rect(view.center.x - 200f, view.y + 44f, 400f, 32f); // 진행 정보 아래
+            float width = Mathf.Min(400f, Mathf.Max(0f, view.width)); // 실제 전투 화면 너비
+            return new Rect(view.center.x - width * 0.5f, view.y + 44f, width, 32f); // 전투 영역의 단계 안내
         } // 계산 종료
         public static Rect ContextNoticeRect(Rect view) // 사건 안내의 실제 위치
         { // 계산 시작
-            return new Rect(view.center.x - 350f, view.y + 80f, 700f, 32f); // 보스 단계 아래
+            float width = Mathf.Min(700f, Mathf.Max(0f, view.width)); // 실제 전투 화면 너비
+            return new Rect(view.center.x - width * 0.5f, view.y + 80f, width, 32f); // 전투 영역의 사건 안내
         } // 계산 종료
         private void OnGUI() // 시험 스테이지 정보 표시
         { // 표시 시작
-            if (State == null || battleCamera == null) // 표시 조건 확인
+            if (!IsHudVisible) // 실제 모달과 표시 조건 확인
             { // 생략 시작
                 return; // 초기화 전 표시 생략
             } // 생략 종료
@@ -349,6 +425,7 @@ namespace ProjectG // 프로젝트 영역
             { // 준비 시작
                 textStyle = new GUIStyle(GUI.skin.label); // 안내 글꼴 생성
                 textStyle.alignment = TextAnchor.MiddleCenter; // 중앙 정렬
+                textStyle.clipping = TextClipping.Clip; // 전투 영역 밖 글자 차단
                 textStyle.normal.textColor = Color.white; // 흰색 글자
             } // 준비 종료
             Rect view = battleCamera.pixelRect; // 전투 화면 좌표
@@ -356,7 +433,8 @@ namespace ProjectG // 프로젝트 영역
             textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 50f)); // 화면 비례 글자 크기
             float top = Screen.height - view.yMax + 10f; // 전투 화면 상단
             Color previous = GUI.color; // 기존 화면 색상
-            float opacity = HudOcclusion.Alpha(new Rect(view.center.x - 350f, top, 700f, 102f), HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
+            Rect header = StageHeaderRect(guiView); // 실제 전투 폭의 상단 영역
+            float opacity = HudOcclusion.Alpha(new Rect(header.x, top, header.width, 102f), HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
             GUI.color = new Color(previous.r, previous.g, previous.b, previous.a * opacity); // 상단 HUD 투명도 적용
             string label = State.Phase == StagePhase.Result ? "STAGE CLEAR" : State.Phase == StagePhase.Failed ? "STAGE FAILED" : State.Phase.ToString().ToUpperInvariant(); // 시험 구간 이름
             string health = boss != null && boss.IsAlive ? "   BOSS " + Mathf.CeilToInt(boss.Health) + " / " + Mathf.CeilToInt(boss.MaximumHealth) : ""; // 보스 체력 표시

@@ -10,9 +10,11 @@ namespace ProjectG // 프로젝트 영역
         private Material material; // 전투 전용 배경 재질
         private MaterialPropertyBlock properties; // 개별 화면 속성
         private float phase; // 반복 이미지의 현재 위치
-        public void Begin(Camera camera, BattlePlayer battlePlayer) // 배경과 재출격 연결
+        private bool fitCamera = true; // 시험 화면 자동 크기 적용 여부
+        public void Begin(Camera camera, BattlePlayer battlePlayer, bool autoFit = true) // 배경과 재출격 연결
         { // 연결 시작
             targetCamera = camera; // 전투 카메라 보관
+            fitCamera = autoFit; // 씬 편집 크기 유지 선택
             player = battlePlayer; // 플레이어 참조 보관
             sprite = GetComponent<SpriteRenderer>(); // 배경 표시 요소 조회
             properties = new MaterialPropertyBlock(); // 개별 화면 속성 생성
@@ -56,9 +58,12 @@ namespace ProjectG // 프로젝트 영역
             { // 생략 시작
                 return; // 크기 계산 차단
             } // 생략 종료
-            float height = targetCamera.orthographicSize * 2f; // 전투 화면 높이
-            float cover = Mathf.Max(height * 16f / 9f / imageSize.x, height / imageSize.y); // 16대9 전투 영역 배율
-            transform.localScale = new Vector3(cover, cover, 1f); // 화면을 덮는 이미지 크기
+            if (fitCamera) // 기존 시험 화면 자동 맞춤 확인
+            { // 자동 맞춤 시작
+                float height = targetCamera.orthographicSize * 2f; // 전투 화면 높이
+                float cover = Mathf.Max(height * targetCamera.aspect / imageSize.x, height / imageSize.y); // 실제 전투 영역 배율
+                transform.localScale = new Vector3(cover, cover, 1f); // 시험 화면을 덮는 이미지 크기
+            } // 자동 맞춤 종료
             sprite.GetPropertyBlock(properties); // 기존 개별 속성 보존
             properties.SetFloat("_ScrollPhase", phase); // 반복 이미지 이동 위치
             sprite.SetPropertyBlock(properties); // 개별 표시 속성 적용

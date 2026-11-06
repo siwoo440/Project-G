@@ -9,7 +9,7 @@ public class BossPhaseBoundaryTests // 보스 체력 경계 시험
         GameObject holder = new GameObject("Boss"); // 보스 객체 생성
         try // 시험 시작
         { // 시험 범위 시작
-            EnemyActor boss = holder.AddComponent<EnemyActor>(); // 보스 구성
+            EnemyActor boss = EnemyActorTestFactory.AttachActor(holder, EnemyKind.FinalBoss); // 보스 구성
             boss.Begin(EnemyKind.FinalBoss, null, null, null); // 최종 보스 시작
             int announced = 0; // 마지막 전환 알림
             boss.PhaseChanged += phase => announced = phase; // 전환 알림 연결
@@ -35,7 +35,7 @@ public class BossPhaseBoundaryTests // 보스 체력 경계 시험
         GameObject holder = new GameObject("MidBoss"); // 중간 보스 객체
         try // 시험 시작
         { // 시험 범위 시작
-            EnemyActor boss = holder.AddComponent<EnemyActor>(); // 보스 구성
+            EnemyActor boss = EnemyActorTestFactory.AttachActor(holder, EnemyKind.MidBoss); // 보스 구성
             boss.Begin(EnemyKind.MidBoss, null, null, null); // 중간 보스 시작
             boss.ApplyDamage(1000f, null); // 대량 피해 적용
             Assert.That(boss.IsAlive, Is.False); // 체력 전체 소모 확인

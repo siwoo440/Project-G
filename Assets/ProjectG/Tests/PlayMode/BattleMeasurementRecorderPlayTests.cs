@@ -19,8 +19,8 @@ public class BattleMeasurementRecorderPlayTests // 실제 프레임 측정 시�
             camera.orthographicSize = 5f; // 시험 화면 크기
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 상태 생성
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 생성
+            EnemyBulletPool pool = EnemyBulletPlayTestFactory.Create(cameraObject); // 적탄 풀 생성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 생성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 측정 수집기
             recorder.Begin(player, stage, pool, 42); // 측정 연결
@@ -56,8 +56,8 @@ public class BattleMeasurementRecorderPlayTests // 실제 프레임 측정 시�
             camera.orthographicSize = 5f; // 시험 화면 크기
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 전투 상태 생성
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 생성
+            EnemyBulletPool pool = EnemyBulletPlayTestFactory.Create(cameraObject); // 적탄 풀 생성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 생성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             MeasurementContext environment = new MeasurementContext(); // 격리된 표시 환경
             environment.Width = 1920; // 초기 가로 해상도

@@ -46,7 +46,7 @@ public class BattleSpritesTests // 전투 이미지 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 시작
         { // 시험 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, kind); // 적 구성
             enemy.Begin(kind, null, null, null); // 적 초기화
             SpriteRenderer image = holder.transform.Find("EnemyBody").GetComponent<SpriteRenderer>(); // 몸체 이미지 조회
             Assert.That(image.sprite.texture, Is.SameAs(Resources.Load<Texture2D>("BattleArt/" + name))); // 적 이미지 확인
@@ -68,15 +68,16 @@ public class BattleSpritesTests // 전투 이미지 시험
         { // 시험 범위 시작
             Projectile shot = holder.AddComponent<Projectile>(); // 플레이어 탄환 구성
             shot.Begin(Vector2.up, 5f); // 플레이어 탄환 초기화
-            EnemyBulletPool pool = poolObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(poolObject); // 적탄 풀 구성
             EnemyBullet bullet = pool.Spawn(Vector2.zero, Vector2.down, 0.06f, 10, -5f, null); // 적탄 생성
+            SpriteRenderer bulletImage = bullet.GetComponentInChildren<SpriteRenderer>(); // 실제 편집 이미지
             Assert.That(holder.GetComponent<SpriteRenderer>().sprite.texture, Is.SameAs(Resources.Load<Texture2D>("BattleArt/bullet_player"))); // 플레이어 탄환 이미지
-            Assert.That(bullet.GetComponent<SpriteRenderer>().sprite.texture, Is.SameAs(Resources.Load<Texture2D>("BattleArt/bullet_enemy"))); // 적탄 이미지
+            Assert.That(bulletImage.sprite.texture, Is.SameAs(Resources.Load<Texture2D>("BattleArt/bullet_enemy"))); // 적탄 이미지
             Assert.That(bullet.Radius, Is.EqualTo(0.06f).Within(0.0001f)); // 적탄 판정 크기 유지
             Assert.That(holder.transform.localScale.x, Is.EqualTo(0.3f).Within(0.0001f)); // 아군 탄환 가로 세 배
             Assert.That(holder.transform.localScale.y, Is.EqualTo(0.72f).Within(0.0001f)); // 아군 탄환 세로 세 배
-            Assert.That(bullet.transform.localScale.x, Is.EqualTo(0.36f).Within(0.0001f)); // 적탄 표시 세 배
-            Assert.That(bullet.GetComponent<SpriteRenderer>().sprite.rect.width, Is.EqualTo(bullet.GetComponent<SpriteRenderer>().sprite.texture.width * 0.44f).Within(0.01f)); // 적탄 이미지 투명 여백 제한
+            Assert.That(bulletImage.bounds.size.x, Is.EqualTo(0.36f).Within(0.0001f)); // 적탄 실제 표시 세 배
+            Assert.That(bulletImage.sprite.rect.width, Is.EqualTo(bulletImage.sprite.texture.width * 0.44f).Within(0.01f)); // 적탄 이미지 투명 여백 제한
         } // 시험 범위 종료
         finally // 시험 자원 정리
         { // 정리 시작

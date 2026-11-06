@@ -71,11 +71,36 @@ namespace ProjectG // 프로젝트 영역
             BattleProgress progress = player.AddComponent<BattleProgress>(); // 경험치와 카드 구성
             progress.Begin(controller, camera, runSeed); // 경험치와 카드 시드 연결
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
+            EnemyBullet bulletTemplate = Resources.Load<EnemyBullet>("Prefabs/EnemyBullet"); // 기존 시험용 적탄 프리팹
+            if (bulletTemplate != null) // 명시적 시험 자산 확인
+            { // 연결 시작
+                EnemyBullet instance = Object.Instantiate(bulletTemplate, camera.transform, false); // 비활성 시험 템플릿 복제
+                pool.SetTemplate(instance); // 실제 시험용 풀 연결
+            } // 연결 종료
+            else // 시험 자산 누락
+            { // 오류 시작
+                Debug.LogError("시험용 적탄 프리팹을 찾을 수 없습니다."); // 숨겨진 코드 생성 차단
+            } // 오류 종료
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
             UpgradeDropManager drops = camera.gameObject.AddComponent<UpgradeDropManager>(); // 전투 중 아이템 드롭 구성
             drops.Begin(controller, camera, new UpgradeDropEffects(controller, progress), seed: runSeed ^ 1597463007); // 재출격에도 복원할 독립 드롭 시드
             StageDirector stage = camera.gameObject.AddComponent<StageDirector>(); // 스테이지 진행 구성
+            string[] enemyNames = new string[] // 실제 적 프리팹 이름
+            { // 목록 시작
+                "Aimed", "Spread", "Dash", "MidBoss", "FinalBoss" // 다섯 적 종류
+            }; // 목록 종료
+            EnemyActor[] enemyTemplates = new EnemyActor[enemyNames.Length]; // 시험용 적 원본 목록
+            for (int index = 0; index < enemyNames.Length; index++) // 실제 자산 순회
+            { // 연결 시작
+                EnemyActor enemyPrefab = Resources.Load<EnemyActor>("EnemyTemplates/" + enemyNames[index]); // 종류별 적 프리팹
+                if (enemyPrefab != null) // 실제 자산 확인
+                { // 생성 시작
+                    enemyTemplates[index] = Object.Instantiate(enemyPrefab, stage.transform, false); // 비활성 시험 원본 복제
+                } // 생성 종료
+            } // 연결 종료
+            stage.SetSceneTemplates(enemyTemplates[0], enemyTemplates[1], enemyTemplates[2], enemyTemplates[3], enemyTemplates[4]); // 다섯 실제 적 원본 주입
             stage.Begin(controller, camera, pool, progress, null); // 고정 선택 없는 스테이지 연결
+            drops.SetStage(stage); // 시험 전투의 실제 모달 상태 연결
             player.AddComponent<BattleMeasurementRecorder>().Begin(controller, stage, pool, runSeed); // 출격 통계와 재현 시드 수집
             return player; // 생성 플레이어 반환
         } // 생성 종료

@@ -89,7 +89,7 @@ public class UpgradeDropTests // 강화 아이템 드롭 시험
             UpgradeDropManager manager = root.AddComponent<UpgradeDropManager>(); // 드롭 관리자
             manager.Begin(player, camera, new FakeEffects(), new SequenceRandom(0, 0)); // 보스 드롭 난수
             bossObject.transform.position = new Vector3(2f, 3f, 0f); // 보스 처치 위치
-            EnemyActor boss = bossObject.AddComponent<EnemyActor>(); // 보스 구성
+            EnemyActor boss = EnemyActorTestFactory.AttachActor(bossObject, EnemyKind.MidBoss); // 보스 구성
             boss.Begin(EnemyKind.MidBoss, player, null, camera); // 중간 보스 준비
             boss.ApplyDamage(1000f, player); // 실제 보스 처치
             Assert.That(manager.ActiveCount, Is.EqualTo(1)); // 보스 아이템 하나 생성

@@ -16,12 +16,12 @@ public class EnemyVisualReuseTests // 적 시각 요소 재사용 시험
         return count; // 집계 결과 반환
     } // 확인 종료
     [Test] // 적 종류 변경 시험
-    public void ReusingEnemyRefreshesOneBodyWeakPointAndDashWarning() // 시각 요소 중복 방지 확인
+    public void ReusingEnemyPreservesEditedBodyAndUpdatesDashWarning() // 표시 보존과 중복 방지 확인
     { // 시험 시작
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, null, null, null); // 돌진 적 초기화
             Transform body = holder.transform.Find("EnemyBody"); // 최초 몸체
             Transform weak = holder.transform.Find("EnemyWeakPoint"); // 최초 약점
@@ -37,8 +37,8 @@ public class EnemyVisualReuseTests // 적 시각 요소 재사용 시험
             Assert.That(holder.transform.Find("EnemyBody"), Is.SameAs(body)); // 몸체 재사용 확인
             Assert.That(holder.transform.Find("EnemyWeakPoint"), Is.SameAs(weak)); // 약점 재사용 확인
             Assert.That(holder.transform.Find("EnemyHealthBar"), Is.SameAs(bar)); // 체력바 재사용 확인
-            Assert.That(body.GetComponent<SpriteRenderer>().sprite.texture.name, Is.EqualTo("boss_final")); // 보스 이미지 갱신
-            Assert.That(body.localScale.x, Is.EqualTo(6.6f).Within(0.001f)); // 보스 확대 크기 갱신
+            Assert.That(body.GetComponent<SpriteRenderer>().sprite.texture.name, Is.EqualTo("enemy_dash")); // 편집 이미지 유지
+            Assert.That(body.localScale.x, Is.EqualTo(3f).Within(0.001f)); // 편집 크기 유지
             Assert.That(warning.gameObject.activeSelf, Is.False); // 보스에서 돌진 경고 숨김
             Assert.That(bar.gameObject.activeSelf, Is.False); // 이전 피해 표시 초기화
             enemy.Begin(EnemyKind.Dash, null, null, null); // 다시 돌진 적으로 재사용

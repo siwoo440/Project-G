@@ -4,39 +4,40 @@ namespace ProjectG // 프로젝트 영역
     public sealed class EnemyHealthBar : MonoBehaviour // 적 체력 표시
     { // 클래스 시작
         private const float DisplaySeconds = 2f; // 피해 후 표시 시험 시간
-        private SpriteRenderer fill; // 체력 이미지
-        private float width; // 표시 전체 폭
+        [SerializeField] private SpriteRenderer frame; // 편집 가능한 체력바 외곽
+        [SerializeField] private SpriteRenderer fill; // 편집 가능한 체력 이미지
+        private Vector3 baseFillScale; // 편집한 체력 이미지 크기
+        private Vector3 baseFillPosition; // 편집한 체력 이미지 위치
+        private bool initialized; // 기본 표시값 보관 여부
         private float remaining; // 남은 표시 시간
-        public void Initialize(SpriteRenderer body, bool boss) // 몸체 기준 초기화
+        public bool HasValidVisual => frame != null && frame.sprite != null && frame.transform.IsChildOf(transform) && fill != null && fill.sprite != null && fill.transform.IsChildOf(transform); // 직렬화된 체력바 확인
+        public void Initialize(SpriteRenderer body, bool boss) // 체력바 표시 초기화
         { // 초기화 시작
-            if (fill == null) // 표시 객체 최초 생성 확인
-            { // 생성 시작
-                GameObject frameObject = new GameObject("Frame"); // 외곽 이미지 객체
-                frameObject.transform.SetParent(transform, false); // 외곽 연결
-                SpriteRenderer frame = frameObject.AddComponent<SpriteRenderer>(); // 외곽 표시 구성
-                frame.sprite = BattleSprites.Load("ui_card_frame"); // 기존 금색 장식 사용
-                frame.sortingOrder = 4; // 적 앞 표시 순서
-                GameObject fillObject = new GameObject("Fill"); // 체력 이미지 객체
-                fillObject.transform.SetParent(transform, false); // 체력 이미지 연결
-                fill = fillObject.AddComponent<SpriteRenderer>(); // 체력 표시 구성
-                fill.sprite = Projectile.GetSprite(); // 빈틈 없는 기본 이미지
-                fill.color = new Color(0.12f, 0.84f, 0.95f, 1f); // 읽기 쉬운 청록색
-                fill.sortingOrder = 5; // 외곽 위 표시 순서
-            } // 생성 종료
-            width = Mathf.Max(1f, body.sprite.bounds.size.x * body.transform.localScale.x * 0.7f); // 몸체 비례 가로 폭
-            float height = boss ? 0.24f : 0.18f; // 적 종류별 표시 높이
-            float bottom = body.transform.localPosition.y - body.sprite.bounds.size.y * body.transform.localScale.y * 0.5f; // 확대 몸체 아래 경계
-            transform.localPosition = new Vector3(body.transform.localPosition.x, bottom - height * 0.5f - 0.08f, 0f); // 몸체 아래 여백
-            SpriteRenderer border = transform.Find("Frame").GetComponent<SpriteRenderer>(); // 외곽 이미지 조회
-            border.transform.localScale = new Vector3(width / border.sprite.bounds.size.x, height / border.sprite.bounds.size.y, 1f); // 외곽 크기 조정
-            fill.transform.localScale = new Vector3(width * 0.9f / fill.sprite.bounds.size.x, height * 0.55f / fill.sprite.bounds.size.y, 1f); // 금색 외곽 안쪽 크기
+            if (!HasValidVisual) // 편집된 체력바 확인
+            { // 오류 시작
+                Debug.LogError("적 체력바의 외곽 또는 채움 이미지가 연결되지 않았습니다", this); // 연결 오류 표시
+                return; // 임의 표시 생성 차단
+            } // 오류 종료
+            if (!initialized) // 기본 표시값 확인
+            { // 보관 시작
+                baseFillScale = fill.transform.localScale; // 편집한 채움 크기
+                baseFillPosition = fill.transform.localPosition; // 편집한 채움 위치
+                initialized = true; // 기본 표시값 보관 완료
+            } // 보관 종료
+            fill.transform.localScale = baseFillScale; // 이전 피해 비율 초기화
+            fill.transform.localPosition = baseFillPosition; // 이전 피해 위치 초기화
             Hide(); // 초기 표시 숨김
         } // 초기화 종료
         public void Show(float ratio) // 피해 후 체력 표시
         { // 표시 시작
+            if (!initialized || !HasValidVisual) // 연결과 초기화 확인
+            { // 생략 시작
+                return; // 잘못된 표시 차단
+            } // 생략 종료
             float amount = Mathf.Clamp01(ratio); // 체력 비율 제한
-            fill.transform.localScale = new Vector3(width * 0.9f * amount / fill.sprite.bounds.size.x, fill.transform.localScale.y, 1f); // 남은 체력 폭
-            fill.transform.localPosition = new Vector3(-width * 0.45f * (1f - amount), 0f, 0f); // 안쪽 왼쪽 기준 감소
+            fill.transform.localScale = new Vector3(baseFillScale.x * amount, baseFillScale.y, baseFillScale.z); // 편집 크기 기준 남은 체력
+            float offset = fill.sprite.bounds.size.x * baseFillScale.x * 0.5f * (1f - amount); // 왼쪽 기준 감소 거리
+            fill.transform.localPosition = baseFillPosition + Vector3.left * offset; // 편집 위치 기준 감소
             remaining = DisplaySeconds; // 시험 표시 시간 갱신
             gameObject.SetActive(true); // 체력바 표시
         } // 표시 종료

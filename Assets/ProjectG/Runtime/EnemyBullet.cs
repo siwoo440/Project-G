@@ -7,7 +7,21 @@ namespace ProjectG // 프로젝트 영역
         private Vector2 velocity; // 적탄 이동 속도
         private float radius; // 시험용 탄환 반경
         public float Radius => radius; // 현재 탄환 판정 반경
-        public float DisplayRadius => radius * 3f; // 확대된 탄환 표시 반경
+        public float DisplayRadius // 현재 편집된 이미지의 표시 반경
+        { // 조회 시작
+            get // 표시 범위 확인
+            { // 계산 시작
+                if (image == null || image.sprite == null || !gameObject.activeInHierarchy) // 실제 표시 확인
+                { // 기본값 시작
+                    return 0f; // 보이지 않는 표시 범위
+                } // 기본값 종료
+                Bounds bounds = image.bounds; // 이미지의 현재 월드 범위
+                Vector3 center = transform.position; // 탄환 판정 중심
+                float horizontal = Mathf.Max(Mathf.Abs(bounds.min.x - center.x), Mathf.Abs(bounds.max.x - center.x)); // 중심에서 가로 표시 거리
+                float vertical = Mathf.Max(Mathf.Abs(bounds.min.y - center.y), Mathf.Abs(bounds.max.y - center.y)); // 중심에서 세로 표시 거리
+                return Mathf.Max(horizontal, vertical); // 편집된 표시 전체 반경
+            } // 계산 종료
+        } // 조회 종료
         public bool Clearable // 필살기 소거 가능 여부
         { // 속성 시작
             get; // 값 조회
@@ -16,7 +30,11 @@ namespace ProjectG // 프로젝트 영역
         private float bottom; // 화면 아래 경계
         private int damage; // 시험용 탄환 피해
         private BattlePlayer target; // 플레이어 대상
-        private SpriteRenderer image; // 적탄 표시 요소
+        [SerializeField] private SpriteRenderer image; // 씬에서 편집하는 적탄 이미지
+        [SerializeField] private Transform radiusScale; // 판정 반경별 표시 배율
+        private Vector3 baseRadiusScale; // 편집한 기본 표시 배율
+        private bool scaleInitialized; // 기본 배율 보관 여부
+        public bool HasValidVisual => image != null && image.sprite != null && radiusScale != null && radiusScale.IsChildOf(transform) && image.transform.IsChildOf(radiusScale); // 템플릿 이미지와 계층 확인
         private readonly BulletInteraction interaction = new BulletInteraction(); // 적탄별 판정 상태
         public bool InUse // 풀 사용 여부
         { // 속성 시작
@@ -39,14 +57,20 @@ namespace ProjectG // 프로젝트 영역
             Clearable = clearable; // 소거 가능 여부 초기화
             interaction.Reset(); // 그레이즈 상태 초기화
             transform.position = position; // 시작 위치 설정
-            transform.localScale = new Vector3(DisplayRadius * 2f, DisplayRadius * 2f, 1f); // 탄환 표시 크기 세 배
-            if (image == null) // 표시 요소 확인
+            if (!HasValidVisual) // 편집된 표시 요소 확인
             { // 생성 시작
-                image = gameObject.AddComponent<SpriteRenderer>(); // 표시 요소 추가
-                image.sprite = BattleSprites.Load("bullet_enemy"); // 적탄 시험 이미지
-                image.color = Color.white; // 원본 이미지 색상
-                image.sortingOrder = 5; // 적탄 우선 표시
+                Debug.LogError("적탄 템플릿의 이미지 또는 표시 계층이 없습니다", this); // 누락 오류 표시
+                InUse = false; // 불완전 탄환 사용 차단
+                gameObject.SetActive(false); // 보이지 않는 탄환 비활성화
+                return; // 초기화 중단
             } // 생성 종료
+            if (!scaleInitialized) // 기본 표시 배율 확인
+            { // 보관 시작
+                baseRadiusScale = radiusScale.localScale; // 사용자가 편집한 기본 배율
+                scaleInitialized = true; // 기본 배율 보관 완료
+            } // 보관 종료
+            float ratio = radius / 0.06f; // 기존 기준 반경 대비 표시 배율
+            radiusScale.localScale = new Vector3(baseRadiusScale.x * ratio, baseRadiusScale.y * ratio, baseRadiusScale.z); // 이미지 편집값을 보존한 크기 반영
             InUse = true; // 사용 중 표시
             gameObject.SetActive(true); // 적탄 활성화
         } // 초기화 종료
@@ -81,7 +105,7 @@ namespace ProjectG // 프로젝트 영역
             } // 접촉 판정 종료
             Camera view = Owner != null ? Owner.View : null; // 풀의 현재 전투 카메라
             float halfHeight = view != null ? view.orthographicSize : 0f; // 화면 세로 반경
-            float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
+            float halfWidth = halfHeight * (view != null ? view.aspect : 0f); // 실제 전투 가로 반경
             Vector3 center = view != null ? view.transform.position : Vector3.zero; // 화면 중심
             float visibleRadius = DisplayRadius; // 확대 표시 반경
             bool escaped = view != null && (transform.position.y - visibleRadius > center.y + halfHeight + 1f || transform.position.x + visibleRadius < center.x - halfWidth - 1f || transform.position.x - visibleRadius > center.x + halfWidth + 1f); // 위쪽과 좌우 이탈 확인

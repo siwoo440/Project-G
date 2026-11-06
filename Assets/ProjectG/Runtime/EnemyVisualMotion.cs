@@ -4,7 +4,10 @@ namespace ProjectG // 프로젝트 영역
     internal sealed class EnemyVisualMotion // 단일 적 이미지의 시험 움직임
     { // 움직임 시작
         private Transform body; // 이미지 전용 변환
-        private Vector3 baseScale; // 적 종류의 기본 이미지 크기
+        private Vector3 baseScale; // 편집한 기본 이미지 크기
+        private Vector3 basePosition; // 편집한 기본 이미지 위치
+        private Quaternion baseRotation; // 편집한 기본 이미지 각도
+        private bool initialized; // 기준 변환 보관 여부
         private float phase; // 현재 반복 위치
         private float speed; // 움직임 속도
         private float bob; // 상하 부유 폭
@@ -13,14 +16,21 @@ namespace ProjectG // 프로젝트 영역
         private float pulseY; // 세로 맥동 폭
         public void Begin(Transform image, EnemyKind kind) // 적 종류별 움직임 초기화
         { // 초기화 시작
+            if (body == image && body != null && initialized) // 같은 몸체 재초기화 확인
+            { // 변환 복원 시작
+                body.localPosition = basePosition; // 편집한 위치 복원
+                body.localRotation = baseRotation; // 편집한 각도 복원
+                body.localScale = baseScale; // 편집한 크기 복원
+            } // 변환 복원 종료
             body = image; // 적 몸체 연결
             if (body == null) // 표시 대상 확인
             { // 생략 시작
                 return; // 표시 없는 적 생략
             } // 생략 종료
-            baseScale = body.localScale; // 해당 종류의 기본 크기
-            body.localPosition = Vector3.zero; // 몸체 위치 초기화
-            body.localRotation = Quaternion.identity; // 몸체 각도 초기화
+            baseScale = body.localScale; // 편집한 기본 크기
+            basePosition = body.localPosition; // 편집한 기본 위치
+            baseRotation = body.localRotation; // 편집한 기본 각도
+            initialized = true; // 기준 변환 보관 완료
             phase = 0f; // 반복 위치 초기화
             switch (kind) // 적 종류별 시험 연출
             { // 종류 분기 시작
@@ -59,8 +69,8 @@ namespace ProjectG // 프로젝트 영역
             float safeElapsed = Mathf.Repeat(elapsed, cycle / speed); // 큰 시간값의 반복 범위
             phase = Mathf.Repeat(phase + safeElapsed * speed, cycle); // 다음 반복 위치
             float wave = Mathf.Sin(phase); // 부드러운 왕복 신호
-            body.localPosition = new Vector3(0f, bob * wave, 0f); // 이미지의 위아래 부유
-            body.localRotation = Quaternion.Euler(0f, 0f, tilt * wave); // 이미지의 좌우 기울기
+            body.localPosition = basePosition + new Vector3(0f, bob * wave, 0f); // 편집 위치 기준 부유
+            body.localRotation = baseRotation * Quaternion.Euler(0f, 0f, tilt * wave); // 편집 각도 기준 기울기
             body.localScale = new Vector3(baseScale.x * (1f + pulseX * wave), baseScale.y * (1f + pulseY * wave), baseScale.z); // 이미지의 가벼운 맥동
         } // 진행 종료
     } // 움직임 종료

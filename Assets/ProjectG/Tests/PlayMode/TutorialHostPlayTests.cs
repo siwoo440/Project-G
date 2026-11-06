@@ -44,6 +44,14 @@ public class TutorialHostPlayTests // 실제 출격 안내 시험
         Assert.That(host.Flow.OpenPreparation(), Is.True); // 출격 준비
         Assert.That(host.Flow.StartRun(), Is.True); // 실제 출격 성공
     } // 출격 종료
+    private static IEnumerator WaitForBattle(GameSessionHost host) // 실제 씬 로딩 완료 대기
+    { // 대기 시작
+        for (int frame = 0; frame < 300 && host.Flow.Screen == GameFlowScreen.Loading; frame++) // 비동기 씬 완료 확인
+        { // 프레임 대기 시작
+            yield return null; // 시간 배율과 무관한 다음 프레임
+        } // 프레임 대기 종료
+        Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Battle), host.Flow.ErrorText); // 실제 전투 시작 확인
+    } // 대기 종료
     [UnityTest] // 실제 출격과 재출격 시험
     public IEnumerator RetryResumesUnfinishedGuideAndSkipPersists() // 첫 출격 중단과 건너뛰기
     { // 시험 시작
@@ -60,17 +68,20 @@ public class TutorialHostPlayTests // 실제 출격 안내 시험
             host.MeasurementWriterOverride = text => true; // 시험 기록 외부 저장 차단
             host.Begin(holder.AddComponent<Camera>(), service); // 격리 성장 연결
             StartRun(host); // 첫 실제 출격
-            TutorialGuide first = holder.GetComponentInChildren<TutorialGuide>(); // 실제 안내 조회
+            yield return WaitForBattle(host); // 실제 전투 씬 완료 대기
+            TutorialGuide first = host.CurrentPlayer.transform.root.GetComponent<TutorialGuide>(); // 실제 전투 씬 안내 조회
             Assert.That(first, Is.Not.Null); // 안내 연결 확인
             Assert.That(first.IsShowing, Is.True); // 새 이용자 안내 표시
             Assert.That(host.Flow.RetryFromPause(), Is.True); // 정산 후 재출격
             Assert.That(first.IsShowing, Is.False); // 이전 출격 구독 해제
-            TutorialGuide retry = holder.GetComponentInChildren<TutorialGuide>(); // 새 출격 안내 조회
+            yield return WaitForBattle(host); // 새 전투 씬 완료 대기
+            TutorialGuide retry = host.CurrentPlayer.transform.root.GetComponent<TutorialGuide>(); // 새 출격 안내 조회
             Assert.That(retry, Is.Not.SameAs(first)); // 새 출격 안내 구성
             Assert.That(retry.IsShowing, Is.True); // 미완료 안내 재개
             retry.Skip(); // 사용자 건너뛰기
             Assert.That(host.Flow.RetryFromPause(), Is.True); // 다시 정산과 재출격
-            TutorialGuide skipped = holder.GetComponentInChildren<TutorialGuide>(); // 마지막 출격 안내 조회
+            yield return WaitForBattle(host); // 마지막 전투 씬 완료 대기
+            TutorialGuide skipped = host.CurrentPlayer.transform.root.GetComponent<TutorialGuide>(); // 마지막 출격 안내 조회
             Assert.That(skipped.IsShowing, Is.False); // 건너뛰기 영속 확인
             yield return null; // 이전 전투 객체 실제 파괴
             Assert.That(host.CurrentPlayer, Is.Not.Null); // 현재 전투 유지
@@ -101,12 +112,14 @@ public class TutorialHostPlayTests // 실제 출격 안내 시험
             GameSessionHost oldHost = firstHolder.AddComponent<GameSessionHost>(); // 기존 출격 관리자
             oldHost.Begin(firstHolder.AddComponent<Camera>(), existing); // 기존 저장 연결
             StartRun(oldHost); // 실제 출격
-            Assert.That(firstHolder.GetComponentInChildren<TutorialGuide>().IsShowing, Is.False); // 기존 이용자 자동 안내 차단
+            yield return WaitForBattle(oldHost); // 기존 이용자 전투 씬 대기
+            Assert.That(oldHost.CurrentPlayer.transform.root.GetComponent<TutorialGuide>().IsShowing, Is.False); // 기존 이용자 자동 안내 차단
             GameSessionHost.TutorialStorageFactoryOverride = () => new BrokenTutorialStore(); // 안내 저장 장애 주입
             GameSessionHost freshHost = secondHolder.AddComponent<GameSessionHost>(); // 새 출격 관리자
             freshHost.Begin(secondHolder.AddComponent<Camera>(), fresh); // 새 저장 연결
             StartRun(freshHost); // 저장 장애 중 실제 출격
-            Assert.That(secondHolder.GetComponentInChildren<TutorialGuide>().IsShowing, Is.False); // 안내 읽기 장애 생략
+            yield return WaitForBattle(freshHost); // 새 이용자 전투 씬 대기
+            Assert.That(freshHost.CurrentPlayer.transform.root.GetComponent<TutorialGuide>().IsShowing, Is.False); // 안내 읽기 장애 생략
             Assert.That(freshHost.CurrentPlayer.Survival.IsAlive, Is.True); // 실제 전투 보존
             yield return null; // 실제 프레임 진행
         } // 시험 범위 종료

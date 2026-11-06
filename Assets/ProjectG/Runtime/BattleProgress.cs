@@ -240,7 +240,7 @@ namespace ProjectG // 프로젝트 영역
                 } // 차단 종료
                 Vector3 center = battleCamera.transform.position; // 카메라 월드 중심
                 float height = battleCamera.orthographicSize; // 화면 세로 반경
-                float width = height * 16f / 9f; // 화면 가로 반경
+                float width = height * battleCamera.aspect; // 실제 전투 가로 반경
                 return Mathf.Abs(position.x - center.x) <= width && Mathf.Abs(position.y - center.y) <= height; // 화면 안 조각만 허용
             } // 화면 범위 종료
             return (position - (Vector2)Player.transform.position).sqrMagnitude <= radius * radius; // 플레이어 기준 거리 확인

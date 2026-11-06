@@ -15,7 +15,7 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
         try // 시험 범위 준비
         { // 시험 시작
             Time.timeScale = 1f; // 전투 시간 진행
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, kind); // 적 구성
             enemy.Begin(kind, null, null, null); // 종류별 적 시작
             Transform body = holder.transform.Find("EnemyBody"); // 표시 이미지
             Transform weak = holder.transform.Find("EnemyWeakPoint"); // 약점 표시
@@ -41,14 +41,13 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
         } // 정리 종료
     } // 시험 종료
     [Test] // 적 종류별 움직임 차이 시험
-    public void ReusedEnemyChangesMotionForEachKind() // 종류 변경과 움직임 차이 확인
+    public void EachTemplateResetsAndUsesDistinctMotionProfile() // 종류별 움직임과 재초기화 확인
     { // 시험 시작
         float oldScale = Time.timeScale; // 기존 시간 배율
-        GameObject holder = new GameObject("ReusedMotionEnemy"); // 재사용 적 객체
+        GameObject holder = new GameObject("MotionTemplates"); // 시험 적 부모
         try // 시험 준비
         { // 시험 시작
             Time.timeScale = 1f; // 전투 시간 진행
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
             EnemyKind[] kinds = new EnemyKind[] // 시험 적 종류
             { // 종류 목록 시작
                 EnemyKind.Aimed, EnemyKind.Spread, EnemyKind.Dash, EnemyKind.MidBoss, EnemyKind.FinalBoss // 다섯 종류
@@ -56,12 +55,18 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
             float[] positions = new float[kinds.Length]; // 종류별 부유 위치
             for (int index = 0; index < kinds.Length; index++) // 종류별 반복
             { // 반복 시작
-                enemy.Begin(kinds[index], null, null, null); // 다른 종류로 재사용
-                Transform body = holder.transform.Find("EnemyBody"); // 몸체 이미지
-                Assert.That(body.localPosition, Is.EqualTo(Vector3.zero)); // 재사용 부유 초기화
-                Assert.That(body.localRotation, Is.EqualTo(Quaternion.identity)); // 재사용 각도 초기화
+                GameObject instance = new GameObject("Enemy"); // 독립 종류별 적 객체
+                instance.transform.SetParent(holder.transform, false); // 시험 부모에 연결
+                EnemyActor enemy = EnemyActorTestFactory.AttachActor(instance, kinds[index]); // 실제 종류별 표시 연결
+                enemy.Begin(kinds[index], null, null, null); // 해당 종류 시작
+                Transform body = instance.transform.Find("EnemyBody"); // 몸체 이미지
+                Vector3 baseline = body.localPosition; // 편집 기준 위치
+                Quaternion rotation = body.localRotation; // 편집 기준 각도
                 enemy.Advance(0.37f); // 같은 시험 시간 진행
-                positions[index] = body.localPosition.y; // 부유 위치 기록
+                positions[index] = body.localPosition.y - baseline.y; // 기준 대비 부유 위치
+                enemy.Begin(kinds[index], null, null, null); // 같은 종류 재초기화
+                Assert.That(body.localPosition, Is.EqualTo(baseline)); // 재초기화 위치 복원
+                Assert.That(body.localRotation, Is.EqualTo(rotation)); // 재초기화 각도 복원
             } // 반복 종료
             for (int first = 0; first < positions.Length; first++) // 첫 종류 선택
             { // 첫 반복 시작
@@ -74,7 +79,7 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
         finally // 시험 정리
         { // 정리 시작
             Time.timeScale = oldScale; // 시간 배율 복원
-            Object.DestroyImmediate(holder); // 적 객체 제거
+            Object.DestroyImmediate(holder); // 모든 시험 객체 제거
         } // 정리 종료
     } // 시험 종료
     [Test] // 전투 판정 독립성 시험
@@ -86,7 +91,7 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
         { // 시험 시작
             Time.timeScale = 1f; // 전투 시간 진행
             holder.transform.position = new Vector3(2f, 3f, 0f); // 시험 월드 위치
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, null, null, null); // 고정 위치 적 시작
             Vector3 before = holder.transform.position; // 적 기준 위치
             bool first = enemy.Intersects(new Vector2(2f, 2f), new Vector2(2f, 4f), out bool weakBefore); // 초기 탄환 판정
@@ -113,7 +118,7 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
             Time.timeScale = 1f; // 정상 시간 배율
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 시험 출격 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, player, null, null); // 적 시작
             Transform body = holder.transform.Find("EnemyBody"); // 표시 몸체
             enemy.Advance(0.31f); // 첫 움직임 진행
@@ -148,7 +153,7 @@ public class EnemyVisualMotionTests // 적 이미지 움직임 시험
         try // 시험 준비
         { // 시험 시작
             Time.timeScale = 1f; // 전투 시간 진행
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 보스 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, kind); // 보스 구성
             enemy.Begin(kind, null, null, null); // 보스 초기화
             enemy.ApplyDamage(1f, null); // 체력바 표시
             SpriteRenderer body = holder.transform.Find("EnemyBody").GetComponent<SpriteRenderer>(); // 몸체 표시

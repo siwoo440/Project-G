@@ -9,7 +9,7 @@ public class EnemyBulletCameraTests // 적탄 카메라 교체 시험
         GameObject root = new GameObject("BulletCameraPool"); // 격리된 적탄 풀
         try // 시험 범위 준비
         { // 시험 범위 시작
-            EnemyBulletPool pool = root.AddComponent<EnemyBulletPool>(); // 카메라 없는 풀 생성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(root); // 카메라 없는 풀 생성
             EnemyBullet bullet = pool.Spawn(new Vector2(100f, 0f), Vector2.zero, 0.1f, 1, -100f, null); // 좌우 화면 밖 적탄
             bullet.Simulate(0.1f); // 카메라 없는 이탈 검사
             Assert.That(bullet.InUse, Is.True); // 카메라 부재 시 좌우 회수 없음

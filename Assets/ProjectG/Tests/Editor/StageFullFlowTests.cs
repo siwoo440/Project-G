@@ -14,11 +14,11 @@ public class StageFullFlowTests // 스테이지 전체 흐름 시험
             camera.orthographicSize = 5f; // 시험 화면 크기
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 출격 시작
-            EnemyBulletPool pool = scene.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(scene); // 적탄 풀 구성
             BattleProgress progress = holder.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 상태 연결
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
-            StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(scene); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             Assert.That(stage.ContextMessage, Does.Contain("균열 조사")); // 첫 사건 안내
             stage.Advance(65f, 65f); // 첫 전투 경계 진행

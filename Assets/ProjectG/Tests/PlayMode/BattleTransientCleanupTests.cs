@@ -19,6 +19,7 @@ public class BattleTransientCleanupTests // 출격 발사체 정리 시험
             Assert.That(host.Flow.OpenPreparation(), Is.True); // 출격 준비 진입
             Assert.That(host.Flow.SelectCommonSkill(CommonSkill.Scatter), Is.True); // 산탄 선택
             Assert.That(host.Flow.StartRun(), Is.True); // 첫 출격
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             BattlePlayer player = host.CurrentPlayer; // 첫 출격 플레이어
             Assert.That(player.TryUseRapid(), Is.True); // 고유 관통탄 발사
             Assert.That(player.TryUseCommon(), Is.True); // 공용 산탄 발사
@@ -52,6 +53,7 @@ public class BattleTransientCleanupTests // 출격 발사체 정리 시험
                 Assert.That(shot == null, Is.True); // 이전 탄환 파괴
             } // 제거 확인 종료
             Assert.That(beam == null, Is.True); // 이전 광선 파괴
+            yield return BattleSceneTestWait.UntilReady(host); // 새 전투 씬 완료
             Assert.That(host.CurrentPlayer, Is.Not.SameAs(player)); // 새 출격 객체 확인
         } // 시험 범위 종료
         finally // 시험 정리

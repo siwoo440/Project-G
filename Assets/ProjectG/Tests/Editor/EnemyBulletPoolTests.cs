@@ -7,7 +7,7 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
     public void RecycleReusesSameObjectAndResetsPosition() // 적탄 재사용 확인
     { // 시험 시작
         GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
-        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(holder); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             EnemyBullet first = pool.Spawn(Vector2.zero, Vector2.down, 0.06f, 10, -5f, null); // 첫 적탄 생성
@@ -31,7 +31,7 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
     public void BulletIsRecycledAfterLeavingBottom() // 이탈 회수 확인
     { // 시험 시작
         GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
-        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(holder); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             EnemyBullet bullet = pool.Spawn(new Vector2(0f, -4f), Vector2.down, 0.06f, 10, -5f, null); // 이탈할 탄환
@@ -49,7 +49,7 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
     public void UltimateClearsOnlyVisibleClearableBullets() // 소거 대상 확인
     { // 시험 시작
         GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
-        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(holder); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             EnemyBullet clearable = pool.Spawn(Vector2.zero, Vector2.zero, 0.06f, 10, -5f, null, true); // 화면 안 소거 가능 탄환
@@ -70,7 +70,7 @@ public class EnemyBulletPoolTests // 적탄 풀 시험
     public void EnlargedBulletRemainsAndCanBeClearedWhileVisible() // 보이는 탄환 처리 확인
     { // 시험 시작
         GameObject holder = new GameObject("TestPool"); // 시험 풀 생성
-        EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(holder); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             EnemyBullet bullet = pool.Spawn(new Vector2(0f, -5.1f), Vector2.zero, 0.06f, 10, -5f, null); // 화면 끝 탄환 생성

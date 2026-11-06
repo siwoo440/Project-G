@@ -7,12 +7,14 @@ namespace ProjectG // 프로젝트 영역
     { // 구성 요소 시작
         private enum Page // 표시 화면 종류
         { // 종류 시작
-            Pause, Settings, Bindings, Display, ConfirmRetry, ConfirmExit // 일시정지와 설정 화면
+            Pause, Settings, Bindings, Display, Sound, ConfirmRetry, ConfirmExit // 일시정지와 설정 화면
         } // 종류 종료
         private BattlePlayer player; // 전투 플레이어
         private Camera battleCamera; // 전투 화면 카메라
         private BattleProgress progress; // 카드 선택 상태
         private UpgradeItemSelection upgrades; // 강화 선택 상태
+        private SoundSettingsPanel soundPanel; // 씬에 저장된 음량 설정
+        private string soundHint = ""; // 음량 화면 연결 오류 안내
         private GameSettings settings; // 조작 설정 저장소
         private Texture2D frame; // 화면 배경 이미지
         private GUIStyle titleStyle; // 제목 글꼴
@@ -50,6 +52,16 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         public event Action RetryRequested; // 재시도 요청 알림
         public event Action ExitRequested; // 출격 준비 복귀 요청
+        public void SetSoundPanel(SoundSettingsPanel panel) // 실제 씬 음량 화면 연결
+        { // 연결 시작
+            soundPanel = panel; // 편집 가능한 씬 패널 보관
+        } // 연결 종료
+        private void ReturnFromSound() // 음량 화면에서 기존 설정으로 복귀
+        { // 복귀 시작
+            page = Page.Settings; // 기존 설정 화면 복원
+            selected = 5; // 사운드 항목 선택
+            openedFrame = Time.frameCount; // 닫기 입력의 중복 처리 차단
+        } // 복귀 종료
         public void SetBindings(KeyBindingSettings keyBindings) // 공유 키 설정 연결
         { // 연결 시작
             Bindings = keyBindings; // 키 설정 보관
@@ -103,6 +115,10 @@ namespace ProjectG // 프로젝트 영역
             { // 생략 시작
                 return; // 변경 사항 없음
             } // 생략 종료
+            if (soundPanel != null) // 실제 음량 화면 확인
+            { // 닫기 시작
+                soundPanel.Dismiss(); // 기존 모달 종료와 함께 숨김
+            } // 닫기 종료
             Time.timeScale = oldTimeScale; // 이전 시간 배율 복원
             IsPaused = false; // 화면 닫힘 표시
             fromMenu = false; // 메뉴 진입 상태 해제
@@ -158,6 +174,10 @@ namespace ProjectG // 프로젝트 영역
             { // 입력 대기 시작
                 return; // 열기 입력의 중복 처리 방지
             } // 입력 대기 종료
+            if (IsPaused && page == Page.Sound) // 실제 음량 패널 입력 소유
+            { // 차단 시작
+                return; // 기존 설정의 키와 포인터 처리 차단
+            } // 차단 종료
             Keyboard keyboard = Keyboard.current; // 현재 키보드
             if (IsPaused && page == Page.Bindings && capturingKey) // 새 키 입력 대기 확인
             { // 키 입력 처리 시작
@@ -266,7 +286,19 @@ namespace ProjectG // 프로젝트 영역
                     selected = 0; // 첫 항목 선택
                     displayHint = ""; // 이전 결과 제거
                 } // 화면 설정 종료
-                else if (index == 5) // 조작 기본값 복원 확인
+                else if (index == 5) // 실제 음량 설정 확인
+                { // 음량 시작
+                    if (soundPanel != null && soundPanel.Open(ReturnFromSound)) // 실제 씬 패널 열기
+                    { // 열기 시작
+                        page = Page.Sound; // 음량 화면의 입력과 표시 소유
+                        soundHint = ""; // 이전 연결 오류 제거
+                    } // 열기 종료
+                    else // 씬 연결 누락
+                    { // 오류 시작
+                        soundHint = "사운드 설정 화면을 열 수 없습니다"; // 실제 연결 오류 표시
+                    } // 오류 종료
+                } // 음량 종료
+                else if (index == 6) // 조작 기본값 복원 확인
                 { // 기본값 시작
                     settings.RestoreControlDefaults(); // 조작 기본값 복원
                     Bindings.ResetDefaults(); // 키 배치 기본값 복원
@@ -464,7 +496,7 @@ namespace ProjectG // 프로젝트 영역
         } // 변경 종료
         private int OptionCount() // 현재 화면 선택지 수
         { // 조회 시작
-            return page == Page.Pause ? 4 : page == Page.Settings ? 7 : page == Page.Bindings ? 10 : page == Page.Display ? 6 : 2; // 화면별 항목 수
+            return page == Page.Pause ? 4 : page == Page.Settings ? 8 : page == Page.Bindings ? 10 : page == Page.Display ? 6 : 2; // 화면별 항목 수
         } // 조회 종료
         private Rect View() // 화면 영역 계산
         { // 계산 시작
@@ -495,7 +527,7 @@ namespace ProjectG // 프로젝트 영역
             } // 메뉴 설명 종료
             if (page == Page.Settings) // 조작 설정 확인
             { // 설정 설명 시작
-                return index == 0 ? "집중 방식: " + (settings.FocusToggle ? "토글" : "홀드") : index == 1 ? "일반 피격 표시: " + (settings.HitboxNormal ? "켜기" : "끄기") : index == 2 ? "집중 피격 표시: " + (settings.HitboxFocus ? "켜기" : "끄기") : index == 3 ? "조작 키 변경" : index == 4 ? "화면 설정" : index == 5 ? "조작 설정 기본값 복원" : "뒤로"; // 실제 적용 설정
+                return index == 0 ? "집중 방식: " + (settings.FocusToggle ? "토글" : "홀드") : index == 1 ? "일반 피격 표시: " + (settings.HitboxNormal ? "켜기" : "끄기") : index == 2 ? "집중 피격 표시: " + (settings.HitboxFocus ? "켜기" : "끄기") : index == 3 ? "조작 키 변경" : index == 4 ? "화면 설정" : index == 5 ? "사운드 설정" : index == 6 ? "조작 설정 기본값 복원" : "뒤로"; // 실제 적용 설정
             } // 설정 설명 종료
             if (page == Page.Bindings) // 키 설정 화면 확인
             { // 키 설정 설명 시작
@@ -517,7 +549,7 @@ namespace ProjectG // 프로젝트 영역
         } // 설명 종료
         private void OnGUI() // 화면 표시
         { // 표시 시작
-            if (!IsPaused) // 화면 열림 확인
+            if (!IsPaused || page == Page.Sound) // 실제 음량 패널과 표시 중복 차단
             { // 생략 시작
                 return; // 화면 표시 생략
             } // 생략 종료
@@ -553,6 +585,11 @@ namespace ProjectG // 프로젝트 영역
                 GUI.color = Color.white; // 안내 글자 색상
                 GUI.Label(new Rect(panel.x + panel.width * 0.1f, panel.y + panel.height * 0.89f, panel.width * 0.8f, panel.height * 0.08f), bindingHint, labelStyle); // 입력 결과와 오류 표시
             } // 안내 표시 종료
+            if (page == Page.Settings && !string.IsNullOrEmpty(soundHint)) // 실제 음량 화면 연결 오류
+            { // 오류 안내 시작
+                GUI.color = Color.white; // 안내 글자 색상
+                GUI.Label(new Rect(panel.x + panel.width * 0.1f, panel.y + panel.height * 0.89f, panel.width * 0.8f, panel.height * 0.08f), soundHint, labelStyle); // 연결 오류 안내
+            } // 오류 안내 종료
             if (page == Page.Display && !string.IsNullOrEmpty(displayHint)) // 화면 설정 결과 확인
             { // 안내 표시 시작
                 GUI.color = Color.white; // 안내 글자 색상

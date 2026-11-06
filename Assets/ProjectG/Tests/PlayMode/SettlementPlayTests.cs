@@ -52,6 +52,7 @@ public class SettlementPlayTests // 실제 전투 정산 흐름 시험
             MemoryStore store = new MemoryStore(); // 사용자 파일과 격리된 저장소
             host = CreateHost(holder, store); // 화면 관리자 생성
             StartBattle(host); // 실제 시험 출격
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             BattlePlayer first = host.CurrentPlayer; // 첫 출격 플레이어 보관
             Assert.That(first.Survival.TryHit(1000), Is.True); // 체력 소진으로 실패 유도
             yield return null; // 실제 실패 프레임 진행
@@ -63,6 +64,7 @@ public class SettlementPlayTests // 실제 전투 정산 흐름 시험
             Assert.That(host.Progress.CommonMaterials, Is.EqualTo(3)); // 저장된 공통 재료
             Assert.That(host.Flow.RequestRetry(), Is.True); // 결과 재시도 확인
             Assert.That(host.Flow.ConfirmResultExit(true), Is.True); // 재출격 확정
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 재출격 완료
             Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Battle)); // 새 전투 화면
             Assert.That(host.CurrentPlayer, Is.Not.SameAs(first)); // 새 전투 객체 생성
             Assert.That(host.Progress.Mastery(CharacterType.Rapid), Is.EqualTo(10)); // 이전 보상 중복 방지
@@ -97,6 +99,7 @@ public class SettlementPlayTests // 실제 전투 정산 흐름 시험
                 return true; // 시험 저장 성공
             }; // 수집 종료
             StartBattle(host); // 실제 시험 출격
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             BattlePlayer player = host.CurrentPlayer; // 현재 출격 플레이어
             player.Skills.GainEnergy(100); // 필살기 에너지 준비
             Assert.That(player.TryUseUltimate(), Is.True); // 실제 필살기 발동
@@ -130,6 +133,7 @@ public class SettlementPlayTests // 실제 전투 정산 흐름 시험
             MemoryStore store = new MemoryStore(); // 사용자 파일과 격리된 저장소
             host = CreateHost(holder, store); // 화면 관리자 생성
             StartBattle(host); // 실제 시험 출격
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             BattlePlayer player = host.CurrentPlayer; // 출격 플레이어 보관
             store.FailWrites = true; // 정산 저장 오류 유도
             Assert.That(player.Survival.TryHit(1000), Is.True); // 체력 소진으로 실패 유도

@@ -29,12 +29,12 @@ namespace ProjectG // 프로젝트 영역
         private BossState bossState; // 보스 패턴 상태
         private Vector2 dashVelocity; // 돌진 속도
         private bool dashContact; // 돌진 접촉 처리 여부
-        private SpriteRenderer bodyImage; // 재사용 몸체 이미지
+        [SerializeField] private SpriteRenderer bodyImage; // 편집 가능한 몸체 이미지
         private readonly EnemyVisualMotion visualMotion = new EnemyVisualMotion(); // 몸체 움직임 상태
-        private GameObject warningMark; // 공격 예고 표시
-        private GameObject dashPath; // 돌진 경로 표시
-        private GameObject weakMark; // 약점 표시
-        private EnemyHealthBar healthBar; // 적 체력 표시
+        [SerializeField] private GameObject warningMark; // 편집 가능한 돌진 경고
+        [SerializeField] private GameObject dashPath; // 편집 가능한 돌진 경로
+        [SerializeField] private GameObject weakMark; // 편집 가능한 약점 표시
+        [SerializeField] private EnemyHealthBar healthBar; // 편집 가능한 적 체력 표시
         public event System.Action<int> PhaseChanged; // 보스 단계 변경 알림
         public float Health // 현재 체력
         { // 속성 시작
@@ -62,8 +62,22 @@ namespace ProjectG // 프로젝트 영역
         public bool WeakExposed => IsBoss && bossState == BossState.Recovery && IsAlive; // 보스 약점 노출
         private bool IsBoss => kind == EnemyKind.MidBoss || kind == EnemyKind.FinalBoss; // 보스 구분
         public int PatternIndex => kind == EnemyKind.FinalBoss ? (Health <= MaximumHealth / 3f ? 2 : Health <= MaximumHealth * 2f / 3f ? 1 : 0) : midPattern; // 보스 시험 패턴
+        public bool HasSceneVisual(EnemyKind type) // 종류별 씬 표시 유효성
+        { // 확인 시작
+            bool body = bodyImage != null && bodyImage.sprite != null && bodyImage.transform.IsChildOf(transform); // 편집 몸체 확인
+            bool bar = healthBar != null && healthBar.transform.IsChildOf(transform) && healthBar.HasValidVisual; // 편집 체력바 확인
+            bool weak = weakMark != null && weakMark.transform.IsChildOf(transform) && weakMark.GetComponent<SpriteRenderer>() != null && weakMark.GetComponent<SpriteRenderer>().sprite != null; // 편집 약점 확인
+            bool dash = type != EnemyKind.Dash || (warningMark != null && warningMark.transform.IsChildOf(transform) && warningMark.GetComponent<SpriteRenderer>() != null && warningMark.GetComponent<SpriteRenderer>().sprite != null && dashPath != null && dashPath.transform.IsChildOf(transform) && dashPath.GetComponent<SpriteRenderer>() != null && dashPath.GetComponent<SpriteRenderer>().sprite != null); // 돌진 표시 확인
+            return body && bar && weak && dash; // 필수 표시 연결 결과
+        } // 확인 종료
         public void Begin(EnemyKind type, BattlePlayer target, EnemyBulletPool bulletPool, Camera camera) // 적 초기화
         { // 초기화 시작
+            if (!HasSceneVisual(type)) // 씬 표시 연결 확인
+            { // 오류 시작
+                Debug.LogError("적 템플릿의 필수 표시 요소가 연결되지 않았습니다", this); // 누락 오류 표시
+                gameObject.SetActive(false); // 불완전 적 활성화 차단
+                return; // 임의 표시 생성 차단
+            } // 오류 종료
             kind = type; // 적 종류 보관
             player = target; // 대상 보관
             pool = bulletPool; // 적탄 풀 보관
@@ -81,7 +95,7 @@ namespace ProjectG // 프로젝트 영역
             Vector2 dashDirection = player != null ? (Vector2)player.transform.position - (Vector2)transform.position : Vector2.down; // 예고 시작 대상 방향
             dashVelocity = (dashDirection.sqrMagnitude > 0.0001f ? dashDirection.normalized : Vector2.down) * 5f; // 예고와 일치하는 돌진 속도
             dashContact = false; // 돌진 접촉 초기화
-            CreateVisual(); // 임시 도형 생성
+            InitializeVisual(); // 편집된 표시 초기화
             UpdateVisual(); // 초기 상태 표시
         } // 초기화 종료
         public override void ReceiveDamage(float damage, BattlePlayer source) // 공통 피해 적용
@@ -238,7 +252,7 @@ namespace ProjectG // 프로젝트 영역
             } // 접촉 처리 종료
             Vector2 center = battleCamera != null ? (Vector2)battleCamera.transform.position : Vector2.zero; // 화면 중심
             float height = battleCamera != null ? battleCamera.orthographicSize : 0f; // 화면 세로 반경
-            float width = height * 16f / 9f; // 화면 가로 반경
+            float width = height * (battleCamera != null ? battleCamera.aspect : 0f); // 실제 전투 가로 반경
             bool escaped = battleCamera != null && (to.y < center.y - height - 1f || to.y > center.y + height + 1f || to.x < center.x - width - 1f || to.x > center.x + width + 1f); // 화면 네 방향 이탈 확인
             if (escaped) // 화면 이탈 확인
             { // 퇴장 시작
@@ -335,61 +349,17 @@ namespace ProjectG // 프로젝트 영역
                 } // 발사 반복 종료
             } // 교차 발사 종료
         } // 발사 종료
-        private void CreateVisual() // 적 시각 요소 초기화
+        private void InitializeVisual() // 적 시각 요소 초기화
         { // 초기화 시작
-            if (bodyImage == null) // 몸체 최초 생성 확인
-            { // 생성 시작
-                GameObject body = new GameObject("EnemyBody"); // 적 몸체 객체
-                body.transform.SetParent(transform, false); // 적에 연결
-                bodyImage = body.AddComponent<SpriteRenderer>(); // 몸체 표시 구성
-            } // 생성 종료
-            bodyImage.transform.localScale = IsBoss ? new Vector3(6.6f, 3.3f, 1f) : new Vector3(3f, 2.1f, 1f); // 종류별 표시 크기
-            bodyImage.sprite = BattleSprites.Enemy(kind); // 현재 종류 이미지
-            bodyImage.color = Color.white; // 원본 이미지 색상
-            visualMotion.Begin(bodyImage.transform, kind); // 종류별 몸체 움직임 초기화
-            if (healthBar == null) // 체력바 생성 확인
-            { // 생성 시작
-                GameObject barObject = new GameObject("EnemyHealthBar"); // 체력바 객체
-                barObject.transform.SetParent(transform, false); // 적에 연결
-                healthBar = barObject.AddComponent<EnemyHealthBar>(); // 체력바 구성
-            } // 생성 종료
-            healthBar.Initialize(bodyImage, IsBoss); // 확대 몸체 기준 초기화
-            if (weakMark == null) // 약점 최초 생성 확인
-            { // 생성 시작
-                weakMark = new GameObject("EnemyWeakPoint"); // 약점 표시 객체
-                weakMark.transform.SetParent(transform, false); // 적에 연결
-                weakMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 약점 중심 표시 크기
-                SpriteRenderer weakImage = weakMark.AddComponent<SpriteRenderer>(); // 약점 표시 요소
-                weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
-                weakImage.color = Color.white; // 약점 이미지 원본 색상
-                weakImage.sortingOrder = 2; // 몸체 앞 표시
-            } // 생성 종료
-            if (kind == EnemyKind.Dash && warningMark == null) // 돌진 경고 최초 생성 확인
-            { // 생성 시작
-                warningMark = new GameObject("EnemyAttackWarning"); // 돌진 경고 객체
-                warningMark.transform.SetParent(transform, false); // 적에 연결
-                warningMark.transform.localPosition = new Vector3(0f, -1.95f, 0f); // 확대된 몸체 아래 경고
-                warningMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 경고 아이콘 크기
-                SpriteRenderer warningImage = warningMark.AddComponent<SpriteRenderer>(); // 경고 표시 요소
-                warningImage.sprite = BattleVisuals.Warning; // 돌진 경고 아이콘
-                warningImage.color = Color.white; // 경고 이미지 원본 색상
-                warningImage.sortingOrder = 3; // 전경 표시
-            } // 생성 종료
-            if (kind == EnemyKind.Dash && dashPath == null) // 돌진 경로 최초 생성 확인
-            { // 생성 시작
-                dashPath = new GameObject("EnemyDashPath"); // 돌진 경로 객체
-                dashPath.transform.SetParent(transform, false); // 적에 연결
-                SpriteRenderer pathImage = dashPath.AddComponent<SpriteRenderer>(); // 경로 표시 요소
-                pathImage.sprite = Projectile.GetSprite(); // 공통 흰색 선 이미지
-                pathImage.color = new Color(1f, 0.48f, 0.18f, 0.75f); // 경로 시험 색상
-                pathImage.sortingOrder = -1; // 적과 탄환 뒤 표시
-            } // 생성 종료
+            visualMotion.Begin(bodyImage.transform, kind); // 편집 변환 기준 몸체 움직임
+            healthBar.Initialize(bodyImage, IsBoss); // 편집한 체력바 초기화
             if (kind == EnemyKind.Dash && dashPath != null) // 돌진 경로 갱신 확인
             { // 갱신 시작
                 Vector2 direction = dashVelocity.normalized; // 확정된 돌진 방향
+                SpriteRenderer pathImage = dashPath.GetComponent<SpriteRenderer>(); // 편집한 경로 이미지
+                float pathLength = Mathf.Abs(pathImage.sprite.bounds.size.y * dashPath.transform.localScale.y); // 편집된 경로 길이
                 dashPath.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction); // 경로 방향 적용
-                dashPath.transform.localPosition = direction * 20f; // 적 중심에서 화면 밖까지 배치
-                dashPath.transform.localScale = new Vector3(0.08f, 40f, 1f); // 경로 폭과 길이
+                dashPath.transform.localPosition = direction * (pathLength * 0.5f); // 적 중심부터 경로 배치
             } // 갱신 종료
         } // 초기화 종료
         private void UpdateVisual() // 표시 상태 갱신

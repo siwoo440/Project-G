@@ -23,7 +23,7 @@ namespace ProjectG // 프로젝트 영역
         private void ChooseNextLane() // 다음 발사 위치 선택
         { // 선택 시작
             float halfHeight = battleCamera.orthographicSize; // 화면 세로 반경
-            float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
+            float halfWidth = halfHeight * battleCamera.aspect; // 실제 전투 가로 반경
             Vector2 center = battleCamera.transform.position; // 화면 중심
             int selected = lane % 3; // 세 경로 중 선택
             lane++; // 다음 경로 이동

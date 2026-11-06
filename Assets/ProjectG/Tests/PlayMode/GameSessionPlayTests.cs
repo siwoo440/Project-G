@@ -45,6 +45,7 @@ public class GameSessionPlayTests // 실제 출격 화면 흐름 시험
             yield return null; // 해제 처리 대기
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 출격 입력
             yield return null; // 출격 처리 대기
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             Assert.That(host.CurrentPlayer.Character, Is.EqualTo(CharacterType.Sniper)); // 저격형 출격
             Assert.That(host.CurrentPlayer.Skills.Common, Is.EqualTo(CommonSkill.Scatter)); // 산탄 장착
             host.CurrentPlayer.Survival.TryHit(1000); // 시험 실패 피해
@@ -64,6 +65,7 @@ public class GameSessionPlayTests // 실제 출격 화면 흐름 시험
             yield return null; // 해제 처리 대기
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 재시도 확정
             yield return null; // 새 출격 처리 대기
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 재출격 완료
             Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Battle)); // 전투 재시작
             Assert.That(host.CurrentPlayer.Character, Is.EqualTo(CharacterType.Sniper)); // 캐릭터 선택 유지
             Assert.That(host.CurrentPlayer.Statistics.Hits, Is.Zero); // 새 출격 기록 초기화

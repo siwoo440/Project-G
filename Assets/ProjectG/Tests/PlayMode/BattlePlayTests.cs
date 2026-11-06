@@ -8,15 +8,36 @@ using UnityEngine.SceneManagement; // 장면 전환 기능
 using ProjectG; // 전투 화면 기능
 public class BattlePlayTests // 실제 전투 흐름 시험
 { // 시험 시작
-    private static GameSessionHost StartSceneBattle() // 타이틀에서 시험 출격 시작
+    private GameSessionHost ownedHost; // 시험이 연 실제 메뉴 관리자
+    private GameSessionHost StartSceneBattle() // 타이틀에서 시험 출격 시작
     { // 출격 시작
         GameSessionHost host = Object.FindFirstObjectByType<GameSessionHost>(); // 화면 연결 조회
         Assert.That(host, Is.Not.Null); // 타이틀 구성 확인
+        ownedHost = host; // 실패 시에도 정리할 관리자 보관
         Assert.That(host.Flow.OpenCharacterSelection(), Is.True); // 캐릭터 선택 진입
         Assert.That(host.Flow.OpenPreparation(), Is.True); // 출격 준비 진입
         Assert.That(host.Flow.StartRun(), Is.True); // 시험 출격 시작
         return host; // 화면 연결 반환
     } // 출격 종료
+    [UnityTearDown] // 성공과 실패 후 실제 씬 정리
+    public IEnumerator ReleaseSceneBattle() // 시험이 소유한 전투 씬 정리
+    { // 정리 시작
+        if (ownedHost == null) // 실제 출격이 없는 시험 확인
+        { // 생략 시작
+            yield break; // 다른 시험의 객체 보존
+        } // 생략 종료
+        Object.Destroy(ownedHost.gameObject); // 실제 메뉴와 전투 종료 요청
+        ownedHost = null; // 시험 소유 참조 해제
+        yield return null; // 실제 호스트 파괴 대기
+        float deadline = Time.realtimeSinceStartup + 15f; // 시간 배율과 무관한 제한
+        Scene battle = SceneManager.GetSceneByPath("Assets/Scenes/BattleScene.unity"); // 실제 전투 씬 조회
+        while (battle.IsValid() && battle.isLoaded && Time.realtimeSinceStartup < deadline) // 씬 언로드 완료 확인
+        { // 대기 시작
+            yield return null; // 실제 다음 프레임
+            battle = SceneManager.GetSceneByPath("Assets/Scenes/BattleScene.unity"); // 씬 상태 재확인
+        } // 대기 종료
+        Assert.That(!battle.IsValid() || !battle.isLoaded, Is.True, "시험 전투 씬이 정리되지 않았습니다."); // 실제 씬 정리 확인
+    } // 정리 종료
     [UnityTest] // 플레이 모드 시험
     public IEnumerator KeyboardMovesPlayerFocusesAndFires() // 키 입력과 자동 사격 확인
     { // 시험 시작
@@ -68,14 +89,14 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         Assert.That(host, Is.Not.Null); // 타이틀 구성 확인
         Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Title)); // 타이틀 첫 화면
         Assert.That(host.CurrentPlayer, Is.Null); // 출격 전 플레이어 없음
-        StartSceneBattle(); // 시험 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 시험 출격
         Assert.That(host.CurrentPlayer, Is.Not.Null); // 출격 시 플레이어 생성
     } // 시험 종료
     [UnityTest] // 시험 적탄 생성 시험
     public IEnumerator SampleSceneSpawnsEnemyBullet() // 적탄 자동 생성 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        StartSceneBattle(); // 타이틀에서 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 타이틀에서 출격
         yield return new WaitForSeconds(3.8f); // 첫 적 등장과 사격 대기
         Assert.That(Object.FindFirstObjectByType<EnemyBulletPool>(), Is.Not.Null); // 적탄 풀 존재 확인
         Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 활성 적탄 확인
@@ -84,7 +105,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator EnemyBulletsDamageAndGrazeInPlayMode() // 플레이 모드 생존 흐름 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        StartSceneBattle(); // 타이틀에서 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 타이틀에서 출격
         yield return null; // 장면 초기화 대기
         BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 참조
         EnemyBulletPool pool = Object.FindFirstObjectByType<EnemyBulletPool>(); // 적탄 풀 참조
@@ -108,7 +129,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator EnemyShotSpawnsOnScheduleWithoutWarningMarker() // 경고 없이 기존 시간 발사
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        StartSceneBattle(); // 타이틀에서 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 타이틀에서 출격
         yield return new WaitForSeconds(3.2f); // 첫 적 발사 전 대기
         EnemyActor enemy = Object.FindFirstObjectByType<EnemyActor>(); // 현재 웨이브 적 조회
         Assert.That(enemy, Is.Not.Null); // 적 등장 확인
@@ -178,7 +199,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator RapidShotsReachTrainingTargetAndBuildBonus() // 실제 표적 적중 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        StartSceneBattle(); // 타이틀에서 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 타이틀에서 출격
         yield return null; // 초기화 대기
         BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
         TrainingTarget target = TrainingTarget.Create(new Vector2(0f, 2.5f)); // 독립 시험 표적 생성
@@ -229,7 +250,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
     public IEnumerator EnemyAppearsAndProjectileDefeatRewardsPlayer() // 적 전투 흐름 확인
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
-        StartSceneBattle(); // 타이틀에서 출격
+        yield return BattleSceneTestWait.UntilReady(StartSceneBattle()); // 타이틀에서 출격
         yield return new WaitForSeconds(2.3f); // 시험 적 등장 대기
         StageDirector encounter = Object.FindFirstObjectByType<StageDirector>(); // 스테이지 등장기 확인
         BattlePlayer player = Object.FindFirstObjectByType<BattlePlayer>(); // 플레이어 확인
@@ -384,7 +405,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         try // 시험 시작
         { // 시험 범위 시작
             enemyObject.transform.position = playerObject.transform.position + Vector3.up * 3f; // 회수 범위 밖 적 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성 요소
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Aimed); // 적 구성 요소
             enemy.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 일반 적 초기화
             enemy.ApplyDamage(100f, player); // 적 처치
             ExperienceShard shard = Object.FindFirstObjectByType<ExperienceShard>(); // 경험치 조각 조회
@@ -528,7 +549,7 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             GameObject enemyObject = new GameObject("PauseEnemy"); // 시험 적 생성
             enemyObject.transform.SetParent(cameraObject.transform, false); // 시험 장면에 연결
             enemyObject.transform.position = new Vector2(-4f, 2f); // 적 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Aimed); // 적 구성
             enemy.Begin(EnemyKind.Aimed, player, pool, camera); // 적 초기화
             Vector2 before = bullet.transform.position; // 정지 전 적탄 위치
             Vector2 shotBefore = shot.transform.position; // 정지 전 아군탄 위치
@@ -565,8 +586,8 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             Time.timeScale = 1f; // 시험 시간 설정
             firstObject.transform.position = playerObject.transform.position + Vector3.right * 0.1f; // 첫 위치
             secondObject.transform.position = playerObject.transform.position + Vector3.left * 0.1f; // 둘째 위치
-            EnemyActor first = firstObject.AddComponent<EnemyActor>(); // 첫 적 구성
-            EnemyActor second = secondObject.AddComponent<EnemyActor>(); // 둘째 적 구성
+            EnemyActor first = EnemyActorTestFactory.AttachActor(firstObject, EnemyKind.Aimed); // 첫 적 구성
+            EnemyActor second = EnemyActorTestFactory.AttachActor(secondObject, EnemyKind.Aimed); // 둘째 적 구성
             first.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 첫 적 시작
             second.Begin(EnemyKind.Aimed, player, cameraObject.GetComponent<EnemyBulletPool>(), camera); // 둘째 적 시작
             first.ApplyDamage(100f, player); // 첫 적 처치

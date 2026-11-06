@@ -3,6 +3,7 @@ namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public sealed class SkillHud : MonoBehaviour // 스킬 화면 표시
     { // 클래스 시작
+        private bool scenePanel; // 실제 씬 패널의 중복 표시 차단
         private BattlePlayer player; // 플레이어 스킬 상태
         private Camera battleCamera; // 전투 화면 기준
         private Texture2D rapidIcon; // 고유 스킬 이미지
@@ -27,8 +28,9 @@ namespace ProjectG // 프로젝트 영역
                 return insufficient ? new Color(0.2f, 0.2f, 0.2f, 1f) : Color.white; // 부족 시 어두운 실루엣
             } // 조회 종료
         } // 속성 종료
-        public void Begin(BattlePlayer target, Camera camera) // 스킬 화면 초기화
+        public void Begin(BattlePlayer target, Camera camera, bool useScenePanel = false) // 스킬 화면 초기화
         { // 초기화 시작
+            scenePanel = useScenePanel; // 씬 패널 사용 여부
             player = target; // 플레이어 참조
             battleCamera = camera; // 카메라 참조
             rapidIcon = Resources.Load<Texture2D>("SkillIcons/rapid"); // 고유 스킬 이미지 불러오기
@@ -39,7 +41,7 @@ namespace ProjectG // 프로젝트 영역
         } // 초기화 종료
         private void OnGUI() // 스킬 화면 표시
         { // 표시 시작
-            if (player == null || player.Skills == null || player.Survival == null || battleCamera == null) // 표시 조건 확인
+            if (scenePanel || player == null || player.Skills == null || player.Survival == null || battleCamera == null) // 표시 조건 확인
             { // 표시 생략 시작
                 return; // 초기화 전 표시 생략
             } // 표시 생략 종료

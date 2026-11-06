@@ -9,7 +9,7 @@ public class EnemyBulletIntegrationTests // 적탄 연결 시험
         GameObject playerObject = new GameObject("TestPlayer"); // 시험 플레이어 생성
         GameObject poolObject = new GameObject("TestPool"); // 시험 풀 생성
         BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성 요소
-        EnemyBulletPool pool = poolObject.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(poolObject); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             player.Begin(Vector2.zero); // 체력 초기화
@@ -35,7 +35,7 @@ public class EnemyBulletIntegrationTests // 적탄 연결 시험
         GameObject playerObject = new GameObject("TestPlayer"); // 시험 플레이어 생성
         GameObject poolObject = new GameObject("TestPool"); // 시험 풀 생성
         BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성 요소
-        EnemyBulletPool pool = poolObject.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(poolObject); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             player.Begin(Vector2.zero); // 체력 초기화
@@ -83,7 +83,7 @@ public class EnemyBulletIntegrationTests // 적탄 연결 시험
         GameObject playerObject = new GameObject("TestPlayer"); // 시험 플레이어 생성
         GameObject poolObject = new GameObject("TestPool"); // 시험 풀 생성
         BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성 요소
-        EnemyBulletPool pool = poolObject.AddComponent<EnemyBulletPool>(); // 풀 구성 요소
+        EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(poolObject); // 풀 구성 요소
         try // 시험 시작
         { // 시험 범위 시작
             player.Begin(Vector2.zero); // 체력 초기화

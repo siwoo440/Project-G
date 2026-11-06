@@ -11,7 +11,7 @@ public class EnemyHealthBarPlayTests // 실행 중 체력바 시험
         GameObject holder = new GameObject("Enemy"); // 적 객체
         try // 시험 범위
         { // 범위 시작
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Aimed); // 적 구성
             enemy.Begin(EnemyKind.Aimed, null, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             enemy.ApplyDamage(1f, null); // 실제 피해
@@ -41,7 +41,7 @@ public class EnemyHealthBarPlayTests // 실행 중 체력바 시험
             Time.timeScale = 1f; // 전투 시간 초기화
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 플레이어 초기화
-            EnemyActor enemy = holder.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(holder, EnemyKind.Spread); // 적 구성
             enemy.Begin(EnemyKind.Spread, player, null, null); // 적 초기화
             Transform bar = holder.transform.Find("EnemyHealthBar"); // 체력바 조회
             enemy.ApplyDamage(1f, null); // 실제 피해

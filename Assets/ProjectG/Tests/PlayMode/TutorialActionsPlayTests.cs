@@ -13,7 +13,7 @@ public class TutorialActionsPlayTests // 실제 행동 단계 시험
         try // 시험 범위
         { // 시험 범위 시작
             Camera camera = cameraObject.AddComponent<Camera>(); // 전투 카메라
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 실제 적탄 풀
+            EnemyBulletPool pool = EnemyBulletPlayTestFactory.Create(cameraObject); // 실제 적탄 풀
             BattlePlayer player = holder.AddComponent<BattlePlayer>(); // 실제 플레이어
             player.AssignCamera(camera); // 전투 카메라 연결
             player.Begin(Vector2.zero, CharacterType.Rapid); // 플레이어 상태 초기화

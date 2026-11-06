@@ -48,6 +48,7 @@ public class GameFlowPlayTests // 실제 메뉴 입력 시험
             yield return null; // 해제 처리 대기
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 출격 입력
             yield return null; // 입력 처리 대기
+            yield return BattleSceneTestWait.UntilReady(host); // 실제 전투 씬 완료
             Assert.That(flow.Screen, Is.EqualTo(GameFlowScreen.Battle)); // 전투 화면 진입
         } // 시험 범위 종료
         finally // 시험 정리

@@ -5,6 +5,8 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BattlePlayer : MonoBehaviour // 플레이어 구성 요소
     { // 클래스 시작
         private BattleSession session; // 전투 상태
+        private Sprite sceneRapidSprite; // 씬에서 편집한 속사 이미지
+        private Sprite sceneSniperSprite; // 씬에서 편집한 저격 이미지
         public CharacterType Character // 현재 캐릭터
         { // 속성 시작
             get; // 값 조회
@@ -144,7 +146,7 @@ namespace ProjectG // 프로젝트 영역
             } // 차단 종료
             Statistics?.RecordUltimate(); // 실제 발동 횟수 기록
             float halfHeight = battleCamera.orthographicSize; // 화면 세로 반경
-            float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
+            float halfWidth = halfHeight * battleCamera.aspect; // 실제 전투 가로 반경
             Vector3 center = battleCamera.transform.position; // 화면 중심
             Rect screen = new Rect(center.x - halfWidth, center.y - halfHeight, halfWidth * 2f, halfHeight * 2f); // 전투 화면 범위
             if (Character == CharacterType.Rapid) // 속사형 필살기 확인
@@ -241,6 +243,11 @@ namespace ProjectG // 프로젝트 영역
             { // 소속 변경 시작
                 transientRoot.SetParent(camera != null ? camera.transform : null, true); // 월드 좌표 유지 변경
             } // 소속 변경 종료
+        } // 연결 종료
+        public void SetSceneSprites(Sprite rapid, Sprite sniper) // 씬에서 편집한 캐릭터 이미지 연결
+        { // 연결 시작
+            sceneRapidSprite = rapid; // 속사형 이미지 보관
+            sceneSniperSprite = sniper; // 저격형 이미지 보관
         } // 연결 종료
         public void SetBindings(KeyBindingSettings settings) // 전투 키 설정 연결
         { // 연결 시작
@@ -388,7 +395,7 @@ namespace ProjectG // 프로젝트 영역
                 Begin(transform.position, CharacterType.Sniper); // 저격형 전투 초기화
             } // 선택 종료
             float halfHeight = battleCamera.orthographicSize; // 카메라 세로 반경
-            float halfWidth = halfHeight * 16f / 9f; // 가로 16대9 반경
+            float halfWidth = halfHeight * battleCamera.aspect; // 실제 전투 가로 반경
             Vector3 center = battleCamera.transform.position; // 카메라 중심
             bool toggle = PlayerPrefs.GetInt("ProjectG.FocusToggle", 0) == 1; // 집중 방식 설정
             if (Time.deltaTime > 0f && rapidAction.WasPressedThisFrame()) // 고유 스킬 입력 확인
@@ -417,8 +424,8 @@ namespace ProjectG // 프로젝트 영역
             SpriteRenderer image = GetComponent<SpriteRenderer>(); // 캐릭터 표시 요소
             if (image != null) // 표시 요소 확인
             { // 이미지 변경 시작
-                image.sprite = BattleSprites.Player(type); // 선택 캐릭터 이미지
-                image.color = Color.white; // 원본 이미지 색상
+                Sprite selected = type == CharacterType.Rapid ? sceneRapidSprite : sceneSniperSprite; // 씬에서 편집한 이미지 선택
+                image.sprite = selected != null ? selected : BattleSprites.Player(type); // 씬 이미지 또는 시험 기본값
             } // 이미지 변경 종료
             support?.Clear(); // 이전 보조 표시 정리
             Combo = new RapidCombo(); // 누적 화력 초기화

@@ -1,6 +1,7 @@
 using System; // 출격 식별자 기능
 using System.Collections.Generic; // 미저장 보고서 대기열
 using UnityEngine; // 유니티 장면 기능
+using UnityEngine.SceneManagement; // 실제 전투 씬 전환
 namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public sealed class GameSessionHost : MonoBehaviour // 메뉴와 출격 장면 연결
@@ -31,6 +32,12 @@ namespace ProjectG // 프로젝트 영역
         public Func<string, bool> MeasurementWriterOverride; // 격리된 측정 보고 시험 연결
         private readonly Queue<string> pendingMeasurementReports = new Queue<string>(); // 순서대로 보관할 미저장 측정
         public int PendingMeasurementCount => pendingMeasurementReports.Count; // 저장 대기 보고서 수
+        private enum MusicContext // 실제 화면별 음악 상태
+        { // 종류 시작
+            None, Menu, Battle, Boss, Result // 시험용 화면별 구분
+        } // 종류 종료
+        private SceneSoundPlayer sound; // 실제 메뉴 씬 오디오
+        private MusicContext musicContext; // 이전 음악 화면
         private Camera menuCamera; // 메뉴 카메라
         private string currentRunId; // 현재 출격 식별자
         private string pendingStartId; // 저장 재시도 출격 식별자
@@ -50,6 +57,9 @@ namespace ProjectG // 프로젝트 영역
             private set; // 영수증 지정
         } // 속성 종료
         private GameObject battleRoot; // 현재 출격 객체 모음
+        private Scene battleScene; // 현재 출격의 실제 씬 핸들
+        private static bool battleSceneLoading; // 전역 전투 씬 로드 직렬화
+        private int loadGeneration; // 오래된 로드 완료 차단
         private PauseSettingsOverlay overlay; // 일시정지와 설정 화면
         private ITutorialStateStore tutorialStore; // 세션별 안내 상태 저장소
         public GameFlowController Flow // 현재 화면 흐름
@@ -81,6 +91,7 @@ namespace ProjectG // 프로젝트 영역
             Progress = progress; // 주입된 서비스 보관
             overlay = gameObject.AddComponent<PauseSettingsOverlay>(); // 설정 화면 구성
             overlay.Begin(null, menuCamera, null, null); // 메뉴 설정 연결
+            ConnectSceneAudio(); // 실제 씬 오디오와 설정 화면 연결
             Flow = gameObject.AddComponent<GameFlowController>(); // 화면 흐름 구성
             Flow.Begin(menuCamera); // 타이틀 표시
             Flow.SettlementRequested = SettleBattle; // 결과 저장 요청 연결
@@ -96,11 +107,73 @@ namespace ProjectG // 프로젝트 영역
                 EnsureProgress(); // 주입 저장소 즉시 복원
             } // 복원 종료
         } // 초기화 종료
+        private void ConnectSceneAudio() // 메뉴 씬의 실제 오디오 구성 조회
+        { // 연결 시작
+            SoundSettingsPanel panel = null; // 직렬화된 음량 설정 화면
+            foreach (GameObject root in menuCamera.gameObject.scene.GetRootGameObjects()) // 실제 메뉴 씬 루트 순회
+            { // 조회 시작
+                SceneSoundPlayer candidate = root.GetComponentInChildren<SceneSoundPlayer>(true); // 실제 오디오 루트 조회
+                SoundSettingsPanel candidatePanel = root.GetComponentInChildren<SoundSettingsPanel>(true); // 실제 음량 패널 조회
+                if (candidate != null && sound == null) // 최초 오디오 확인
+                { // 보관 시작
+                    sound = candidate; // 실제 씬 오디오 보관
+                } // 보관 종료
+                if (candidatePanel != null && panel == null) // 최초 패널 확인
+                { // 보관 시작
+                    panel = candidatePanel; // 실제 씬 패널 보관
+                } // 보관 종료
+            } // 조회 종료
+            overlay.SetSoundPanel(panel); // 편집 가능한 음량 패널 연결
+        } // 연결 종료
+        private void UpdateMusicContext() // 화면과 보스 단계의 시험 음악 전환
+        { // 전환 시작
+            if (sound == null || Flow == null || Flow.Screen == GameFlowScreen.Loading) // 연결과 로딩 확인
+            { // 생략 시작
+                return; // 없는 오디오 또는 로딩 중 전환 생략
+            } // 생략 종료
+            MusicContext next = MusicContext.Menu; // 기본 메뉴 음악
+            if (Flow.Screen == GameFlowScreen.Result) // 정산 결과 화면 확인
+            { // 결과 시작
+                next = MusicContext.Result; // 결과 음악 선택
+            } // 결과 종료
+            else if (Flow.Screen == GameFlowScreen.Battle) // 실제 전투 화면 확인
+            { // 전투 시작
+                if (CurrentStage == null || CurrentStage.State == null) // 스테이지 준비 확인
+                { // 대기 시작
+                    return; // 불완전한 화면 전환 생략
+                } // 대기 종료
+                StagePhase phase = CurrentStage.State.Phase; // 실제 전투 단계
+                next = phase == StagePhase.MidBoss || phase == StagePhase.FinalBoss ? MusicContext.Boss : MusicContext.Battle; // 보스와 일반 전투 구분
+            } // 전투 종료
+            if (next == musicContext) // 이전 음악 화면 확인
+            { // 생략 시작
+                return; // 프레임별 중복 재생 방지
+            } // 생략 종료
+            musicContext = next; // 현재 음악 화면 보관
+            sound.StopMusic(); // 이전 장면 음악 중복 방지
+            if (next == MusicContext.Menu) // 실제 메뉴 음악 확인
+            { // 요청 시작
+                sound.PlayMenuMusic(); // 편집된 메뉴 음원만 요청
+            } // 요청 종료
+            else if (next == MusicContext.Battle) // 실제 전투 음악 확인
+            { // 요청 시작
+                sound.PlayBattleMusic(); // 편집된 전투 음원만 요청
+            } // 요청 종료
+            else if (next == MusicContext.Boss) // 실제 보스 음악 확인
+            { // 요청 시작
+                sound.PlayBossMusic(); // 편집된 보스 음원만 요청
+            } // 요청 종료
+            else if (next == MusicContext.Result) // 실제 결과 음악 확인
+            { // 요청 시작
+                sound.PlayResultMusic(); // 편집된 결과 음원만 요청
+            } // 요청 종료
+        } // 전환 종료
         private void Update() // 모달 입력 상태 갱신
         { // 갱신 시작
             if (Flow != null && overlay != null) // 화면 연결 확인
             { // 입력 처리 시작
                 Flow.InputBlocked = overlay.IsPaused; // 설정 중 메뉴 입력 차단
+                UpdateMusicContext(); // 실제 화면 음악 상태 반영
             } // 입력 처리 종료
         } // 갱신 종료
         private void StartBattle(CharacterType character, CommonSkill skill) // 선택한 조건으로 출격
@@ -111,6 +184,11 @@ namespace ProjectG // 프로젝트 영역
                 return; // 기존 진행 데이터 보존
             } // 출격 차단 종료
             bool hasRunHistory = Progress.HasRunHistory; // 새 출격 저장 이전 이력
+            if (Application.isPlaying) // 실제 플레이에서 씬 사용
+            { // 씬 준비 시작
+                BeginBattleSceneLoad(character, skill, hasRunHistory); // 비동기 씬 로드 요청
+                return; // 실제 완료까지 전투 시작 대기
+            } // 씬 준비 종료
             if (string.IsNullOrEmpty(pendingStartId)) // 새 출격 식별자 확인
             { // 식별 시작
                 pendingStartId = Guid.NewGuid().ToString("N"); // 중복 없는 출격 식별자
@@ -134,12 +212,14 @@ namespace ProjectG // 프로젝트 영역
             CurrentPlayer = player.GetComponent<BattlePlayer>(); // 전투 플레이어 조회
             CurrentPlayer.Begin(new Vector2(0f, -3f), character); // 선택 캐릭터 출격
             CurrentPlayer.BindAchievementRun(currentRunId); // 저장된 출격의 독립 과제 기록
+            sound?.BindBattle(CurrentPlayer); // 실제 성공 전투 신호 연결
             CurrentPlayer.Skills.Equip(skill); // 선택 공용 스킬 장착
             CurrentPlayer.AllowDebugCharacterSwitch = false; // 출격 중 시험 캐릭터 전환 차단
             BattleProgress progress = player.GetComponent<BattleProgress>(); // 성장 상태 조회
             UpgradeItemSelection selection = battleRoot.GetComponent<UpgradeItemSelection>(); // 강화 선택 조회
             CurrentStage = battleRoot.GetComponent<StageDirector>(); // 스테이지 조회
             overlay.Begin(CurrentPlayer, camera, progress, selection); // 전투 일시정지 연결
+            CurrentStage.SetModalOverlay(overlay); // 실제 모달의 스테이지 표시 연결
             CurrentPlayer.SetBindings(overlay.Bindings); // 공유 키 설정 적용
             ITutorialStateStore tutorialState = GetTutorialStore(); // 별도 안내 상태 조회
             if (tutorialState != null) // 안내 저장소 확인
@@ -149,6 +229,131 @@ namespace ProjectG // 프로젝트 영역
             Flow.AttachBattle(CurrentPlayer, CurrentStage); // 결과 화면 연결
             menuCamera.enabled = false; // 메뉴 카메라 숨김
         } // 출격 종료
+        private void BeginBattleSceneLoad(CharacterType character, CommonSkill skill, bool hasHistory) // 실제 전투 씬 비동기 로드
+        { // 로드 시작
+            if (battleSceneLoading) // 다른 씬 로드 확인
+            { // 중복 시작
+                Flow.ReportStartError("다른 전투 씬을 준비하고 있습니다."); // 중복 요청 안내
+                return; // 씬 인스턴스 혼동 방지
+            } // 중복 종료
+            battleSceneLoading = true; // 다른 전투 로드 차단
+            int generation = ++loadGeneration; // 현재 요청 번호
+            bool resolved = false; // 로드 결과 처리 여부
+            UnityEngine.Events.UnityAction<Scene, LoadSceneMode> loaded = null; // 실제 씬 수신기
+            loaded = (scene, mode) => // 씬 로드 완료 처리
+            { // 수신 시작
+                if (scene.path != "Assets/Scenes/BattleScene.unity" || mode != LoadSceneMode.Additive) // 대상 씬 확인
+                { // 무시 시작
+                    return; // 다른 씬 알림 무시
+                } // 무시 종료
+                SceneManager.sceneLoaded -= loaded; // 수신기 해제
+                resolved = true; // 해당 요청의 씬 확인
+                battleSceneLoading = false; // 다음 요청 허용
+                if (this == null || generation != loadGeneration) // 파괴 또는 오래된 요청 확인
+                { // 오래된 요청 시작
+                    UnloadPreparedScene(scene); // 남은 비활성 씬 정리
+                    return; // 저장과 전투 시작 차단
+                } // 오래된 요청 종료
+                CompleteBattleSceneLoad(scene, character, skill, hasHistory); // 실제 씬 검증과 출격 저장
+            }; // 수신 종료
+            SceneManager.sceneLoaded += loaded; // 실제 씬 완료 구독
+            try // 비동기 로드 보호
+            { // 보호 시작
+                AsyncOperation operation = SceneManager.LoadSceneAsync("Assets/Scenes/BattleScene.unity", LoadSceneMode.Additive); // 실제 전투 씬 로드
+                if (operation == null) // 로드 요청 확인
+                { // 오류 시작
+                    throw new InvalidOperationException("전투 씬 로드를 시작하지 못했습니다."); // 실제 실패 안내
+                } // 오류 종료
+                operation.completed += completed => // 완료 이벤트 안전 확인
+                { // 완료 시작
+                    if (!resolved) // 씬 이벤트 누락 확인
+                    { // 실패 시작
+                        SceneManager.sceneLoaded -= loaded; // 남은 수신기 해제
+                        battleSceneLoading = false; // 다음 요청 허용
+                        if (this != null && generation == loadGeneration && Flow != null) // 현재 요청 확인
+                        { // 오류 표시 시작
+                            Flow.ReportStartError("전투 씬 로드 결과를 확인하지 못했습니다."); // 로드 실패 안내
+                        } // 오류 표시 종료
+                    } // 실패 종료
+                }; // 완료 종료
+            } // 보호 종료
+            catch (Exception exception) // 잘못된 경로와 로드 오류
+            { // 오류 시작
+                SceneManager.sceneLoaded -= loaded; // 수신기 해제
+                battleSceneLoading = false; // 다음 요청 허용
+                Flow.ReportStartError("전투 씬 준비 실패: " + exception.Message); // 실제 오류 표시
+            } // 오류 종료
+        } // 로드 종료
+        private void CompleteBattleSceneLoad(Scene scene, CharacterType character, CommonSkill skill, bool hasHistory) // 로드 완료 후 실제 전투 연결
+        { // 완료 시작
+            BattleSceneBindings prepared = null; // 씬에 저장된 실제 전투 구성
+            string error = null; // 준비 오류 안내
+            try // 실제 연결 보호
+            { // 보호 시작
+                foreach (GameObject root in scene.GetRootGameObjects()) // 실제 씬 루트 확인
+                { // 순회 시작
+                    BattleSceneBindings candidate = root.GetComponent<BattleSceneBindings>(); // 직렬화된 전투 연결
+                    if (candidate != null && prepared != null) // 중복 전투 루트 확인
+                    { // 오류 시작
+                        throw new InvalidOperationException("전투 씬에 전투 루트가 여러 개 있습니다."); // 모호한 연결 차단
+                    } // 오류 종료
+                    if (candidate != null) // 실제 연결 확인
+                    { // 연결 시작
+                        prepared = candidate; // 씬에 저장된 루트 보관
+                    } // 연결 종료
+                } // 순회 종료
+                if (prepared == null || !prepared.Prepare(character, skill, Guid.NewGuid().GetHashCode(), out error)) // 저장 전 실제 구성 확인
+                { // 오류 시작
+                    throw new InvalidOperationException(string.IsNullOrEmpty(error) ? "전투 씬의 필수 연결을 찾지 못했습니다." : error); // 구체적인 연결 오류
+                } // 오류 종료
+            } // 보호 종료
+            catch (Exception exception) // 로드된 구성 오류
+            { // 오류 시작
+                UnloadPreparedScene(scene); // 시작하지 않은 씬 정리
+                Flow.ReportStartError("전투 씬 준비 실패: " + exception.Message); // 저장 전 실패 표시
+                return; // 출격 기록 없이 중단
+            } // 오류 종료
+            if (string.IsNullOrEmpty(pendingStartId)) // 출격 식별자 확인
+            { // 식별 시작
+                pendingStartId = Guid.NewGuid().ToString("N"); // 중복 없는 출격 식별자
+            } // 식별 종료
+            if (!Progress.TryBegin(pendingStartId, character, out error)) // 실제 출격 시작 저장
+            { // 저장 실패 시작
+                UnloadPreparedScene(scene); // 시작하지 않은 씬 정리
+                Flow.ReportStartError(error); // 저장 실패 안내
+                return; // 전투 생성 차단
+            } // 저장 실패 종료
+            currentRunId = pendingStartId; // 저장된 출격 식별자
+            pendingStartId = null; // 다음 출격 식별자 준비
+            CurrentReceipt = null; // 이전 영수증 초기화
+            ClearBattle(); // 이전 출격 정리
+            battleScene = scene; // 현재 출격 씬 핸들 보관
+            battleRoot = prepared.gameObject; // 씬에 저장된 실제 루트
+            CurrentPlayer = prepared.Player; // 씬에 저장된 플레이어
+            CurrentStage = prepared.Stage; // 씬에 저장된 스테이지
+            CurrentPlayer.BindAchievementRun(currentRunId); // 저장된 출격의 과제 기록
+            sound?.BindBattle(CurrentPlayer); // 실제 성공 전투 신호 연결
+            overlay.Begin(CurrentPlayer, prepared.Camera, prepared.Progress, null); // 실제 전투 일시정지 연결
+            CurrentStage.SetModalOverlay(overlay); // 실제 모달의 스테이지 표시 연결
+            CurrentPlayer.SetBindings(overlay.Bindings); // 공유 키 설정 적용
+            prepared.Hud.BindHost(this); // 씬 간 실제 HUD 연결
+            ITutorialStateStore sceneTutorial = GetTutorialStore(); // 별도 안내 상태 조회
+            if (sceneTutorial != null) // 안내 저장소 확인
+            { // 안내 시작
+                battleRoot.AddComponent<TutorialGuide>().Begin(CurrentPlayer, prepared.Camera, prepared.Progress, null, overlay, sceneTutorial, hasHistory); // 실제 출격 안내 연결
+            } // 안내 종료
+            Flow.AttachBattle(CurrentPlayer, CurrentStage); // 실제 전투 결과 연결
+            menuCamera.enabled = false; // 메뉴 카메라 숨김
+            battleRoot.SetActive(true); // 저장된 실제 전투 시작
+            Flow.ReportBattleReady(); // 실제 전투 시작 완료 표시
+        } // 완료 종료
+        private static void UnloadPreparedScene(Scene scene) // 준비 또는 종료된 전투 씬 정리
+        { // 정리 시작
+            if (Application.isPlaying && scene.IsValid() && scene.isLoaded) // 실제 로드된 씬 확인
+            { // 언로드 시작
+                SceneManager.UnloadSceneAsync(scene); // 정확한 씬 인스턴스 언로드
+            } // 언로드 종료
+        } // 정리 종료
         private ITutorialStateStore GetTutorialStore() // 주입 또는 별도 안내 저장소
         { // 조회 시작
             if (tutorialStore != null) // 기존 세션 저장소 확인
@@ -334,6 +539,7 @@ namespace ProjectG // 프로젝트 영역
         } // 복귀 종료
         private void ClearBattle() // 이전 출격 정리
         { // 정리 시작
+            sound?.UnbindBattle(); // 이전 출격 성공 신호 해제
             if (overlay != null) // 일시정지 화면 확인
             { // 일시정지 정리 시작
                 overlay.Resume(); // 소유한 시간 배율 복원
@@ -347,8 +553,18 @@ namespace ProjectG // 프로젝트 영역
             CurrentStage = null; // 스테이지 참조 해제
             if (battleRoot != null) // 출격 객체 확인
             { // 출격 정리 시작
+                BattleSceneBindings bindings = battleRoot.GetComponent<BattleSceneBindings>(); // 실제 전투 씬 연결 조회
+                if (bindings != null) // 씬 전투 확인
+                { // 탄환 정리 시작
+                    bindings.ClearAllBullets(); // 출격 경계의 적탄 전체 회수
+                } // 탄환 정리 종료
                 battleRoot.SetActive(false); // 같은 프레임 전투 중지
-                if (Application.isPlaying) // 플레이 상태 확인
+                if (Application.isPlaying && battleScene.IsValid() && battleScene.isLoaded) // 실제 전투 씬 확인
+                { // 씬 정리 시작
+                    UnloadPreparedScene(battleScene); // 기존 전투 씬만 언로드
+                    battleScene = default; // 이전 씬 핸들 해제
+                } // 씬 정리 종료
+                else if (Application.isPlaying) // 시험용 동적 객체 확인
                 { // 지연 정리 시작
                     Destroy(battleRoot); // 프레임 종료 후 제거
                 } // 지연 정리 종료
@@ -365,6 +581,7 @@ namespace ProjectG // 프로젝트 영역
         } // 정리 종료
         private void OnDestroy() // 화면 연결 제거
         { // 제거 시작
+            loadGeneration++; // 대기 중인 씬 완료 무효화
             if (Flow != null) // 화면 흐름 확인
             { // 이벤트 해제 시작
                 Flow.RunRequested -= StartBattle; // 출격 요청 해제

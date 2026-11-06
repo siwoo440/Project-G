@@ -76,8 +76,8 @@ public sealed class MeasurementAllocationTests // 전투 측정 독립성과 할
             Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 첫 출격 시작
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 구성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 구성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 측정 수집기
             recorder.Begin(player, stage, pool, 16); // 측정 시작

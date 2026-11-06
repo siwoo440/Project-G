@@ -10,7 +10,7 @@ public class BattleMeasurementRecorderTests // 전투 측정 수집 시험
         GameObject holder = new GameObject("MeasuredPool"); // 풀 객체 생성
         try // 시험 범위 시작
         { // 준비 시작
-            EnemyBulletPool pool = holder.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(holder); // 적탄 풀 생성
             EnemyBullet first = pool.Spawn(Vector2.zero, Vector2.up, 0.1f, 1, -10f, null); // 첫 적탄 생성
             EnemyBullet second = pool.Spawn(Vector2.one, Vector2.up, 0.1f, 1, -10f, null); // 둘째 적탄 생성
             Assert.That(pool.ActiveCount, Is.EqualTo(2)); // 활성 탄환 두 발
@@ -38,8 +38,8 @@ public class BattleMeasurementRecorderTests // 전투 측정 수집 시험
             camera.orthographicSize = 5f; // 시험 화면 범위
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 생성
             player.Begin(Vector2.zero); // 출격 시작
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 생성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 생성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 생성
             stage.Begin(player, camera, pool, null, null); // 실제 스테이지 시작
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 수집기 생성
             recorder.Begin(player, stage, pool, 721); // 측정 대상과 시드 연결
@@ -89,8 +89,8 @@ public class BattleMeasurementRecorderTests // 전투 측정 수집 시험
             camera.orthographicSize = 5f; // 시험 화면 크기
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 생성
             player.Begin(Vector2.zero); // 첫 출격 시작
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 생성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 생성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 생성
             stage.Begin(player, camera, pool, null, null); // 단계 초기화
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 측정 수집기
             recorder.Begin(player, stage, pool, 33); // 고정 시드 연결
@@ -120,8 +120,8 @@ public class BattleMeasurementRecorderTests // 전투 측정 수집 시험
             Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.Begin(Vector2.zero); // 첫 출격 시작
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 생성
-            StageDirector stage = cameraObject.AddComponent<StageDirector>(); // 스테이지 생성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 생성
+            StageDirector stage = EnemyActorTestFactory.AttachStage(cameraObject); // 스테이지 생성
             stage.Begin(player, camera, pool, null, null); // 스테이지 연결
             BattleMeasurementRecorder recorder = cameraObject.AddComponent<BattleMeasurementRecorder>(); // 측정 수집기 생성
             recorder.Begin(player, stage, pool, 72); // 첫 출격 측정 연결

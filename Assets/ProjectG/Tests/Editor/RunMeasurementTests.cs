@@ -26,7 +26,7 @@ public class RunMeasurementTests // 실제 전투 지표 시험
         try // 시험 범위 시작
         { // 범위 시작
             Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
-            EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
+            EnemyBulletPool pool = EnemyBulletEditorTestFactory.Create(cameraObject); // 적탄 풀 구성
             BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
             player.AssignCamera(camera); // 카메라 연결
             player.AssignBulletPool(pool); // 적탄 풀 연결

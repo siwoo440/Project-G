@@ -24,7 +24,7 @@ public sealed class DashUpdateOrderPlayTests // 돌진 접촉 순서 시험
             Assert.That(player.transform.position.x, Is.EqualTo(1f).Within(0.001f)); // 현재 플레이어 위치 확인
             enemyObject = new GameObject("DashOrderEnemy"); // 현재 프레임 새 적
             enemyObject.transform.position = Vector3.zero; // 이동 경로 중간 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 돌진 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Dash); // 돌진 적 구성
             enemy.Begin(EnemyKind.Dash, player, null, camera); // 돌진 적 초기화
             enemy.Advance(0.8f); // 돌진 예고 종료
             enemy.SendMessage("Update"); // 플레이어 갱신 전 적 갱신
@@ -50,7 +50,7 @@ public sealed class DashUpdateOrderPlayTests // 돌진 접촉 순서 시험
         float previousScale = Time.timeScale; // 기존 시간 배율
         GameObject cameraObject = new GameObject("ContactPriorityCamera"); // 시험 카메라
         Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
-        EnemyBulletPool pool = cameraObject.AddComponent<EnemyBulletPool>(); // 적탄 풀 구성
+        EnemyBulletPool pool = EnemyBulletPlayTestFactory.Create(cameraObject); // 적탄 풀 구성
         GameObject playerObject = new GameObject("ContactPriorityPlayer"); // 시험 플레이어
         BattlePlayer player = playerObject.AddComponent<BattlePlayer>(); // 플레이어 구성
         GameObject enemyObject = null; // 적 객체 참조
@@ -64,7 +64,7 @@ public sealed class DashUpdateOrderPlayTests // 돌진 접촉 순서 시험
             Assert.That(bullet, Is.Not.Null); // 시험 적탄 생성 확인
             enemyObject = new GameObject("ContactPriorityDash"); // 시험 돌진 적 생성
             enemyObject.transform.position = Vector3.zero; // 플레이어 접촉 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, player, pool, camera); // 돌진 적 초기화
             enemy.Advance(0.8f); // 돌진 예고 종료
             yield return null; // 첫 접촉 프레임 대기
@@ -99,7 +99,7 @@ public sealed class DashUpdateOrderPlayTests // 돌진 접촉 순서 시험
             player.Begin(new Vector2(-1f, 0f)); // 현재 이동 시작 위치
             enemyObject = new GameObject("DashContactEnemy"); // 시험 돌진 적
             enemyObject.transform.position = Vector3.zero; // 현재 경로 중간 위치
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Dash); // 적 구성
             enemy.Begin(EnemyKind.Dash, player, null, camera); // 돌진 적 초기화
             enemy.Advance(0.8f); // 돌진 예고 종료
             enemy.SendMessage("Update"); // 플레이어 이동 전 적 갱신

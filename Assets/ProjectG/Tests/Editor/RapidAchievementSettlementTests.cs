@@ -56,7 +56,7 @@ public sealed class RapidAchievementSettlementTests // 아리아 과제 실제 �
     { // 적중 시작
         GameObject enemyObject = new GameObject("AchievementEnemy"); // 시험 적 객체
         enemyObject.transform.SetParent(holder.transform, false); // 시험 객체 소속
-        EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+        EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.MidBoss); // 적 구성
         enemy.Begin(EnemyKind.MidBoss, player, null, null); // 생존 가능한 적 초기화
         for (int index = 0; index < count; index++) // 탄환 적중 반복
         { // 반복 시작
@@ -216,7 +216,7 @@ public sealed class RapidAchievementSettlementTests // 아리아 과제 실제 �
             Hit(holder, player, 50, false); // 스킬탄 적중 제외
             GameObject enemyObject = new GameObject("ZeroDamageEnemy"); // 무효 피해 적
             enemyObject.transform.SetParent(holder.transform, false); // 격리 객체 소속
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.Aimed); // 적 구성
             enemy.Begin(EnemyKind.Aimed, player, null, null); // 일반 적 초기화
             GameObject trainingObject = new GameObject("TrainingTarget"); // 훈련 표적 객체
             trainingObject.transform.SetParent(holder.transform, false); // 격리 객체 소속
@@ -254,11 +254,11 @@ public sealed class RapidAchievementSettlementTests // 아리아 과제 실제 �
             BattlePlayer player = host.CurrentPlayer; // 현재 플레이어
             GameObject firstObject = new GameObject("FirstEnemy"); // 첫 적 객체
             firstObject.transform.SetParent(holder.transform, false); // 격리 객체 소속
-            EnemyActor first = firstObject.AddComponent<EnemyActor>(); // 첫 적 구성
+            EnemyActor first = EnemyActorTestFactory.AttachActor(firstObject, EnemyKind.MidBoss); // 첫 적 구성
             first.Begin(EnemyKind.MidBoss, player, null, null); // 첫 적 초기화
             GameObject secondObject = new GameObject("SecondEnemy"); // 둘째 적 객체
             secondObject.transform.SetParent(holder.transform, false); // 격리 객체 소속
-            EnemyActor second = secondObject.AddComponent<EnemyActor>(); // 둘째 적 구성
+            EnemyActor second = EnemyActorTestFactory.AttachActor(secondObject, EnemyKind.MidBoss); // 둘째 적 구성
             second.Begin(EnemyKind.MidBoss, player, null, null); // 둘째 적 초기화
             for (int index = 0; index < 25; index++) // 관통탄 반복
             { // 반복 시작
@@ -298,7 +298,7 @@ public sealed class RapidAchievementSettlementTests // 아리아 과제 실제 �
             Hit(holder, player, 49); // 새 출격 유효 적중
             GameObject enemyObject = new GameObject("NewEnemy"); // 새 출격 적
             enemyObject.transform.SetParent(holder.transform, false); // 격리 객체 소속
-            EnemyActor enemy = enemyObject.AddComponent<EnemyActor>(); // 적 구성
+            EnemyActor enemy = EnemyActorTestFactory.AttachActor(enemyObject, EnemyKind.MidBoss); // 적 구성
             enemy.Begin(EnemyKind.MidBoss, player, null, null); // 적 초기화
             Assert.That(oldShot.TryHit(enemy, false), Is.True); // 이전 탄환 충돌
             Assert.That(player.AchievementRun.Qualifies("second"), Is.False); // 새 출격의 오염 방지

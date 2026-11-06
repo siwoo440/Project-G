@@ -6,7 +6,7 @@ namespace ProjectG // 프로젝트 영역
 { // 영역 시작
     public enum GameFlowScreen // 메뉴와 전투 화면 종류
     { // 목록 시작
-        Title, CharacterSelect, Preparation, Battle, Result, Growth // 화면 순서
+        Title, CharacterSelect, Preparation, Loading, Battle, Result, Growth // 화면 순서
     } // 목록 종료
     public sealed class GameFlowController : MonoBehaviour // 타이틀부터 결과까지 흐름
     { // 클래스 시작
@@ -213,7 +213,7 @@ namespace ProjectG // 프로젝트 영역
             } // 차단 종료
             ErrorText = ""; // 이전 출격 오류 초기화
             BeginRun(); // 선택 캐릭터 출격
-            return Screen == GameFlowScreen.Battle; // 출격 기록과 시작 결과
+            return Screen == GameFlowScreen.Loading || Screen == GameFlowScreen.Battle; // 출격 요청 또는 시작 결과
         } // 출격 종료
         public void AttachBattle(BattlePlayer player, StageDirector stage) // 출격 전투 연결
         { // 연결 시작
@@ -332,6 +332,13 @@ namespace ProjectG // 프로젝트 영역
             ErrorText = string.IsNullOrWhiteSpace(error) ? "출격 기록을 저장하지 못했습니다." : error; // 읽기 가능한 오류 안내
             SetScreen(GameFlowScreen.Preparation); // 출격 준비 화면 유지
         } // 오류 처리 종료
+        public void ReportBattleReady() // 실제 전투 씬 시작 완료
+        { // 완료 시작
+            if (Screen == GameFlowScreen.Loading) // 현재 출격 로딩 확인
+            { // 전환 시작
+                SetScreen(GameFlowScreen.Battle); // 실제 전투 화면 표시
+            } // 전환 종료
+        } // 완료 종료
         public void ReportSettlementError(string error) // 정산 저장 오류 표시
         { // 오류 처리 시작
             ErrorText = string.IsNullOrWhiteSpace(error) ? "정산 내용을 저장하지 못했습니다." : error; // 읽기 가능한 오류 안내
@@ -413,7 +420,7 @@ namespace ProjectG // 프로젝트 영역
         { // 출격 시작
             ReleaseResultPause(); // 이전 결과 시간 복원
             receipt = null; // 이전 출격 영수증 해제
-            SetScreen(GameFlowScreen.Battle); // 전투 화면 표시
+            SetScreen(Application.isPlaying && RunRequested != null ? GameFlowScreen.Loading : GameFlowScreen.Battle); // 실제 씬 로딩 또는 단독 시험 시작
             RunRequested?.Invoke(SelectedCharacter, SelectedCommonSkill); // 출격 요청 알림
         } // 출격 종료
         private void OnPhaseChanged(StagePhase phase) // 스테이지 결과 감지
@@ -483,7 +490,7 @@ namespace ProjectG // 프로젝트 영역
                 } // 마우스 입력 종료
                 return; // 다른 메뉴 입력 차단
             } // 재시도 입력 종료
-            if (InputBlocked || Screen == GameFlowScreen.Battle || Time.frameCount == enteredFrame) // 입력 가능 확인
+            if (InputBlocked || Screen == GameFlowScreen.Battle || Screen == GameFlowScreen.Loading || Time.frameCount == enteredFrame) // 입력 가능 확인
             { // 생략 시작
                 return; // 전환 프레임과 전투 입력 제외
             } // 생략 종료
@@ -713,7 +720,11 @@ namespace ProjectG // 프로젝트 영역
             titleStyle.fontSize = Mathf.Max(22, Mathf.RoundToInt(view.height * 0.052f)); // 제목 화면 비례 크기
             textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.025f)); // 본문 화면 비례 크기
             buttonStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.026f)); // 버튼 화면 비례 크기
-            if (Screen == GameFlowScreen.CharacterSelect || Screen == GameFlowScreen.Preparation) // 캐릭터와 준비 화면
+            if (Screen == GameFlowScreen.Loading) // 실제 전투 씬 로딩 확인
+            { // 로딩 표시 시작
+                GUI.Label(new Rect(view.x + view.width * 0.40f, view.y + view.height * 0.45f, view.width * 0.20f, view.height * 0.08f), "전투 준비 중", textStyle); // 로딩 상태 안내
+            } // 로딩 표시 종료
+            else if (Screen == GameFlowScreen.CharacterSelect || Screen == GameFlowScreen.Preparation) // 캐릭터와 준비 화면
             { // 준비 표시 시작
                 DrawPreparation(view); // 선택 정보 표시
             } // 준비 표시 종료

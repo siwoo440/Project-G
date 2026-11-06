@@ -29,8 +29,11 @@ namespace ProjectG // 프로젝트 영역
         private BossState bossState; // 보스 패턴 상태
         private Vector2 dashVelocity; // 돌진 속도
         private bool dashContact; // 돌진 접촉 처리 여부
+        private SpriteRenderer bodyImage; // 재사용 몸체 이미지
+        private readonly EnemyVisualMotion visualMotion = new EnemyVisualMotion(); // 몸체 움직임 상태
         private GameObject warningMark; // 공격 예고 표시
         private GameObject weakMark; // 약점 표시
+        private EnemyHealthBar healthBar; // 적 체력 표시
         public event System.Action<int> PhaseChanged; // 보스 단계 변경 알림
         public float Health // 현재 체력
         { // 속성 시작
@@ -85,13 +88,18 @@ namespace ProjectG // 프로젝트 영역
         } // 적용 종료
         public void ApplyDamage(float damage, BattlePlayer source) // 적 체력 처리
         { // 처리 시작
-            if (!IsAlive || damage <= 0f) // 피해 조건 확인
+            if (!IsAlive || !gameObject.activeInHierarchy || damage <= 0f || float.IsNaN(damage) || float.IsInfinity(damage)) // 피해 조건 확인
             { // 무시 시작
                 return; // 중복 피해 차단
             } // 무시 종료
+            float previousHealth = Health; // 피해 전 체력
             int previousPhase = PatternIndex; // 피해 전 단계
             float boundary = kind == EnemyKind.FinalBoss && previousPhase < 2 ? MaximumHealth * (2 - previousPhase) / 3f : 0f; // 다음 체력 경계
             Health = Mathf.Max(boundary, Health - damage); // 한 타격의 경계 초과 피해 제한
+            if (Health > 0f && Health < previousHealth && healthBar != null) // 실제 생존 피해 확인
+            { // 표시 시작
+                healthBar.Show(Health / MaximumHealth); // 현재 체력 표시
+            } // 표시 종료
             if (kind == EnemyKind.FinalBoss && PatternIndex != previousPhase) // 단계 변경 확인
             { // 전환 알림 시작
                 PhaseChanged?.Invoke(PatternIndex); // 현재 단계 알림
@@ -138,6 +146,10 @@ namespace ProjectG // 프로젝트 영역
         } // 판정 종료
         private void Update() // 매 프레임 진행
         { // 진행 시작
+            if (player != null && player.Survival != null && !player.Survival.IsAlive && healthBar != null) // 정지 중 플레이어 사망 확인
+            { // 종료 표시 시작
+                healthBar.Hide(); // 전투 종료 후 체력바 숨김
+            } // 종료 표시 종료
             if (Time.timeScale > 0f && kind != EnemyKind.Dash) // 일반 적과 보스 진행 확인
             { // 진행 시작
                 Advance(Time.deltaTime); // 경과 시간 적용
@@ -150,12 +162,28 @@ namespace ProjectG // 프로젝트 영역
                 Advance(Time.deltaTime); // 현재 프레임 이동 접촉 적용
             } // 돌진 진행 종료
         } // 처리 종료
+        private void OnDisable() // 적 비활성 처리
+        { // 처리 시작
+            if (healthBar != null) // 체력바 존재 확인
+            { // 숨김 시작
+                healthBar.Hide(); // 남은 표시 초기화
+            } // 숨김 종료
+        } // 처리 종료
         public void Advance(float elapsed) // 적 행동 진행
         { // 진행 시작
+            if (player != null && player.Survival != null && !player.Survival.IsAlive && healthBar != null) // 플레이어 사망 확인
+            { // 종료 표시 시작
+                healthBar.Hide(); // 종료 후 체력바 숨김
+            } // 종료 표시 종료
             if (!IsAlive || elapsed <= 0f || (player != null && player.Survival != null && !player.Survival.IsAlive)) // 정지와 생존 확인
             { // 중단 시작
                 return; // 행동 생략
             } // 중단 종료
+            visualMotion.Advance(elapsed); // 전투 시간의 몸체 움직임
+            if (healthBar != null && Time.timeScale > 0f) // 전투 시간 진행 확인
+            { // 표시 진행 시작
+                healthBar.Advance(elapsed); // 체력바 표시 시간 진행
+            } // 표시 진행 종료
             age += elapsed; // 경과 시간 증가
             if (kind == EnemyKind.Dash) // 돌진형 확인
             { // 돌진 처리 시작
@@ -307,23 +335,37 @@ namespace ProjectG // 프로젝트 영역
                 } // 발사 반복 종료
             } // 교차 발사 종료
         } // 발사 종료
-        private void CreateVisual() // 임시 도형 생성
-        { // 생성 시작
-            GameObject body = new GameObject("EnemyBody"); // 적 몸체 객체
-            body.transform.SetParent(transform, false); // 적에 연결
-            body.transform.localScale = IsBoss ? new Vector3(6.6f, 3.3f, 1f) : new Vector3(3f, 2.1f, 1f); // 종류별 표시 크기 세 배
-            SpriteRenderer image = body.AddComponent<SpriteRenderer>(); // 몸체 표시
-            image.sprite = BattleSprites.Enemy(kind); // 종류별 시험 이미지
-            image.color = Color.white; // 원본 이미지 색상
-            weakMark = new GameObject("EnemyWeakPoint"); // 약점 표시 객체
-            weakMark.transform.SetParent(transform, false); // 적에 연결
-            weakMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 약점 중심 표시 크기
-            SpriteRenderer weakImage = weakMark.AddComponent<SpriteRenderer>(); // 약점 표시 요소
-            weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
-            weakImage.color = Color.white; // 약점 이미지 원본 색상
-            weakImage.sortingOrder = 2; // 몸체 앞 표시
-            if (kind == EnemyKind.Dash) // 돌진 충돌 경고 유지
-            { // 돌진 경고 시작
+        private void CreateVisual() // 적 시각 요소 초기화
+        { // 초기화 시작
+            if (bodyImage == null) // 몸체 최초 생성 확인
+            { // 생성 시작
+                GameObject body = new GameObject("EnemyBody"); // 적 몸체 객체
+                body.transform.SetParent(transform, false); // 적에 연결
+                bodyImage = body.AddComponent<SpriteRenderer>(); // 몸체 표시 구성
+            } // 생성 종료
+            bodyImage.transform.localScale = IsBoss ? new Vector3(6.6f, 3.3f, 1f) : new Vector3(3f, 2.1f, 1f); // 종류별 표시 크기
+            bodyImage.sprite = BattleSprites.Enemy(kind); // 현재 종류 이미지
+            bodyImage.color = Color.white; // 원본 이미지 색상
+            visualMotion.Begin(bodyImage.transform, kind); // 종류별 몸체 움직임 초기화
+            if (healthBar == null) // 체력바 생성 확인
+            { // 생성 시작
+                GameObject barObject = new GameObject("EnemyHealthBar"); // 체력바 객체
+                barObject.transform.SetParent(transform, false); // 적에 연결
+                healthBar = barObject.AddComponent<EnemyHealthBar>(); // 체력바 구성
+            } // 생성 종료
+            healthBar.Initialize(bodyImage, IsBoss); // 확대 몸체 기준 초기화
+            if (weakMark == null) // 약점 최초 생성 확인
+            { // 생성 시작
+                weakMark = new GameObject("EnemyWeakPoint"); // 약점 표시 객체
+                weakMark.transform.SetParent(transform, false); // 적에 연결
+                weakMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 약점 중심 표시 크기
+                SpriteRenderer weakImage = weakMark.AddComponent<SpriteRenderer>(); // 약점 표시 요소
+                weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
+                weakImage.color = Color.white; // 약점 이미지 원본 색상
+                weakImage.sortingOrder = 2; // 몸체 앞 표시
+            } // 생성 종료
+            if (kind == EnemyKind.Dash && warningMark == null) // 돌진 경고 최초 생성 확인
+            { // 생성 시작
                 warningMark = new GameObject("EnemyAttackWarning"); // 돌진 경고 객체
                 warningMark.transform.SetParent(transform, false); // 적에 연결
                 warningMark.transform.localPosition = new Vector3(0f, -1.95f, 0f); // 확대된 몸체 아래 경고
@@ -332,8 +374,8 @@ namespace ProjectG // 프로젝트 영역
                 warningImage.sprite = BattleVisuals.Warning; // 돌진 경고 아이콘
                 warningImage.color = Color.white; // 경고 이미지 원본 색상
                 warningImage.sortingOrder = 3; // 전경 표시
-            } // 돌진 경고 종료
-        } // 생성 종료
+            } // 생성 종료
+        } // 초기화 종료
         private void UpdateVisual() // 표시 상태 갱신
         { // 갱신 시작
             if (weakMark != null) // 약점 표시 확인
@@ -342,7 +384,7 @@ namespace ProjectG // 프로젝트 영역
             } // 약점 처리 종료
             if (warningMark != null) // 예고 표시 확인
             { // 예고 처리 시작
-                warningMark.SetActive(IsTelegraphing && IsAlive); // 공격 예고 상태 반영
+                warningMark.SetActive(kind == EnemyKind.Dash && IsTelegraphing && IsAlive); // 돌진형 경고 상태 반영
             } // 예고 처리 종료
         } // 갱신 종료
     } // 클래스 종료

@@ -83,6 +83,29 @@ public class KeyBindingSettingsTests // 키 설정 시험
             Assert.That(keys.Add(control), Is.True); // 중복 키 제외
         } // 반복 종료
     } // 시험 종료
+    [TestCase("escape")] // 예약된 앞쪽 값 시험
+    [TestCase("")] // 누락된 앞쪽 값 시험
+    public void LoadPreservesValidLaterBindingWhenEarlierValueNeedsRepair(string earlierValue) // 정상 저장 키 보존
+    { // 시험 시작
+        MemoryStore store = new MemoryStore(); // 격리된 저장소
+        if (earlierValue.Length > 0) // 손상 값 확인
+        { // 손상 값 시작
+            store.Set("test.MoveUp", earlierValue); // 앞쪽 손상 값 기록
+        } // 손상 값 종료
+        store.Set("test.MoveLeft", "w"); // 뒤쪽 정상 사용자 키
+        store.Set("test.MoveDown", "upArrow"); // 다른 정상 사용자 키
+        KeyBindingSettings settings = new KeyBindingSettings(store, "test."); // 설정 객체 생성
+        settings.Load(); // 저장 값 복원
+        Assert.That(settings.GetControl(PlayerAction.MoveLeft), Is.EqualTo("w")); // 뒤쪽 정상 키 보존
+        Assert.That(settings.GetControl(PlayerAction.MoveDown), Is.EqualTo("upArrow")); // 다른 정상 키 보존
+        HashSet<string> keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // 키 중복 검사 목록
+        foreach (PlayerAction action in Enum.GetValues(typeof(PlayerAction))) // 모든 동작 순회
+        { // 반복 시작
+            string control = settings.GetControl(action); // 복원된 키 조회
+            Assert.That(settings.IsReserved(control), Is.False); // 예약 키 제외
+            Assert.That(keys.Add(control), Is.True); // 동작 간 중복 제외
+        } // 반복 종료
+    } // 시험 종료
     [Test] // 설정 변경 알림 시험
     public void NotifiesOnlyWhenBindingsActuallyChange() // 실시간 적용 알림
     { // 시험 시작

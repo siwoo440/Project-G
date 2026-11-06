@@ -21,6 +21,7 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         private BattlePlayer owner; // 발사 플레이어
         private CharacterType character; // 발사 당시 캐릭터
+        private RapidAchievementRun achievementRun; // 발사 당시 출격 과제
         private readonly HashSet<CombatTarget> hitTargets = new HashSet<CombatTarget>(); // 이미 맞힌 표적
         private Vector2 velocity; // 탄환 이동 속도
         private float upperBound; // 화면 위쪽 경계
@@ -33,6 +34,7 @@ namespace ProjectG // 프로젝트 영역
             Damage = damage; // 시험 피해량 보관
             IsBasic = isBasic; // 기본 공격 구분
             owner = player; // 발사자 보관
+            achievementRun = player != null ? player.AchievementRun : null; // 발사 당시 출격 보관
             character = player != null ? player.Character : CharacterType.Rapid; // 발사 캐릭터 보관
             RemainingHits = Mathf.Max(1, hits); // 관통 한도 설정
             hitTargets.Clear(); // 적중 목록 초기화
@@ -56,7 +58,13 @@ namespace ProjectG // 프로젝트 영역
             } // 중복 처리 종료
             float bonus = owner != null && character == CharacterType.Rapid && IsBasic ? owner.Combo.Bonus : 0f; // 속사 기본탄 보너스
             float weak = character == CharacterType.Sniper && weakPoint ? (owner != null && owner.Character == character && owner.Build != null ? owner.Build.WeakMultiplier : 1.5f) : 1f; // 저격형 약점 시험 배율
+            EnemyActor enemy = target as EnemyActor; // 실제 적 대상 확인
+            float previousHealth = enemy != null ? enemy.Health : 0f; // 적중 전 체력
             target.ReceiveDamage(Damage * (1f + bonus) * weak, owner); // 시험 피해 전달
+            if (enemy != null && enemy.Health < previousHealth && IsBasic && character == CharacterType.Rapid && owner != null && owner.Character == CharacterType.Rapid && owner.Survival != null && owner.Survival.IsAlive && owner.Statistics != null && !owner.Statistics.Finished && achievementRun != null && ReferenceEquals(achievementRun, owner.AchievementRun)) // 같은 출격의 실제 기본 피해 확인
+            { // 과제 적중 시작
+                achievementRun.RecordHit(); // 유효 적마다 한 번 기록
+            } // 과제 적중 종료
             if (owner != null && owner.Character == CharacterType.Rapid && character == CharacterType.Rapid && IsBasic) // 누적 대상 확인
             { // 누적 시작
                 owner.Combo.RegisterHit(); // 기본탄 적중 누적

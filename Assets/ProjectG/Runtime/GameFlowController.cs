@@ -55,10 +55,13 @@ namespace ProjectG // 프로젝트 영역
         private GUIStyle titleStyle; // 제목 글꼴
         private GUIStyle textStyle; // 본문 글꼴
         private GUIStyle buttonStyle; // 버튼 글꼴
+        private Vector2 preparationSummaryScroll; // 긴 성장 요약 스크롤 위치
         private Texture2D background; // 메뉴 배경 이미지
         private Texture2D panel; // 메뉴 프레임 이미지
         private Texture2D rapidImage; // 아리아 이미지
         private Texture2D sniperImage; // 리안 이미지
+        private Texture2D rapidStanding; // 아리아 기획서 전신 이미지
+        private Texture2D sniperStanding; // 리안 기획서 전신 이미지
         public event Action<CharacterType, CommonSkill> RunRequested; // 선택한 캐릭터 출격 요청
         public event Action LeaveBattleRequested; // 기존 출격 정리 요청
         public event Action SettingsRequested; // 타이틀 설정 요청
@@ -102,6 +105,8 @@ namespace ProjectG // 프로젝트 영역
             panel = Resources.Load<Texture2D>("BattleArt/ui_card_frame"); // 메뉴 프레임 이미지
             rapidImage = Resources.Load<Texture2D>("BattleArt/player_rapid"); // 아리아 이미지
             sniperImage = Resources.Load<Texture2D>("BattleArt/player_sniper"); // 리안 이미지
+            rapidStanding = Resources.Load<Texture2D>("CharacterPortraits/aria_standing"); // 아리아 원본 전신
+            sniperStanding = Resources.Load<Texture2D>("CharacterPortraits/rian_standing"); // 리안 원본 전신
             pendingExit = ExitChoice.None; // 이전 확인 초기화
             SetScreen(GameFlowScreen.Title); // 타이틀 표시
         } // 초기화 종료
@@ -157,7 +162,8 @@ namespace ProjectG // 프로젝트 영역
             CardData first = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R01 : CardId.S01); // 첫 기본 후보 조회
             CardData second = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R02 : CardId.S02); // 두 번째 기본 후보 조회
             string progress = ProgressDescription != null ? ProgressDescription(SelectedCharacter) : "영구 성장 정보를 불러올 수 없습니다."; // 실제 보유량 또는 오류 안내
-            return character + "  영구 성장\n\n" + progress + "\n\n무료 기본 후보 · 레벨업 시 제시 가능\n" + first.Name + "  :  " + first.Description + "\n" + second.Name + "  :  " + second.Description + "\n\n유료 해금 상품: 미정\n첫 고유 과제: 준비 중"; // 저장된 성장과 준비 중인 과제
+            string achievement = SelectedCharacter == CharacterType.Rapid ? "첫 고유 과제: 한 출격 기본·집중탄 50회 적중" : "첫 고유 과제: 준비 중"; // 확정된 조건과 미정 과제 구분
+            return character + "  영구 성장\n\n" + progress + "\n\n무료 기본 후보 · 레벨업 시 제시 가능\n" + first.Name + "  :  " + first.Description + "\n" + second.Name + "  :  " + second.Description + "\n\n유료 해금 상품: 미정\n" + achievement; // 저장된 성장과 과제 안내
         } // 정보 생성 종료
         public bool SelectCommonSkill(CommonSkill skill) // 공용 스킬 선택
         { // 선택 시작
@@ -390,6 +396,7 @@ namespace ProjectG // 프로젝트 영역
         { // 변경 시작
             Screen = next; // 현재 화면 보관
             focus = next == GameFlowScreen.CharacterSelect && SelectedCharacter == CharacterType.Sniper ? 1 : 0; // 화면별 기본 포커스
+            preparationSummaryScroll = Vector2.zero; // 화면 전환 시 요약 위치 초기화
             enteredFrame = Time.frameCount; // 화면 전환 프레임 보관
         } // 변경 종료
         private void DetachBattle() // 스테이지 연결 정리
@@ -463,6 +470,11 @@ namespace ProjectG // 프로젝트 영역
             { // 생략 시작
                 return; // 키 입력 생략
             } // 생략 종료
+            if (Screen == GameFlowScreen.Preparation && (keyboard.pageDownKey.wasPressedThisFrame || keyboard.pageUpKey.wasPressedThisFrame)) // 긴 성장 정보 스크롤 입력
+            { // 스크롤 시작
+                ScrollPreparationSummary((keyboard.pageDownKey.wasPressedThisFrame ? 1f : -1f) * view.height * 0.08f); // 페이지 단위 이동
+                return; // 다른 메뉴 입력 차단
+            } // 스크롤 종료
             bool previous = keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame; // 이전 선택 입력
             bool next = keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame; // 다음 선택 입력
             bool submit = keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame; // 확인 입력
@@ -597,7 +609,7 @@ namespace ProjectG // 프로젝트 영역
                 int count = Screen == GameFlowScreen.Preparation ? 3 : 2; // 화면별 버튼 수
                 for (int index = 0; index < count; index++) // 버튼 목록 순회
                 { // 순회 시작
-                    Rect button = Screen == GameFlowScreen.Preparation && index == 2 ? GrowthButtonRect(view) : ButtonRect(view, index); // 성장 버튼 위치 구분
+                    Rect button = Screen == GameFlowScreen.Preparation ? PreparationActionRect(view, index) : ButtonRect(view, index); // 준비 화면 버튼 위치 구분
                     if (button.Contains(position)) // 버튼 영역 확인
                     { // 선택 시작
                         focus = index; // 클릭 포커스 설정
@@ -680,14 +692,6 @@ namespace ProjectG // 프로젝트 영역
             { // 결과 표시 시작
                 DrawResult(view); // 결과와 기록 표시
             } // 결과 표시 종료
-            if (Screen == GameFlowScreen.Preparation && !string.IsNullOrEmpty(RecoveryNotice)) // 이전 출격 복구 확인
-            { // 복구 안내 시작
-                GUI.Label(new Rect(view.x + view.width * 0.10f, view.y + view.height * 0.12f, view.width * 0.80f, view.height * 0.05f), RecoveryNotice, textStyle); // 복구된 참여 보상 표시
-            } // 복구 안내 종료
-            if (Screen == GameFlowScreen.Preparation && !string.IsNullOrEmpty(ErrorText)) // 출격 저장 오류 확인
-            { // 오류 표시 시작
-                GUI.Label(new Rect(view.x + view.width * 0.10f, view.y + view.height * 0.91f, view.width * 0.80f, view.height * 0.07f), "출격 불가: " + ErrorText, textStyle); // 출격 오류 표시
-            } // 오류 표시 종료
             if (ConfirmingResultExit) // 결과 이동 확인
             { // 확인 표시 시작
                 Rect box = new Rect(view.x + view.width * 0.25f, view.y + view.height * 0.32f, view.width * 0.5f, view.height * 0.32f); // 확인 패널 영역
@@ -696,7 +700,7 @@ namespace ProjectG // 프로젝트 영역
                 DrawButton(ConfirmRect(view, true), "확인", confirmSelected); // 이동 확인
                 DrawButton(ConfirmRect(view, false), "취소", !confirmSelected); // 이동 취소
             } // 확인 표시 종료
-            if (!InputBlocked) // 설정 화면과 겹침 확인
+            if (!InputBlocked && Screen != GameFlowScreen.Preparation) // 준비 화면 외 측정 안내 확인
             { // 안내 표시 시작
                 DrawMeasurementNotice(view); // 미저장 측정 안내 표시
             } // 안내 표시 종료
@@ -721,6 +725,11 @@ namespace ProjectG // 프로젝트 영역
         private void DrawPreparation(Rect view) // 캐릭터와 출격 정보 표시
         { // 표시 시작
             bool choosing = Screen == GameFlowScreen.CharacterSelect; // 캐릭터 선택 여부
+            if (!choosing) // 출격 준비 화면 확인
+            { // 준비 화면 시작
+                DrawBattlePreparation(view); // 전용 화면 구성 표시
+                return; // 캐릭터 선택 화면 생략
+            } // 준비 화면 종료
             string heading = choosing ? "캐릭터 선택" : "출격 준비"; // 화면 제목
             GUI.Label(new Rect(view.x, view.y + view.height * 0.04f, view.width, view.height * 0.09f), heading, titleStyle); // 화면 제목 표시
             if (choosing) // 캐릭터 목록 확인
@@ -739,20 +748,109 @@ namespace ProjectG // 프로젝트 영역
             string details = SelectedCharacter == CharacterType.Rapid ? "아리아 · 속사형\n소속: 조사팀\n기본: 좌우 자동 사격\n집중: 전방 집중 사격\n패시브: 연속 적중 시 피해 누적\nJ: 집중 포화\nL: 유성 탄막" : "리안 · 저격형\n소속: 수호팀\n기본: 관통 자동 사격\n집중: 강력한 집중 사격\n패시브: 노출 약점 추가 피해\nJ: 관통 사격\nL: 천공 관측선"; // 기획서 기준 캐릭터 정보
             details += "\nK: 공용 교체 스킬\n스킬명은 기획안, 이미지는 시험용"; // 기획안과 시험 이미지 안내
             GUI.Label(new Rect(info.x + info.width * 0.08f, info.y + info.height * 0.08f, info.width * 0.84f, info.height * 0.84f), details, textStyle); // 캐릭터 상세 정보
-            if (!choosing) // 출격 준비 화면 확인
-            { // 스킬 표시 시작
-                DrawButton(SkillRect(view, 0), "K 보호막", SelectedCommonSkill == CommonSkill.Shield); // 보호막 선택
-                DrawButton(SkillRect(view, 1), "K 산탄", SelectedCommonSkill == CommonSkill.Scatter); // 산탄 선택
-                DrawButton(ButtonRect(view, 0), "출격", focus == 0); // 출격 버튼
-                DrawButton(ButtonRect(view, 1), "뒤로", focus == 1); // 뒤로 버튼
-                DrawButton(GrowthButtonRect(view), "영구 성장", focus == 2); // 성장 화면 버튼
-                GUI.Label(new Rect(view.x + view.width * 0.20f, view.y + view.height * 0.70f, view.width * 0.31f, view.height * 0.06f), "좌우: K 선택 · Enter: 확인", textStyle); // 키 조작 안내
-                if (ProgressDescription != null) // 영구 성장 정보 연결 확인
-                { // 성장 표시 시작
-                    GUI.Label(new Rect(view.x + view.width * 0.53f, view.y + view.height * 0.70f, view.width * 0.40f, view.height * 0.09f), ProgressDescription(SelectedCharacter), textStyle); // 보유 성장과 해금 안내
-                } // 성장 표시 종료
-            } // 스킬 표시 종료
         } // 표시 종료
+        private void DrawBattlePreparation(Rect view) // 출격 준비 전용 화면 표시
+        { // 표시 시작
+            GUI.Label(new Rect(view.x, view.y + view.height * 0.035f, view.width, view.height * 0.09f), "출격 준비", titleStyle); // 화면 제목
+            Texture2D portrait = PreparationPortrait(); // 선택 캐릭터의 기획서 전신 그림
+            if (portrait != null) // 캐릭터 그림 확인
+            { // 그림 표시 시작
+                GUI.DrawTexture(PreparationPortraitRect(view), portrait, ScaleMode.ScaleToFit); // 비율을 보존한 전신 그림
+            } // 그림 표시 종료
+            Rect info = PreparationInfoRect(view); // 캐릭터 정보 패널
+            DrawPanel(info); // 기존 장식 프레임
+            string details = SelectedCharacter == CharacterType.Rapid ? "아리아 · 속사형  /  조사팀\n\n기본: 좌우 자동 사격\n집중: 전방 집중 사격\n패시브: 연속 적중 시 피해 누적\nJ: 집중 포화  ·  L: 유성 탄막" : "리안 · 저격형  /  수호팀\n\n기본: 관통 자동 사격\n집중: 강력한 집중 사격\n패시브: 노출 약점 추가 피해\nJ: 관통 사격  ·  L: 천공 관측선"; // 기획안의 캐릭터 정보
+            GUI.Label(PreparationDetailRect(view), details, textStyle); // 캐릭터 전투 설명
+            string summary = ProgressDescription != null ? ProgressDescription(SelectedCharacter) : "영구 성장 정보를 불러올 수 없습니다."; // 실제 성장 정보
+            if (!string.IsNullOrEmpty(RecoveryNotice)) // 이전 출격 복구 안내
+            { // 복구 안내 시작
+                summary += "\n" + RecoveryNotice; // 성장 정보에 복구 안내 추가
+            } // 복구 안내 종료
+            if (!string.IsNullOrEmpty(ErrorText)) // 출격 오류 안내
+            { // 오류 안내 시작
+                summary += "\n출격 불가: " + ErrorText; // 성장 정보에 오류 추가
+            } // 오류 안내 종료
+            if (!InputBlocked && !string.IsNullOrEmpty(MeasurementNotice)) // 측정 저장 오류 안내
+            { // 저장 안내 시작
+                summary += "\n" + MeasurementNotice; // 성장 정보에 저장 안내 추가
+            } // 저장 안내 종료
+            DrawPreparationSummary(view, summary); // 성장과 오류 정보 표시
+            GUI.Label(new Rect(view.x + view.width * 0.08f, view.y + view.height * 0.665f, view.width * 0.32f, view.height * 0.035f), "공용 스킬 선택", textStyle); // 스킬 영역 제목
+            DrawButton(SkillRect(view, 0), "K 보호막", SelectedCommonSkill == CommonSkill.Shield); // 보호막 선택
+            DrawButton(SkillRect(view, 1), "K 산탄", SelectedCommonSkill == CommonSkill.Scatter); // 산탄 선택
+            GUI.Label(new Rect(view.x + view.width * 0.08f, view.y + view.height * 0.80f, view.width * 0.34f, view.height * 0.05f), "좌우: 스킬  ·  상하: 버튼  ·  Enter: 확인", textStyle); // 키보드 사용 안내
+            DrawButton(PreparationActionRect(view, 0), "출격", focus == 0); // 출격 버튼
+            DrawButton(PreparationActionRect(view, 1), "뒤로", focus == 1); // 이전 화면 버튼
+            DrawButton(PreparationActionRect(view, 2), "영구 성장", focus == 2); // 성장 화면 버튼
+        } // 표시 종료
+        private Texture2D PreparationPortrait() // 준비 화면 전신 그림 선택
+        { // 선택 시작
+            if (SelectedCharacter == CharacterType.Rapid) // 아리아 선택 확인
+            { // 아리아 시작
+                return rapidStanding != null ? rapidStanding : rapidImage; // 기획서 원본 또는 기존 대체
+            } // 아리아 종료
+            return sniperStanding != null ? sniperStanding : sniperImage; // 리안 원본 또는 기존 대체
+        } // 선택 종료
+        private void ScrollPreparationSummary(float distance) // 준비 화면 요약 스크롤 이동
+        { // 이동 시작
+            preparationSummaryScroll.y = Mathf.Max(0f, preparationSummaryScroll.y + distance); // 시작 위치 위 이동 방지
+        } // 이동 종료
+        private void DrawPreparationSummary(Rect view, string summary) // 준비 화면 성장 요약 표시
+        { // 표시 시작
+            Rect area = PreparationSummaryRect(view); // 버튼과 분리된 요약 영역
+            GUIContent content = new GUIContent(summary ?? ""); // 실제 표시할 요약 문구
+            GUIStyle style = new GUIStyle(textStyle); // 본문과 독립된 글꼴
+            float contentWidth = Mathf.Max(1f, area.width - Mathf.Min(18f, area.width * 0.05f)); // 스크롤 막대 여유 너비
+            style.fontSize = PreparationSummaryFontSize(area.height, textStyle.fontSize, size => // 문구 높이에 맞는 글자 크기
+            { // 높이 계산 시작
+                style.fontSize = size; // 시험 글자 크기 적용
+                return style.CalcHeight(content, contentWidth); // 줄바꿈 포함 높이
+            }); // 높이 계산 종료
+            float contentHeight = style.CalcHeight(content, contentWidth); // 최종 문구 높이
+            if (PreparationSummaryNeedsScroll(area.height, contentHeight)) // 긴 문구 확인
+            { // 스크롤 시작
+                Rect scrollArea = PreparationScrollableSummaryRect(view); // 안내와 분리한 스크롤 영역
+                preparationSummaryScroll = GUI.BeginScrollView(scrollArea, preparationSummaryScroll, new Rect(0f, 0f, contentWidth, contentHeight), false, true); // 잘리지 않는 세로 스크롤
+                GUI.Label(new Rect(0f, 0f, contentWidth, contentHeight), content, style); // 전체 성장 요약 표시
+                GUI.EndScrollView(); // 스크롤 영역 종료
+                GUIStyle hintStyle = new GUIStyle(textStyle); // 스크롤 안내 전용 글꼴
+                hintStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.018f)); // 작은 화면 최소 글자 크기
+                GUI.Label(PreparationScrollHintRect(view), "PgUp / PgDn: 정보 스크롤", hintStyle); // 긴 내용의 키보드 안내
+            } // 스크롤 종료
+            else // 영역 안에 들어가는 문구
+            { // 일반 표시 시작
+                preparationSummaryScroll = Vector2.zero; // 이전 스크롤 위치 초기화
+                GUI.Label(area, content, style); // 글자 크기에 맞춘 성장 요약
+            } // 일반 표시 종료
+        } // 표시 종료
+        private static Rect PreparationSummaryRect(Rect view) // 준비 화면 요약 영역
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.49f, view.y + view.height * 0.57f, view.width * 0.40f, view.height * 0.17f); // 정보 패널 안의 성장 영역
+        } // 계산 종료
+        private static Rect PreparationScrollableSummaryRect(Rect view) // 안내와 분리된 스크롤 영역
+        { // 계산 시작
+            Rect area = PreparationSummaryRect(view); // 기본 성장 요약 영역
+            area.yMax = PreparationScrollHintRect(view).yMin - view.height * 0.012f; // 안내 위쪽 여백
+            return area; // 안내와 겹치지 않는 영역
+        } // 계산 종료
+        private static Rect PreparationScrollHintRect(Rect view) // 긴 정보 안내 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.49f, view.y + view.height * 0.69f, view.width * 0.40f, view.height * 0.035f); // 하단 장식 안쪽 영역
+        } // 계산 종료
+        private static bool PreparationSummaryNeedsScroll(float height, float contentHeight) // 실제 문구 넘침 확인
+        { // 확인 시작
+            return contentHeight > height; // 영역보다 긴 문구만 스크롤
+        } // 확인 종료
+        private static int PreparationSummaryFontSize(float height, int preferred, Func<int, float> measure) // 요약 문구 글자 크기 선택
+        { // 계산 시작
+            int size = Mathf.Max(14, preferred); // 기존 크기와 최소 크기 확인
+            int minimum = Mathf.Max(14, Mathf.CeilToInt(size * 0.85f)); // 기본 크기의 85% 이상 유지
+            while (size > minimum && measure(size) > height) // 문구 높이와 최소 크기 확인
+            { // 축소 시작
+                size--; // 한 단계 작은 글자 선택
+            } // 축소 종료
+            return size; // 맞는 최대 크기 또는 가독성 하한
+        } // 계산 종료
         private void DrawGrowth(Rect view) // 영구 성장 정보 표시
         { // 표시 시작
             GUI.Label(new Rect(view.x, view.y + view.height * 0.05f, view.width, view.height * 0.10f), "영구 성장", titleStyle); // 성장 화면 제목
@@ -792,8 +890,9 @@ namespace ProjectG // 프로젝트 영역
                 cards.Append(CardCatalog.Find(card).Name); // 실제 선택 카드 이름
             } // 카드 기록 종료
             string chosen = cards.Length == 0 ? "없음" : cards.ToString(); // 카드 미선택 표시
-            string reward = receipt == null ? "정산 정보 없음" : "숙련도 +" + receipt.MasteryGained + "   공통 재료 +" + receipt.CommonMaterialsGained + "   전용 재료 +" + receipt.CharacterMaterialsGained; // 저장된 지급 내역
-            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n" + reward + "\n첫 고유 과제: 준비 중\n전투 기록은 저장되지 않습니다."; // 실제 기록과 정산 표시
+            string reward = receipt == null ? "정산 정보 없음" : "숙련도 +" + receipt.MasteryGained + "   공통 재료 +" + receipt.CommonMaterialsGained + "   전용 재료 +" + (receipt.CharacterMaterialsGained + receipt.AchievementMaterialsGained); // 숙련과 과제 지급 합산
+            string achievement = receipt != null && receipt.Character == CharacterType.Rapid ? "이번 출격 아리아 과제 증표 +" + receipt.AchievementMaterialsGained : "리안 첫 고유 과제: 준비 중"; // 확정된 과제 지급 구분
+            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n" + reward + "\n" + achievement + "\n전투 기록은 저장되지 않습니다."; // 실제 기록과 정산 표시
         } // 요약 종료
         private void DrawSettlementError() // 정산 오류와 재시도 화면
         { // 표시 시작
@@ -872,9 +971,21 @@ namespace ProjectG // 프로젝트 영역
         { // 계산 시작
             return new Rect(view.x + view.width * (0.30f + index * 0.25f), view.y + view.height * 0.16f, view.width * 0.19f, view.height * 0.08f); // 캐릭터 선택 버튼
         } // 계산 종료
-        private static Rect GrowthButtonRect(Rect view) // 영구 성장 버튼 위치
+        private static Rect PreparationPortraitRect(Rect view) // 준비 화면 전신 그림 위치
         { // 계산 시작
-            return new Rect(view.x + view.width * 0.75f, view.y + view.height * 0.80f, view.width * 0.19f, view.height * 0.09f); // 준비 화면 성장 버튼
+            return new Rect(view.x + view.width * 0.08f, view.y + view.height * 0.15f, view.width * 0.32f, view.height * 0.50f); // 세로 비율 유지 영역
+        } // 계산 종료
+        private static Rect PreparationInfoRect(Rect view) // 준비 화면 정보 패널 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.44f, view.y + view.height * 0.15f, view.width * 0.51f, view.height * 0.65f); // 설명과 성장 패널
+        } // 계산 종료
+        private static Rect PreparationDetailRect(Rect view) // 준비 화면 캐릭터 설명 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * 0.49f, view.y + view.height * 0.20f, view.width * 0.40f, view.height * 0.34f); // 전투 정보 영역
+        } // 계산 종료
+        private static Rect PreparationActionRect(Rect view, int index) // 준비 화면 하단 버튼 위치
+        { // 계산 시작
+            return new Rect(view.x + view.width * (0.44f + index * 0.17f), view.y + view.height * 0.86f, view.width * 0.15f, view.height * 0.08f); // 출격과 이동 버튼
         } // 계산 종료
         private static Rect CharacterRect(Rect view, int index) // 캐릭터 목록 위치
         { // 계산 시작
@@ -886,7 +997,7 @@ namespace ProjectG // 프로젝트 영역
         } // 계산 종료
         private static Rect SkillRect(Rect view, int index) // 공용 스킬 버튼 위치
         { // 계산 시작
-            return new Rect(view.x + view.width * (0.25f + index * 0.16f), view.y + view.height * 0.60f, view.width * 0.14f, view.height * 0.08f); // 스킬 버튼 영역
+            return new Rect(view.x + view.width * (0.08f + index * 0.17f), view.y + view.height * 0.71f, view.width * 0.15f, view.height * 0.07f); // 그림 아래 스킬 버튼
         } // 계산 종료
         private static Rect SettlementRetryRect(Rect view) // 저장 재시도 버튼 위치
         { // 계산 시작

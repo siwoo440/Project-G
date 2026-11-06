@@ -84,4 +84,52 @@ public class GameFlowPlayTests // 실제 메뉴 입력 시험
             InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 입력 설정 복원
         } // 정리 종료
     } // 시험 종료
+    [UnityTest] // 준비 화면 키보드 접근 시험
+    public IEnumerator KeyboardCanChangeSkillScrollSummaryAndOpenGrowth() // 스킬과 하단 버튼 접근 확인
+    { // 시험 시작
+        var previousEditorInput = InputSystem.settings.editorInputBehaviorInPlayMode; // 기존 입력 설정
+        var previousBackground = InputSystem.settings.backgroundBehavior; // 기존 포커스 설정
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView; // 시험 입력 허용
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus; // 비대화형 입력 허용
+        Keyboard keyboard = InputSystem.AddDevice<Keyboard>(); // 시험 키보드 생성
+        GameObject holder = new GameObject("PreparationKeyboard"); // 메뉴 시험 객체
+        try // 시험 범위 준비
+        { // 시험 범위 시작
+            GameFlowController flow = holder.AddComponent<GameFlowController>(); // 화면 흐름 생성
+            flow.Begin(holder.AddComponent<Camera>()); // 메뉴 초기화
+            flow.ProgressDescription = character => new string('가', 1000); // 긴 성장 안내 준비
+            Assert.That(flow.OpenCharacterSelection(), Is.True); // 캐릭터 선택 진입
+            Assert.That(flow.OpenPreparation(), Is.True); // 출격 준비 진입
+            yield return null; // 화면 전환 프레임 경과
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.PageDown)); // 긴 정보 아래 이동
+            yield return null; // 스크롤 입력 처리
+            var scroll = typeof(GameFlowController).GetField("preparationSummaryScroll", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance); // 실제 스크롤 상태 조회
+            Assert.That(((Vector2)scroll.GetValue(flow)).y, Is.GreaterThan(0f)); // 키보드 스크롤 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+            yield return null; // 해제 처리 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.RightArrow)); // 공용 스킬 변경
+            yield return null; // 스킬 입력 처리
+            Assert.That(flow.SelectedCommonSkill, Is.EqualTo(CommonSkill.Scatter)); // 산탄 선택 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+            yield return null; // 해제 처리 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.DownArrow)); // 두 번째 버튼 이동
+            yield return null; // 버튼 입력 처리
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+            yield return null; // 해제 처리 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.DownArrow)); // 세 번째 버튼 이동
+            yield return null; // 버튼 입력 처리
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+            yield return null; // 해제 처리 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 영구 성장 확인
+            yield return null; // 확인 입력 처리
+            Assert.That(flow.Screen, Is.EqualTo(GameFlowScreen.Growth)); // 키보드 성장 화면 진입
+        } // 시험 범위 종료
+        finally // 시험 정리
+        { // 정리 시작
+            Object.Destroy(holder); // 메뉴 객체 제거
+            InputSystem.RemoveDevice(keyboard); // 시험 키보드 제거
+            InputSystem.settings.backgroundBehavior = previousBackground; // 기존 포커스 설정 복원
+            InputSystem.settings.editorInputBehaviorInPlayMode = previousEditorInput; // 기존 입력 설정 복원
+        } // 정리 종료
+    } // 시험 종료
 } // 시험 종료

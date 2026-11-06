@@ -215,10 +215,10 @@ namespace ProjectG // 프로젝트 영역
                 report.Append(" / 관측 최대 활성 적탄: ").Append(combat.PeakEnemyProjectiles); // 출격 중 관측 최대 적탄 표시
                 if (stats != null) // 드롭 세부 기록 확인
                 { // 세부 표시 시작
-                    report.Append("\n드롭 시도: ").Append(stats.DropAttempts).Append(" / 만료: ").Append(stats.DropsExpired).Append(" / 출격 종료 폐기: ").Append(stats.DropsDiscarded); // 실제 드롭 결과 합계
+                    report.Append("\n일반 적 드롭 시도: ").Append(stats.DropAttempts).Append(" / 만료: ").Append(stats.DropsExpired).Append(" / 출격 종료 폐기: ").Append(stats.DropsDiscarded); // 일반 적 시도와 전체 결과 합계
                     foreach (DropRecord drop in stats.Drops) // 드롭 종류와 등급 순회
                     { // 세부 기록 시작
-                        report.Append("\n아이템: ").Append(drop.Id).Append(" / 등급: ").Append(drop.Grade).Append(" / 결과: ").Append(drop.Outcome); // 추첨과 획득 결과
+                        report.Append("\n아이템: ").Append(drop.Id).Append(" / 출처: ").Append(drop.SourceRank).Append(" / 등급: ").Append(drop.Grade).Append(" / 결과: ").Append(drop.Outcome); // 출처와 획득 결과
                     } // 세부 기록 종료
                 } // 세부 표시 종료
             } // 통계 표시 종료

@@ -61,8 +61,8 @@ public class RunMeasurementTests // 실제 전투 지표 시험
             player.Begin(Vector2.zero); // 출격 초기화
             UpgradeDropManager manager = cameraObject.AddComponent<UpgradeDropManager>(); // 드롭 관리자 구성
             manager.Begin(player, camera, new UpgradeDropEffects(player, null), new SequenceRandom(99, 0, 0, 0, 0, 0, 0, 0, 0, 0)); // 실패와 세 드롭 순서
-            player.RegisterEnemyDefeat(EnemyRank.MidBoss, 0, Vector2.zero); // 보스 처치 알림
-            Assert.That(player.Statistics.DropAttempts, Is.Zero); // 보스 시도 제외
+            player.RegisterEnemyDefeat(EnemyRank.FinalBoss, 0, Vector2.zero); // 최종 보스 처치 알림
+            Assert.That(player.Statistics.DropAttempts, Is.Zero); // 최종 보스 시도 제외
             player.RegisterEnemyDefeat(EnemyRank.Normal, 0, Vector2.zero); // 일반 적 미드롭 처치
             Assert.That(player.Statistics.DropAttempts, Is.EqualTo(1)); // 일반 적 시도 기록
             player.RegisterEnemyDefeat(EnemyRank.Normal, 0, Vector2.zero); // 플레이어 위치 드롭

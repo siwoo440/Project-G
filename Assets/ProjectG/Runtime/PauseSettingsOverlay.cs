@@ -430,9 +430,14 @@ namespace ProjectG // 프로젝트 영역
             } // 기본값 종료
             bool attempted = valid; // 장치 요청 시도 여부
             bool applied = false; // 설정 적용과 저장 성공 여부
+            bool saveAttempted = false; // 저장 요청 시도 여부
             try // 화면 설정 요청
             { // 요청 시작
-                applied = valid && Display.Apply() && Display.Save(); // 실제 요청 후 저장
+                if (valid && Display.Apply()) // 화면 적용 요청 확인
+                { // 저장 시작
+                    saveAttempted = true; // 저장 시도 기록
+                    applied = Display.Save(); // 설정 저장 요청
+                } // 저장 종료
             } // 요청 종료
             catch (Exception) // 설정 저장 오류
             { // 오류 처리 시작
@@ -444,11 +449,15 @@ namespace ProjectG // 프로젝트 영역
                 Display.TrySetResolution(oldSize.Width, oldSize.Height); // 이전 해상도 복원
                 Display.TrySetFpsLimit(oldFps); // 이전 프레임 제한 복원
                 Display.SetVSync(oldVSync); // 이전 동기화 상태 복원
-                if (attempted) // 장치 변경 요청 확인
-                { // 장치 복구 시작
-                    Display.Apply(); // 이전 화면 설정 재요청
-                } // 장치 복구 종료
-                displayHint = "화면 설정 적용 실패 · 이전 값 유지"; // 실패 결과 안내
+                bool restored = !attempted || Display.Apply(); // 이전 화면 설정 재요청
+                if (saveAttempted) // 저장 실패 확인
+                { // 저장 안내 시작
+                    displayHint = restored ? "저장 실패 · 재시작 후 설정 확인" : "저장 실패 · 화면 복구 실패 · 재시작 후 설정 확인"; // 저장 불확실 상태 안내
+                } // 저장 안내 종료
+                else // 화면 요청 실패 확인
+                { // 화면 안내 시작
+                    displayHint = restored ? "화면 설정 변경 실패 · 이전 설정 재요청" : "화면 복구 실패 · 화면 설정 확인"; // 화면 복구 결과 안내
+                } // 화면 안내 종료
                 return; // 성공 안내 생략
             } // 복구 종료
             displayHint = Display.VSync ? "수직 동기화가 FPS 제한보다 우선할 수 있습니다" : "화면 설정을 저장했습니다"; // 적용 결과 안내

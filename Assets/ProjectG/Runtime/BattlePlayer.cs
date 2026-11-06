@@ -15,6 +15,11 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             private set; // 값 설정
         } // 속성 종료
+        internal RapidAchievementRun AchievementRun // 현재 출격 과제 증거
+        { // 속성 시작
+            get; // 증거 조회
+            private set; // 증거 설정
+        } // 속성 종료
         public RunStatistics Statistics // 현재 출격 기록
         { // 속성 시작
             get; // 값 조회
@@ -391,9 +396,14 @@ namespace ProjectG // 프로젝트 영역
             } // 필살기 종료
             Step(moveAction.ReadValue<Vector2>(), focusAction.WasPressedThisFrame(), focusAction.IsPressed(), toggle, Time.deltaTime, center.x - halfWidth, center.x + halfWidth, center.y - halfHeight, center.y + halfHeight); // 입력과 경계 적용
         } // 처리 종료
+        internal void BindAchievementRun(string runId) // 저장된 출격의 과제 연결
+        { // 연결 시작
+            AchievementRun = new RapidAchievementRun(runId); // 출격별 독립 증거
+        } // 연결 종료
         public void Begin(Vector2 start, CharacterType type = CharacterType.Rapid) // 플레이어 시작
         { // 초기화 시작
             ClearTransientObjects(); // 이전 전투 생성물 정리
+            AchievementRun = null; // 이전 출격 과제 연결 해제
             Character = type; // 캐릭터 선택
             SpriteRenderer image = GetComponent<SpriteRenderer>(); // 캐릭터 표시 요소
             if (image != null) // 표시 요소 확인

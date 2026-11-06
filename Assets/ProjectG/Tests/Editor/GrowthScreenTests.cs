@@ -1,4 +1,5 @@
 using NUnit.Framework; // 테스트 도구
+using System.Reflection; // 비공개 화면 배치 확인
 using UnityEngine; // 유니티 장면 기능
 using ProjectG; // 영구 성장 기능
 public class GrowthScreenTests // 영구 성장 화면 시험
@@ -23,6 +24,74 @@ public class GrowthScreenTests // 영구 성장 화면 시험
             return true; // 저장 성공
         } // 저장 종료
     } // 저장소 종료
+    [TestCase(1920f, 1080f)] // 전체 HD 화면
+    [TestCase(1280f, 720f)] // HD 화면
+    [TestCase(960f, 540f)] // 작은 화면
+    public void PreparationSummaryStaysInsideViewAndAboveButtons(float width, float height) // 성장 요약과 버튼 영역 분리
+    { // 시험 시작
+        Rect view = new Rect(37f, 23f, width, height); // 화면 여백이 있는 시험 영역
+        MethodInfo summaryMethod = typeof(GameFlowController).GetMethod("PreparationSummaryRect", BindingFlags.Static | BindingFlags.NonPublic); // 요약 영역 계산 조회
+        Assert.That(summaryMethod, Is.Not.Null); // 실제 배치 계산 연결
+        object[] summaryArguments = new object[] // 요약 계산 인수
+        { // 인수 시작
+            view // 화면 영역
+        }; // 인수 종료
+        Rect summary = (Rect)summaryMethod.Invoke(null, summaryArguments); // 성장 요약 영역 계산
+        MethodInfo buttonMethod = typeof(GameFlowController).GetMethod("ButtonRect", BindingFlags.Static | BindingFlags.NonPublic); // 실제 버튼 위치 조회
+        object[] buttonArguments = new object[] // 버튼 계산 인수
+        { // 인수 시작
+            view, // 화면 영역
+            1 // 버튼 번호
+        }; // 인수 종료
+        Rect button = (Rect)buttonMethod.Invoke(null, buttonArguments); // 인접한 버튼 영역 계산
+        Assert.That(summary.xMin, Is.GreaterThanOrEqualTo(view.xMin)); // 화면 왼쪽 이탈 방지
+        Assert.That(summary.xMax, Is.LessThanOrEqualTo(view.xMax)); // 화면 오른쪽 이탈 방지
+        Assert.That(summary.yMin, Is.GreaterThanOrEqualTo(view.yMin)); // 화면 위쪽 이탈 방지
+        Assert.That(summary.yMax, Is.LessThan(button.yMin)); // 버튼 위 여백 보존
+    } // 시험 종료
+    [Test] // 요약 글자 크기 조정 시험
+    public void PreparationSummaryUsesLargestFittingFontAndPreservesMinimum() // 글자 크기와 긴 문구 확인
+    { // 시험 시작
+        MethodInfo method = typeof(GameFlowController).GetMethod("PreparationSummaryFontSize", BindingFlags.Static | BindingFlags.NonPublic); // 글자 크기 계산 조회
+        Assert.That(method, Is.Not.Null); // 실제 크기 계산 연결
+        System.Func<int, float> normal = size => size * 4f; // 세 줄과 줄 간격 시험 높이
+        object[] normalArguments = new object[] // 일반 문구 인수
+        { // 인수 시작
+            96f, // 표시 영역 높이
+            27, // 원하는 글자 크기
+            normal // 일반 문구 높이 계산
+        }; // 인수 종료
+        int fitting = (int)method.Invoke(null, normalArguments); // 맞는 최대 글자 크기
+        Assert.That(fitting, Is.EqualTo(24)); // 불필요한 축소 방지
+        System.Func<int, float> longText = size => size * 20f; // 영역을 초과하는 긴 문구
+        object[] longArguments = new object[] // 긴 문구 인수
+        { // 인수 시작
+            96f, // 표시 영역 높이
+            27, // 원하는 글자 크기
+            longText // 긴 문구 높이 계산
+        }; // 인수 종료
+        int minimum = (int)method.Invoke(null, longArguments); // 긴 문구의 최소 글자 크기
+        Assert.That(minimum, Is.EqualTo(23)); // 기본 크기의 85% 하한 유지
+    } // 시험 종료
+    [TestCase(1080f, 23)] // 전체 HD의 최소 글자 크기
+    [TestCase(720f, 16)] // HD의 최소 글자 크기
+    [TestCase(540f, 14)] // 작은 화면의 절대 최소 크기
+    public void PreparationSummaryMinimumRemainsReadable(float height, int expected) // 해상도별 글자 하한
+    { // 시험 시작
+        MethodInfo method = typeof(GameFlowController).GetMethod("PreparationSummaryFontSize", BindingFlags.Static | BindingFlags.NonPublic); // 실제 크기 계산 조회
+        Assert.That(method, Is.Not.Null); // 크기 계산 기능 확인
+        int preferred = Mathf.Max(14, Mathf.RoundToInt(height * 0.025f)); // 화면 비례 기본 본문 크기
+        System.Func<int, float> overflowing = size => height * 2f; // 어떤 크기에서도 넘치는 문구
+        object[] arguments = new object[] // 긴 문구 계산 인수
+        { // 인수 시작
+            height * 0.17f, // 성장 요약 영역 높이
+            preferred, // 해상도별 기본 글자 크기
+            overflowing // 긴 문구 높이 계산
+        }; // 인수 종료
+        int actual = (int)method.Invoke(null, arguments); // 실제 최소 글자 크기
+        Assert.That(actual, Is.EqualTo(expected)); // 화면별 하한 확인
+        Assert.That(actual, Is.LessThanOrEqualTo(preferred)); // 기본 크기 초과 방지
+    } // 시험 종료
     [Test] // 화면 진입과 차단 시험
     public void GrowthScreenReturnsToPreparationWithoutStartingBattle() // 출격 준비 복귀 확인
     { // 시험 시작
@@ -105,7 +174,7 @@ public class GrowthScreenTests // 영구 성장 화면 시험
             Assert.That(rapid, Does.Contain("추격 사격 1").And.Contain("확산 포화 1")); // 속사형 기본 후보
             Assert.That(rapid, Does.Not.Contain("약점 사냥 1")); // 다른 캐릭터 후보 제외
             Assert.That(rapid, Does.Contain("기본 후보").And.Contain("미정")); // 무료 후보와 미정 안내
-            Assert.That(rapid, Does.Contain("첫 고유 과제: 준비 중")); // 미구현 과제 준비 안내
+            Assert.That(rapid, Does.Contain("기본·집중탄 50회").And.Contain("아리아 첫 과제: 미완료")); // 구현된 과제 조건과 상태 안내
             Assert.That(rapid, Does.Not.Contain("조건·보상 미정")); // 결정된 과제의 잘못된 미정 표시 방지
             Assert.That(host.Flow.Back(), Is.True); // 출격 준비 복귀
             Assert.That(host.Flow.Back(), Is.True); // 캐릭터 선택 복귀

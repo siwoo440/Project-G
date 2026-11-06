@@ -1,11 +1,15 @@
 using System.Collections.Generic; // 가상 설정 저장소
+using System.Reflection; // 설정 안내 접근
 using NUnit.Framework; // 테스트 도구
 using ProjectG; // 화면 설정 기능
+using UnityEngine; // 격리된 화면 객체
 public class DisplaySettingsTests // 화면 설정 시험
 { // 시험 시작
     private sealed class MemoryStore : IDisplaySettingsStore // 격리된 시험 저장소
     { // 저장소 시작
         private readonly Dictionary<string, int> values = new Dictionary<string, int>(); // 설정 값 목록
+        public bool FailAfterSet; // 기록 직후 실패 여부
+        public bool FailOnFlush; // 저장 완료 실패 여부
         public int Get(string key, int fallback) // 설정 값 조회
         { // 조회 시작
             return values.TryGetValue(key, out int value) ? value : fallback; // 저장 값 또는 기본값
@@ -13,9 +17,17 @@ public class DisplaySettingsTests // 화면 설정 시험
         public void Set(string key, int value) // 설정 값 저장
         { // 저장 시작
             values[key] = value; // 시험 값 보관
+            if (FailAfterSet) // 기록 후 실패 확인
+            { // 예외 시작
+                throw new System.InvalidOperationException("시험 기록 오류"); // 저장 오류 재현
+            } // 예외 종료
         } // 저장 종료
         public void Flush() // 저장 완료 처리
         { // 처리 시작
+            if (FailOnFlush) // 저장 완료 실패 확인
+            { // 예외 시작
+                throw new System.InvalidOperationException("시험 완료 오류"); // 저장 오류 재현
+            } // 예외 종료
         } // 처리 종료
     } // 저장소 종료
     private sealed class FakeDisplay : IDisplayBackend // 실제 모니터를 건드리지 않는 시험 장치
@@ -35,6 +47,7 @@ public class DisplaySettingsTests // 화면 설정 시험
         public DisplayWindowMode AppliedMode; // 적용 요청 화면 모드
         public int AppliedFps; // 적용 요청 프레임 제한
         public bool AppliedVSync; // 적용 요청 수직 동기화
+        public bool AllowApply = true; // 화면 요청 성공 여부
         public bool Apply(DisplaySize resolution, DisplayWindowMode mode, int fps, bool vsync) // 설정 적용 요청
         { // 적용 시작
             ApplyCount++; // 호출 횟수 증가
@@ -42,7 +55,7 @@ public class DisplaySettingsTests // 화면 설정 시험
             AppliedMode = mode; // 화면 모드 보관
             AppliedFps = fps; // 프레임 제한 보관
             AppliedVSync = vsync; // 수직 동기화 보관
-            return true; // 시험 적용 성공
+            return AllowApply; // 시험 적용 결과
         } // 적용 종료
     } // 장치 종료
     private static FakeDisplay MakeDisplay() // 표준 시험 모니터 생성
@@ -105,6 +118,64 @@ public class DisplaySettingsTests // 화면 설정 시험
         Assert.That(loaded.VSync, Is.False); // 수직 동기화 복원
         Assert.That(store.Get("other.project.value", 0), Is.EqualTo(123)); // 무관한 기존 값 유지
         Assert.That(display.ApplyCount, Is.EqualTo(1)); // 복원 중 실제 적용 방지
+    } // 시험 종료
+    [TestCase(true)] // 기록 직후 실패 시험
+    [TestCase(false)] // 저장 완료 실패 시험
+    public void FailedSaveWarnsWhenWrittenValueMayBeRestored(bool failAfterSet) // 저장 실패 안내 확인
+    { // 시험 시작
+        FakeDisplay display = MakeDisplay(); // 가상 모니터
+        MemoryStore store = new MemoryStore(); // 격리된 저장소
+        DisplaySettings settings = new DisplaySettings(display, store); // 화면 설정 생성
+        store.FailAfterSet = failAfterSet; // 기록 직후 실패 설정
+        store.FailOnFlush = !failAfterSet; // 저장 완료 실패 설정
+        GameObject holder = new GameObject("DisplayFailureTest"); // 격리된 설정 객체
+        try // 시험 범위 시작
+        { // 범위 시작
+            PauseSettingsOverlay overlay = holder.AddComponent<PauseSettingsOverlay>(); // 설정 화면 생성
+            overlay.SetDisplaySettings(settings); // 시험 설정 연결
+            object[] inputs = new object[] // 화면 모드 입력
+            { // 입력 시작
+                0, 1 // 대상과 변경 값
+            }; // 입력 종료
+            typeof(PauseSettingsOverlay).GetMethod("ChangeDisplay", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(overlay, inputs); // 화면 모드 변경
+            Assert.That(settings.Mode, Is.EqualTo(DisplayWindowMode.Borderless)); // 메모리 값 복원
+            Assert.That(display.AppliedMode, Is.EqualTo(DisplayWindowMode.Borderless)); // 이전 화면 재요청
+            DisplaySettings reloaded = new DisplaySettings(display, store); // 새 설정 객체
+            reloaded.Load(); // 저장소 복원
+            Assert.That(reloaded.Mode, Is.EqualTo(DisplayWindowMode.Windowed)); // 저장소에 남은 변경 값 확인
+            string hint = (string)typeof(PauseSettingsOverlay).GetField("displayHint", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(overlay); // 표시 안내 조회
+            Assert.That(hint, Does.Contain("저장 실패")); // 저장 오류 안내
+            Assert.That(hint, Does.Contain("재시작 후 설정 확인")); // 저장 상태 확인 안내
+        } // 범위 종료
+        finally // 객체 정리
+        { // 정리 시작
+            Object.DestroyImmediate(holder); // 격리 객체 제거
+        } // 정리 종료
+    } // 시험 종료
+    [Test] // 화면 복구 실패 시험
+    public void FailedDisplayRestoreDoesNotClaimPreviousDisplayWasKept() // 복구 실패 안내 확인
+    { // 시험 시작
+        FakeDisplay display = MakeDisplay(); // 가상 모니터
+        display.AllowApply = false; // 적용과 복구 실패 설정
+        DisplaySettings settings = new DisplaySettings(display, new MemoryStore()); // 격리된 화면 설정
+        GameObject holder = new GameObject("DisplayRestoreFailureTest"); // 격리된 설정 객체
+        try // 시험 범위 시작
+        { // 범위 시작
+            PauseSettingsOverlay overlay = holder.AddComponent<PauseSettingsOverlay>(); // 설정 화면 생성
+            overlay.SetDisplaySettings(settings); // 시험 설정 연결
+            object[] inputs = new object[] // 화면 모드 입력
+            { // 입력 시작
+                0, 1 // 대상과 변경 값
+            }; // 입력 종료
+            typeof(PauseSettingsOverlay).GetMethod("ChangeDisplay", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(overlay, inputs); // 화면 모드 변경
+            Assert.That(display.ApplyCount, Is.EqualTo(2)); // 적용과 복구 요청 확인
+            string hint = (string)typeof(PauseSettingsOverlay).GetField("displayHint", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(overlay); // 표시 안내 조회
+            Assert.That(hint, Does.Contain("화면 복구 실패")); // 복구 실패 안내
+        } // 범위 종료
+        finally // 객체 정리
+        { // 정리 시작
+            Object.DestroyImmediate(holder); // 격리 객체 제거
+        } // 정리 종료
     } // 시험 종료
     [Test] // 손상된 설정과 디스플레이 부재 시험
     public void InvalidSavedValuesRestoreDefaultsAndNoMonitorCannotApply() // 안전 복구 확인

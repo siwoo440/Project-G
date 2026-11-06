@@ -108,7 +108,7 @@ namespace ProjectG // 프로젝트 영역
             entry.SpawnPlayerPosition = player.transform.position; // 생성 이전 이동 제외 기준
             entry.FirstAdvance = true; // 생성 이후 첫 판정 기록
             entry.Statistics = player.Statistics; // 생성 당시 출격 기록 보관
-            entry.Record = entry.Statistics?.RecordDropSpawned(drop); // 실제 드롭 종류와 등급 기록
+            entry.Record = entry.Statistics?.RecordDropSpawned(drop, rank); // 실제 드롭 출처와 종류 및 등급 기록
             drops.Add(entry); // 필드 아이템 등록
             return true; // 필드 드롭 성공
         } // 드롭 종료

@@ -130,6 +130,7 @@ namespace ProjectG // 프로젝트 영역
             player.transform.SetParent(battleRoot.transform, true); // 출격 객체에 연결
             CurrentPlayer = player.GetComponent<BattlePlayer>(); // 전투 플레이어 조회
             CurrentPlayer.Begin(new Vector2(0f, -3f), character); // 선택 캐릭터 출격
+            CurrentPlayer.BindAchievementRun(currentRunId); // 저장된 출격의 독립 과제 기록
             CurrentPlayer.Skills.Equip(skill); // 선택 공용 스킬 장착
             CurrentPlayer.AllowDebugCharacterSwitch = false; // 출격 중 시험 캐릭터 전환 차단
             BattleProgress progress = player.GetComponent<BattleProgress>(); // 성장 상태 조회
@@ -189,7 +190,9 @@ namespace ProjectG // 프로젝트 영역
             { // 기록 확정 시작
                 CurrentPlayer.Statistics.Complete(false, CurrentStage.State.CombatSeconds, CurrentStage.State.TotalSeconds); // 포기 출격 실패 기록
             } // 기록 확정 종료
-            if (!Progress.TrySettle(currentRunId, CurrentPlayer.Character, cleared, out SettlementReceipt receipt, out string error)) // 결과와 지급 내역 저장
+            bool resultPhase = CurrentStage.State != null && (CurrentStage.State.Phase == StagePhase.Result || CurrentStage.State.Phase == StagePhase.Failed); // 실제 결과 구간 확인
+            RapidAchievementRun evidence = resultPhase ? CurrentPlayer.AchievementRun : null; // 중도 포기 과제 지급 제외
+            if (!Progress.TrySettle(currentRunId, CurrentPlayer.Character, cleared, evidence, out SettlementReceipt receipt, out string error)) // 결과와 지급 내역 저장
             { // 저장 실패 시작
                 Flow.ReportSettlementError(error); // 오류 내용 표시
                 return false; // 현재 전투 유지
@@ -287,7 +290,8 @@ namespace ProjectG // 프로젝트 영역
             { // 오류 표시 시작
                 return "영구 성장 복구 대기: " + progressError; // 수치 임의 표시 차단
             } // 오류 표시 종료
-            return "숙련도 " + Progress.Mastery(character) + "  전용 재료 " + Progress.CharacterMaterials(character) + "  공통 재료 " + Progress.CommonMaterials + "\n후속 해금 선택지 미정"; // 실제 보유 성장과 미정 안내
+            string achievement = character == CharacterType.Rapid ? "\n아리아 첫 과제: " + (Progress.HasAchievement(CharacterAchievement.RapidBasicHits50) ? "완료" : "미완료") : ""; // 저장된 아리아 과제 상태
+            return "숙련도 " + Progress.Mastery(character) + "  전용 재료 " + Progress.CharacterMaterials(character) + "  공통 재료 " + Progress.CommonMaterials + "\n후속 해금 선택지 미정" + achievement; // 실제 성장과 과제 표시
         } // 요약 종료
         private void OpenSettings() // 타이틀 설정 열기
         { // 설정 시작

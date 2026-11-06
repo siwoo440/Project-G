@@ -7,6 +7,10 @@ namespace ProjectG // 프로젝트 영역
     } // 목록 종료
     public sealed class DropRecord // 한 아이템의 종류와 획득 결과
     { // 기록 시작
+        public EnemyRank SourceRank // 아이템을 드롭한 적 구분
+        { // 속성 시작
+            get; // 출처 조회
+        } // 속성 종료
         public UpgradeItemId Id // 아이템 종류
         { // 속성 시작
             get; // 종류 조회
@@ -20,8 +24,9 @@ namespace ProjectG // 프로젝트 영역
             get; // 상태 조회
             internal set; // 내부 상태 변경
         } // 속성 종료
-        internal DropRecord(UpgradeDrop drop) // 새 필드 아이템 기록
+        internal DropRecord(UpgradeDrop drop, EnemyRank sourceRank) // 새 필드 아이템 기록
         { // 생성 시작
+            SourceRank = sourceRank; // 드롭 출처 보관
             Id = drop.Id; // 종류 보관
             Grade = drop.Grade; // 등급 보관
             Outcome = DropOutcome.Pending; // 필드 대기 상태
@@ -135,13 +140,13 @@ namespace ProjectG // 프로젝트 영역
                 DropAttempts++; // 추첨 횟수 증가
             } // 증가 종료
         } // 기록 종료
-        public DropRecord RecordDropSpawned(UpgradeDrop drop) // 실제 생성한 드롭 기록
+        public DropRecord RecordDropSpawned(UpgradeDrop drop, EnemyRank sourceRank = EnemyRank.Normal) // 실제 생성한 드롭 기록
         { // 기록 시작
             if (Finished) // 출격 종료 확인
             { // 차단 시작
                 return null; // 종료 후 드롭 기록 차단
             } // 차단 종료
-            DropRecord record = new DropRecord(drop); // 종류와 등급 기록
+            DropRecord record = new DropRecord(drop, sourceRank); // 출처와 종류 및 등급 기록
             drops.Add(record); // 출격 드롭 목록 추가
             return record; // 해당 드롭 기록 반환
         } // 기록 종료

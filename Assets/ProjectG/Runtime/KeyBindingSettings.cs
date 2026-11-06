@@ -120,14 +120,22 @@ namespace ProjectG // 프로젝트 영역
         { // 복원 시작
             string[] values = new string[bindings.Length]; // 복원 후보 목록
             HashSet<string> used = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // 이미 사용한 키
-            for (int i = 0; i < values.Length; i++) // 모든 동작 순회
+            for (int i = 0; i < values.Length; i++) // 저장된 동작 순회
             { // 순회 시작
-                string value = Canonical(store.Get(prefix + ((PlayerAction)i), defaults[i])); // 저장된 키 검사
-                if (value == null || used.Contains(value)) // 손상 또는 중복 확인
-                { // 복구 시작
-                    value = !used.Contains(defaults[i]) ? defaults[i] : FirstUnused(used); // 기본 또는 사용 가능한 키
-                } // 복구 종료
-                values[i] = value; // 복원 키 보관
+                string value = Canonical(store.Get(prefix + ((PlayerAction)i), "")); // 저장된 키 검사
+                if (value != null && used.Add(value)) // 유효한 미사용 키 확인
+                { // 보관 시작
+                    values[i] = value; // 정상 저장 키 보존
+                } // 보관 종료
+            } // 순회 종료
+            for (int i = 0; i < values.Length; i++) // 복구할 동작 순회
+            { // 순회 시작
+                if (values[i] != null) // 보존된 키 확인
+                { // 생략 시작
+                    continue; // 다음 동작 확인
+                } // 생략 종료
+                string value = !used.Contains(defaults[i]) ? defaults[i] : FirstUnused(used); // 기본 또는 사용 가능한 키
+                values[i] = value; // 복구 키 보관
                 used.Add(value); // 중복 검사에 추가
             } // 순회 종료
             Apply(values); // 복원한 키 반영

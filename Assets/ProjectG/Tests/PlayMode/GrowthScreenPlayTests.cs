@@ -77,7 +77,15 @@ public class GrowthScreenPlayTests // 영구 성장 화면 실제 입력 시험
             yield return null; // 화면 전환 프레임 경과
             Rect normalized = BattleSetup.CalculateViewport(Screen.width, Screen.height); // 메뉴 비율 계산
             Rect view = new Rect(normalized.x * Screen.width, (1f - normalized.yMax) * Screen.height, normalized.width * Screen.width, normalized.height * Screen.height); // 화면 좌표 변환
-            Vector2 growth = new Vector2(view.x + view.width * 0.845f, view.y + view.height * 0.845f); // 성장 버튼 중심
+            var areaMethod = typeof(GameFlowController).GetMethod("PreparationActionRect", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static); // 실제 표시 영역 조회
+            Assert.That(areaMethod, Is.Not.Null); // 화면 배치 계산 확인
+            object[] areaArguments = new object[] // 성장 버튼 영역 인수
+            { // 인수 시작
+                view, // 실제 전투 비율 화면
+                2 // 영구 성장 버튼 순서
+            }; // 인수 종료
+            Rect growthArea = (Rect)areaMethod.Invoke(null, areaArguments); // 화면에 표시되는 버튼 영역
+            Vector2 growth = growthArea.center; // 실제 성장 버튼 중심
             MouseState down = new MouseState(); // 마우스 클릭 상태
             down.position = new Vector2(growth.x, Screen.height - growth.y); // 입력 좌표 변환
             InputSystem.QueueStateEvent(mouse, down.WithButton(MouseButton.Left)); // 성장 버튼 클릭

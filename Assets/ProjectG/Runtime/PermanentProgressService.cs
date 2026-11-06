@@ -173,11 +173,15 @@ namespace ProjectG // 프로젝트 영역
         { // 속성 시작
             get; // 값 조회
         } // 지급 전용 재료
+        public int AchievementMaterialsGained // 별도 과제 전용 재료
+        { // 속성 시작
+            get; // 값 조회
+        } // 속성 종료
         public bool AlreadySettled // 기존 정산 조회 여부
         { // 속성 시작
             get; // 값 조회
         } // 기존 정산 조회 여부
-        internal SettlementReceipt(ProgressReceipt data, bool alreadySettled) // 보관 기록에서 읽기 전용 결과 생성
+        internal SettlementReceipt(ProgressReceipt data, bool alreadySettled, int achievementMaterials = 0) // 보관 기록에서 읽기 전용 결과 생성
         { // 생성 시작
             RunId = data.runId; // 출격 식별자 복사
             Character = data.character; // 캐릭터 복사
@@ -185,6 +189,7 @@ namespace ProjectG // 프로젝트 영역
             MasteryGained = data.masteryGained; // 숙련도 복사
             CommonMaterialsGained = data.commonMaterialsGained; // 공통 재료 복사
             CharacterMaterialsGained = data.characterMaterialsGained; // 전용 재료 복사
+            AchievementMaterialsGained = achievementMaterials; // 별도 과제 보상 복사
             AlreadySettled = alreadySettled; // 재조회 여부 표시
         } // 생성 종료
     } // 영수증 종료
@@ -481,7 +486,11 @@ namespace ProjectG // 프로젝트 영역
             } // 복구 생략 종료
             return TrySettle(snapshot.activeRunId, snapshot.activeCharacter, false, out receipt, out error); // 저장된 출격의 실패 정산
         } // 복구 종료
-        public bool TrySettle(string runId, CharacterType character, bool cleared, out SettlementReceipt receipt, out string error) // 출격 결과 1회 정산
+        public bool TrySettle(string runId, CharacterType character, bool cleared, out SettlementReceipt receipt, out string error) // 기존 정산 경로
+        { // 정산 시작
+            return TrySettle(runId, character, cleared, null, out receipt, out error); // 과제 증거 없는 기존 정산
+        } // 정산 종료
+        internal bool TrySettle(string runId, CharacterType character, bool cleared, RapidAchievementRun evidence, out SettlementReceipt receipt, out string error) // 증거 포함 단일 정산
         { // 정산 시작
             receipt = null; // 결과 초기화
             error = null; // 오류 초기화
@@ -498,7 +507,7 @@ namespace ProjectG // 프로젝트 영역
                     error = "기존 출격 정산 내용이 일치하지 않습니다"; // 오류 안내
                     return false; // 기존 보상 보존
                 } // 불일치 종료
-                receipt = new SettlementReceipt(existing, true); // 기존 정산 결과 반환
+                receipt = new SettlementReceipt(existing, true, AchievementGain(snapshot, runId)); // 기존 출격의 별도 과제 포함
                 return true; // 중복 지급 없이 조회
             } // 중복 처리 종료
             if (snapshot.activeRunId != runId || snapshot.activeCharacter != character) // 시작 기록 대조
@@ -514,8 +523,14 @@ namespace ProjectG // 프로젝트 영역
                 int nextMastery = checked(oldMastery + gainedMastery); // 범위 검사한 새 숙련도
                 int gainedCharacter = nextMastery / 60 - oldMastery / 60; // 캐릭터별 60 경계 보상
                 int nextCommon = checked(snapshot.commonMaterials + gainedCommon); // 범위 검사한 공통 재료
-                int nextCharacter = checked(CharacterMaterials(character) + gainedCharacter); // 범위 검사한 전용 재료
-                ProgressSnapshot next = Clone(snapshot); // 기존 상태 복사
+                bool awardRapid = character == CharacterType.Rapid && evidence != null && evidence.Qualifies(runId) && !HasAchievement(CharacterAchievement.RapidBasicHits50); // 실제 출격의 최초 과제 확인
+                int nextCharacter = checked(CharacterMaterials(character) + gainedCharacter + (awardRapid ? 1 : 0)); // 숙련과 과제 재료 합산
+                ProgressSnapshot next = awardRapid && snapshot.schemaVersion == 1 ? JsonUtility.FromJson<ProgressSnapshotV2>(JsonUtility.ToJson(snapshot)) : Clone(snapshot); // 과제 시 독립 신규 형식 이행
+                if (awardRapid && snapshot.schemaVersion == 1) // 최초 과제 형식 확인
+                { // 이행 시작
+                    next.schemaVersion = 2; // 과제 형식 버전 설정
+                    ((ProgressSnapshotV2)next).achievementReceipts = new List<ProgressAchievementReceipt>(); // 별도 과제 목록 준비
+                } // 이행 종료
                 next.commonMaterials = nextCommon; // 공통 재료 누적
                 if (character == CharacterType.Rapid) // 속사형 정산 확인
                 { // 속사형 반영 시작
@@ -535,12 +550,21 @@ namespace ProjectG // 프로젝트 영역
                 result.commonMaterialsGained = gainedCommon; // 공통 재료 보상 기록
                 result.characterMaterialsGained = gainedCharacter; // 전용 재료 보상 기록
                 next.receipts.Add(result); // 정산 완료 이력 추가
+                if (awardRapid) // 최초 과제 지급 확인
+                { // 과제 영수증 시작
+                    ProgressAchievementReceipt achievement = new ProgressAchievementReceipt(); // 별도 과제 영수증
+                    achievement.achievement = CharacterAchievement.RapidBasicHits50; // 아리아 첫 과제
+                    achievement.runId = runId; // 과제를 수행한 출격
+                    achievement.character = CharacterType.Rapid; // 과제 대상 캐릭터
+                    achievement.characterMaterialsGained = 1; // 최초 전용 증표
+                    ((ProgressSnapshotV2)next).achievementReceipts.Add(achievement); // 정산과 같은 저장에 기록
+                } // 과제 영수증 종료
                 next.activeRunId = ""; // 진행 중 출격 해제
                 if (!Commit(next, out error)) // 원자 저장 확인
                 { // 실패 시작
                     return false; // 지급 완료 표시 차단
                 } // 실패 종료
-                receipt = new SettlementReceipt(result, false); // 저장된 실제 보상 반환
+                receipt = new SettlementReceipt(result, false, awardRapid ? 1 : 0); // 저장된 실제 보상 반환
                 return true; // 최초 정산 완료
             } // 계산 종료
             catch (OverflowException) // 보상 숫자 범위 초과
@@ -691,6 +715,20 @@ namespace ProjectG // 프로젝트 영역
         private static List<string> Unlocks(ProgressSnapshot value, CharacterType character) // 캐릭터별 해금 목록
         { // 조회 시작
             return character == CharacterType.Rapid ? value.rapidUnlocks : value.sniperUnlocks; // 해당 캐릭터 목록
+        } // 조회 종료
+        private static int AchievementGain(ProgressSnapshot value, string runId) // 해당 출격의 별도 과제 보상
+        { // 조회 시작
+            if (value is ProgressSnapshotV2 upgraded) // 과제 형식 확인
+            { // 과제 조회 시작
+                foreach (ProgressAchievementReceipt achievement in upgraded.achievementReceipts) // 과제 영수증 순회
+                { // 순회 시작
+                    if (achievement.runId == runId) // 같은 출격 확인
+                    { // 보상 확인 시작
+                        return achievement.characterMaterialsGained; // 저장된 과제 증표 반환
+                    } // 보상 확인 종료
+                } // 순회 종료
+            } // 과제 조회 종료
+            return 0; // 해당 출격의 과제 보상 없음
         } // 조회 종료
         private static ProgressReceipt FindReceipt(ProgressSnapshot value, string runId) // 출격 정산 내역 검색
         { // 검색 시작

@@ -12,7 +12,7 @@ namespace ProjectG // 프로젝트 영역
             Grade = grade; // 등급 보관
         } // 생성 종료
     } // 값 종료
-    public sealed class UpgradeDropRoller // 일반 적 처치 드롭 추첨
+    public sealed class UpgradeDropRoller // 일반 적과 중간 보스 드롭 추첨
     { // 클래스 시작
         private readonly System.Random random; // 격리 가능한 난수
         private static readonly int[] weights = new int[] // 초기 시험 등급 가중치
@@ -26,11 +26,11 @@ namespace ProjectG // 프로젝트 영역
         public bool TryRoll(EnemyRank rank, Func<UpgradeItemId, UpgradeItemGrade, bool> eligible, out UpgradeDrop drop) // 유효 드롭 추첨
         { // 추첨 시작
             drop = default; // 미드롭 기본값
-            if (rank != EnemyRank.Normal || eligible == null) // 보스와 무효 조건 확인
+            if ((rank != EnemyRank.Normal && rank != EnemyRank.MidBoss) || eligible == null) // 허용 출처와 후보 조건 확인
             { // 차단 시작
-                return false; // 미정인 보스 드롭 제외
+                return false; // 최종 보스와 잘못된 요청 제외
             } // 차단 종료
-            if (random.Next(100) >= 10) // 초기 시험 드롭 확률
+            if (rank == EnemyRank.Normal && random.Next(100) >= 10) // 일반 적 초기 시험 드롭 확률
             { // 실패 시작
                 return false; // 90퍼센트 미드롭
             } // 실패 종료

@@ -2,6 +2,7 @@
   "name": "ProjectG.Runtime",
   "rootNamespace": "ProjectG",
   "references": [
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Unity.ugui"
   ]
 }

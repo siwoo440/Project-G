@@ -25,25 +25,19 @@ namespace ProjectG // 프로젝트 영역
             } // 생략 종료
             Rect pixelView = battleCamera.pixelRect; // 전투 화면 영역
             Rect view = new Rect(pixelView.xMin, Screen.height - pixelView.yMax, pixelView.width, pixelView.height); // 화면 위쪽 기준 영역
-            Rect first = LineRect(view, 0); // 체력과 에너지 영역
-            Rect second = LineRect(view, 1); // 캐릭터 전투 정보 영역
-            Rect third = LineRect(view, 2); // 레벨과 경험치 영역
-            Rect fourth = LineRect(view, 3); // 실패 안내 영역
+            Rect first = LineRect(view, 4); // 게이지 아래 그레이즈 영역
+            Rect second = LineRect(view, 5); // 캐릭터 전투 정보 영역
+            Rect fourth = LineRect(view, 6); // 실패 안내 영역
             Color previous = GUI.color; // 기존 화면 색상
-            Rect occupied = Rect.MinMaxRect(first.xMin, first.yMin, first.xMax, player.Survival.IsAlive ? third.yMax : fourth.yMax); // 표시 영역 전체 범위
+            Rect occupied = Rect.MinMaxRect(first.xMin, first.yMin, first.xMax, player.Survival.IsAlive ? second.yMax : fourth.yMax); // 남은 정보 영역 전체 범위
             float opacity = HudOcclusion.Alpha(occupied, HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
             GUI.color = new Color(previous.r, previous.g, previous.b, previous.a * opacity); // 전투 HUD 투명도 적용
             GUIStyle text = new GUIStyle(GUI.skin.label); // 기본 글자 설정
             text.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 45f)); // 화면 비례 글자 크기
             text.normal.textColor = Color.white; // 글자 색상
-            GUI.Label(first, "HP " + player.Survival.Health + "   GRAZE " + player.GrazeCount + "   ENERGY " + (player.Skills != null ? player.Skills.Energy : 0) + "/100", text); // 체력과 그레이즈 표시
+            GUI.Label(first, "GRAZE " + player.GrazeCount, text); // 그레이즈 표시
             string debugKeys = player.AllowDebugCharacterSwitch ? "   F1 RAPID / F2 SNIPER" : ""; // 시험 선택 키 안내
             GUI.Label(second, (player.Character == CharacterType.Rapid ? "RAPID BONUS " + Mathf.RoundToInt(player.Combo.Bonus * 100f) + "%" : "SNIPER WEAK POINT") + debugKeys, text); // 캐릭터 전투 상태
-            BattleProgress progress = player.GetComponent<BattleProgress>(); // 경험치 상태 조회
-            if (progress != null && progress.Level != null) // 레벨 상태 확인
-            { // 레벨 표시 시작
-                GUI.Label(third, "LEVEL " + progress.Level.Level + "   XP " + progress.Level.Experience + "/" + progress.Level.Required, text); // 전투 레벨과 경험치
-            } // 레벨 표시 종료
             if (!player.Survival.IsAlive) // 출격 실패 확인
             { // 실패 표시 시작
                 GUI.Label(fourth, "MISSION FAILED", text); // 실패 상태 표시

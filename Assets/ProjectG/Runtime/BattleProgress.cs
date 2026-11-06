@@ -7,6 +7,7 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BattleProgress : MonoBehaviour // 경험치와 카드 선택
     { // 클래스 시작
         private readonly List<ExperienceShard> shards = new List<ExperienceShard>(); // 경험치 조각 재사용 목록
+        [SerializeField] private ExperienceShard experiencePrefab; // 편집 가능한 경험치 프리팹
         private System.Random random = new System.Random(); // 카드 후보 난수
         private int? cardSeed; // 재현 시험용 선택 시드
         public int? CardSeed => cardSeed; // 현재 카드 추첨 시드
@@ -320,12 +321,31 @@ namespace ProjectG // 프로젝트 영역
             ExperienceShard shard = shards.Find(item => item != null && !item.gameObject.activeSelf); // 회수된 조각 검색
             if (shard == null) // 재사용 조각 확인
             { // 새 조각 생성 시작
-                GameObject item = new GameObject("ExperienceShard"); // 경험치 객체 생성
-                item.transform.SetParent(battleCamera.transform, false); // 전투 장면에 보관
-                shard = item.AddComponent<ExperienceShard>(); // 조각 구성 요소
+                if (experiencePrefab == null) // 지정된 프리팹 확인
+                { // 기본 자원 조회 시작
+                    experiencePrefab = Resources.Load<ExperienceShard>("Prefabs/ExperienceShard"); // 기본 프리팹 불러오기
+                } // 기본 자원 조회 종료
+                if (experiencePrefab == null) // 프리팹 누락 확인
+                { // 오류 처리 시작
+                    Debug.LogError("경험치 조각 프리팹을 찾을 수 없습니다", this); // 누락 오류 표시
+                    return; // 편집 불가능한 대체 생성 차단
+                } // 오류 처리 종료
+                shard = Instantiate(experiencePrefab, battleCamera.transform, false); // 편집한 프리팹 생성
                 shards.Add(shard); // 재사용 목록 등록
             } // 새 조각 생성 종료
             shard.Begin(this, position, value); // 조각 초기화
+            if (!shard.gameObject.activeSelf) // 초기화 실패 확인
+            { // 불량 조각 정리 시작
+                shards.Remove(shard); // 재사용 목록에서 제거
+                if (Application.isPlaying) // 플레이 상태 확인
+                { // 지연 제거 시작
+                    Destroy(shard.gameObject); // 불량 객체 제거 예약
+                } // 지연 제거 종료
+                else // 편집 시험 상태
+                { // 즉시 제거 시작
+                    DestroyImmediate(shard.gameObject); // 불량 객체 즉시 제거
+                } // 즉시 제거 종료
+            } // 불량 조각 정리 종료
         } // 생성 종료
         private void ResetBattle() // 출격 상태 초기화
         { // 초기화 시작
@@ -348,6 +368,7 @@ namespace ProjectG // 프로젝트 영역
                 { // 생략 시작
                     continue; // 다음 조각 확인
                 } // 생략 종료
+                shard.gameObject.SetActive(false); // 지연 제거 전 획득 차단
                 if (Application.isPlaying) // 플레이 상태 확인
                 { // 플레이 정리 시작
                     Destroy(shard.gameObject); // 지연 제거

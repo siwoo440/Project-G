@@ -27,16 +27,18 @@ namespace ProjectG // 프로젝트 영역
             value = Mathf.Max(0, amount); // 경험치 보관
             collected = false; // 수집 상태 초기화
             transform.position = position; // 생성 위치
-            transform.localScale = new Vector3(0.9f, 0.9f, 1f); // 기존 표시 크기의 세 배
             spawnPlayerPosition = progress != null && progress.Player != null ? (Vector2)progress.Player.transform.position : position; // 생성 이전 이동 제외 기준
             firstAdvance = true; // 새 조각의 첫 이동 기록
             if (image == null) // 표시 요소 확인
             { // 생성 시작
-                image = gameObject.AddComponent<SpriteRenderer>(); // 표시 요소 생성
-                image.sprite = BattleVisuals.Crystal; // 결정 형태 조각 이미지
-                image.color = Color.white; // 생성 이미지 원본 색상
-                image.sortingOrder = 3; // 배경 위 표시
+                image = GetComponentInChildren<SpriteRenderer>(true); // 프리팹 이미지 조회
             } // 생성 종료
+            if (image == null || image.sprite == null) // 편집된 이미지 확인
+            { // 오류 처리 시작
+                Debug.LogError("경험치 조각 프리팹의 이미지가 없습니다", this); // 누락 오류 표시
+                gameObject.SetActive(false); // 보이지 않는 조각 비활성화
+                return; // 잘못된 조각 진행 차단
+            } // 오류 처리 종료
             gameObject.SetActive(true); // 조각 활성화
         } // 초기화 종료
         private void LateUpdate() // 플레이어 이동 이후 진행

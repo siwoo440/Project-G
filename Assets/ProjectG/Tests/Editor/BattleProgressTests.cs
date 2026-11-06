@@ -55,6 +55,7 @@ public class BattleProgressTests // 전투 성장 흐름 시험
             Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
             BattleProgress progress = playerObject.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 초기화
+            shardObject.AddComponent<SpriteRenderer>().sprite = BattleVisuals.Crystal; // 시험 조각 이미지
             ExperienceShard shard = shardObject.AddComponent<ExperienceShard>(); // 조각 구성
             shard.Begin(progress, new Vector2(3f, 0f), 6); // 먼 경험치 조각
             shard.Advance(1f); // 거리 밖 시간 진행
@@ -148,6 +149,7 @@ public class BattleProgressTests // 전투 성장 흐름 시험
             Camera camera = cameraObject.AddComponent<Camera>(); // 카메라 구성
             BattleProgress progress = playerObject.AddComponent<BattleProgress>(); // 성장 구성
             progress.Begin(player, camera); // 성장 초기화
+            shardObject.AddComponent<SpriteRenderer>().sprite = BattleVisuals.Crystal; // 시험 조각 이미지
             ExperienceShard shard = shardObject.AddComponent<ExperienceShard>(); // 조각 구성
             shard.Begin(progress, new Vector2(1.7f, 0f), 6); // 기본 범위 밖 조각
             shard.Advance(1f); // 기본 범위 시험

@@ -50,6 +50,9 @@ namespace ProjectG // 프로젝트 영역
         private bool resultCleared; // 클리어 결과 상태
         private float previousTimeScale = 1f; // 결과 이전 시간 배율
         private int focus; // 현재 선택 메뉴 번호
+        private TitleScreenPresenter titleView; // 씬에 저장된 타이틀 화면
+        internal int TitleFocus => focus; // 타이틀 선택 항목 조회
+        private bool HasTitleView => titleView != null && titleView.IsUsable; // 사용 가능한 타이틀 화면
         private int enteredFrame = -1; // 화면 전환 프레임
         private Font koreanFont; // 한글 글꼴
         private GUIStyle titleStyle; // 제목 글꼴
@@ -65,6 +68,34 @@ namespace ProjectG // 프로젝트 영역
         public event Action<CharacterType, CommonSkill> RunRequested; // 선택한 캐릭터 출격 요청
         public event Action LeaveBattleRequested; // 기존 출격 정리 요청
         public event Action SettingsRequested; // 타이틀 설정 요청
+        internal void AttachTitleView(TitleScreenPresenter view) // 직렬화된 타이틀 연결
+        { // 연결 시작
+            titleView = view; // 현재 타이틀 화면 보관
+        } // 연결 종료
+        internal void DetachTitleView(TitleScreenPresenter view) // 기존 타이틀 연결 해제
+        { // 해제 시작
+            if (titleView == view) // 현재 연결 확인
+            { // 해제 범위
+                titleView = null; // 제거된 화면 참조 해제
+            } // 해제 종료
+        } // 해제 종료
+        internal void ActivateTitleButton(int index) // 실제 타이틀 버튼 실행
+        { // 실행 시작
+            if (Screen != GameFlowScreen.Title || InputBlocked || SettlementPending || Time.frameCount == enteredFrame || index < 0 || index > 1) // 화면과 입력 확인
+            { // 차단 시작
+                return; // 유효하지 않은 입력 차단
+            } // 차단 종료
+            focus = index; // 선택 버튼 포커스
+            if (index == 0) // 시작 버튼 확인
+            { // 시작 범위
+                OpenCharacterSelection(); // 캐릭터 선택 화면
+            } // 시작 종료
+            else if (SettingsRequested != null) // 설정 연결 확인
+            { // 설정 범위
+                InputBlocked = true; // 즉시 메뉴 입력 차단
+                SettingsRequested.Invoke(); // 설정 화면 열기
+            } // 설정 종료
+        } // 실행 종료
         public GameFlowScreen Screen // 현재 화면
         { // 속성 시작
             get; // 화면 조회
@@ -462,6 +493,11 @@ namespace ProjectG // 프로젝트 영역
             if (mouse != null && mouse.leftButton.wasPressedThisFrame) // 포인터 선택 확인
             { // 클릭 시작
                 Vector2 position = mouse.position.ReadValue(); // 마우스 위치
+                if (Screen == GameFlowScreen.Title && HasTitleView) // 직렬화된 타이틀 버튼 확인
+                { // 실제 버튼 시작
+                    titleView.HandlePointer(position); // 편집된 버튼 영역 사용
+                    return; // 중복 클릭 차단
+                } // 실제 버튼 종료
                 position.y = UnityEngine.Screen.height - position.y; // 화면 위쪽 기준 변환
                 HandleClick(view, position); // 클릭 위치 처리
                 return; // 같은 프레임 중복 입력 방지
@@ -526,18 +562,10 @@ namespace ProjectG // 프로젝트 영역
         { // 실행 시작
             if (Screen == GameFlowScreen.Title) // 타이틀 확인
             { // 타이틀 시작
-                if (focus == 0) // 시작 선택
-                { // 시작 처리
-                    OpenCharacterSelection(); // 캐릭터 화면 열기
-                } // 시작 종료
-                else // 설정 선택
-                { // 설정 처리
-                    if (SettingsRequested != null) // 설정 연결 확인
-                    { // 설정 요청 시작
-                        InputBlocked = true; // 즉시 메뉴 입력 차단
-                        SettingsRequested.Invoke(); // 설정 열기 요청
-                    } // 설정 요청 종료
-                } // 설정 종료
+                if (HasTitleView) // 직렬화 화면 연결 확인
+                { // 버튼 실행 시작
+                    titleView.InvokeButton(focus); // 동일 버튼 이벤트 경로
+                } // 버튼 실행 종료
             } // 타이틀 종료
             else if (Screen == GameFlowScreen.CharacterSelect) // 캐릭터 선택 확인
             { // 캐릭터 시작
@@ -604,7 +632,7 @@ namespace ProjectG // 프로젝트 영역
                 } // 성장 복귀 종료
                 return; // 다른 화면 클릭 차단
             } // 성장 클릭 종료
-            if (Screen == GameFlowScreen.Title || Screen == GameFlowScreen.Preparation || Screen == GameFlowScreen.Result) // 공통 버튼 화면
+            if (Screen == GameFlowScreen.Preparation || Screen == GameFlowScreen.Result) // 공통 버튼 화면
             { // 버튼 확인 시작
                 int count = Screen == GameFlowScreen.Preparation ? 3 : 2; // 화면별 버튼 수
                 for (int index = 0; index < count; index++) // 버튼 목록 순회
@@ -647,6 +675,17 @@ namespace ProjectG // 프로젝트 영역
         } // 처리 종료
         private void OnGUI() // 메뉴 화면 그리기
         { // 표시 시작
+            if (Screen == GameFlowScreen.Title && !SettlementPending) // 타이틀 화면 확인
+            { // 타이틀 표시 시작
+                if (!HasTitleView) // 씬 연결 실패 확인
+                { // 오류 표시 시작
+                    PrepareStyles(); // 오류 안내 글꼴 준비
+                    Rect errorView = View(); // 화면 비율 영역
+                    textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(errorView.height * 0.025f)); // 화면 비례 글자
+                    GUI.Label(new Rect(errorView.x + errorView.width * 0.1f, errorView.y + errorView.height * 0.45f, errorView.width * 0.8f, errorView.height * 0.1f), "타이틀 화면 연결 오류: 씬의 UI 참조를 확인해 주세요.", textStyle); // 표시할 오류 안내
+                } // 오류 표시 종료
+                return; // 직렬화된 타이틀 또는 오류 표시
+            } // 타이틀 표시 종료
             if (SettlementPending) // 저장 재시도 화면 확인
             { // 오류 표시 시작
                 DrawSettlementError(); // 저장 오류와 재시도 표시
@@ -674,13 +713,7 @@ namespace ProjectG // 프로젝트 영역
             titleStyle.fontSize = Mathf.Max(22, Mathf.RoundToInt(view.height * 0.052f)); // 제목 화면 비례 크기
             textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.025f)); // 본문 화면 비례 크기
             buttonStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.026f)); // 버튼 화면 비례 크기
-            if (Screen == GameFlowScreen.Title) // 타이틀 화면
-            { // 타이틀 표시 시작
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.20f, view.width, view.height * 0.12f), "PROJECT G", titleStyle); // 게임 제목
-                DrawButton(ButtonRect(view, 0), "시작", focus == 0); // 시작 버튼
-                DrawButton(ButtonRect(view, 1), "설정", focus == 1); // 설정 버튼
-            } // 타이틀 표시 종료
-            else if (Screen == GameFlowScreen.CharacterSelect || Screen == GameFlowScreen.Preparation) // 캐릭터와 준비 화면
+            if (Screen == GameFlowScreen.CharacterSelect || Screen == GameFlowScreen.Preparation) // 캐릭터와 준비 화면
             { // 준비 표시 시작
                 DrawPreparation(view); // 선택 정보 표시
             } // 준비 표시 종료

@@ -32,6 +32,7 @@ namespace ProjectG // 프로젝트 영역
         private SpriteRenderer bodyImage; // 재사용 몸체 이미지
         private readonly EnemyVisualMotion visualMotion = new EnemyVisualMotion(); // 몸체 움직임 상태
         private GameObject warningMark; // 공격 예고 표시
+        private GameObject dashPath; // 돌진 경로 표시
         private GameObject weakMark; // 약점 표시
         private EnemyHealthBar healthBar; // 적 체력 표시
         public event System.Action<int> PhaseChanged; // 보스 단계 변경 알림
@@ -77,7 +78,8 @@ namespace ProjectG // 프로젝트 영역
             midPattern = 0; // 초기 패턴
             burstRemaining = 0; // 연사 횟수 초기화
             bossState = BossState.Warning; // 초기 보스 예고
-            dashVelocity = Vector2.zero; // 돌진 속도 초기화
+            Vector2 dashDirection = player != null ? (Vector2)player.transform.position - (Vector2)transform.position : Vector2.down; // 예고 시작 대상 방향
+            dashVelocity = (dashDirection.sqrMagnitude > 0.0001f ? dashDirection.normalized : Vector2.down) * 5f; // 예고와 일치하는 돌진 속도
             dashContact = false; // 돌진 접촉 초기화
             CreateVisual(); // 임시 도형 생성
             UpdateVisual(); // 초기 상태 표시
@@ -220,8 +222,6 @@ namespace ProjectG // 프로젝트 영역
                 if (timer <= 0.000001f) // 예고 종료 확인
                 { // 돌진 준비 시작
                     timer = 0f; // 예고 종료
-                    Vector2 direction = player != null ? (Vector2)player.transform.position - (Vector2)transform.position : Vector2.down; // 시험 돌진 방향
-                    dashVelocity = (direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.down) * 5f; // 고정 돌진 속도
                 } // 돌진 준비 종료
             } // 예고 진행 종료
             if (remaining <= 0f) // 돌진 시간 확인
@@ -375,6 +375,22 @@ namespace ProjectG // 프로젝트 영역
                 warningImage.color = Color.white; // 경고 이미지 원본 색상
                 warningImage.sortingOrder = 3; // 전경 표시
             } // 생성 종료
+            if (kind == EnemyKind.Dash && dashPath == null) // 돌진 경로 최초 생성 확인
+            { // 생성 시작
+                dashPath = new GameObject("EnemyDashPath"); // 돌진 경로 객체
+                dashPath.transform.SetParent(transform, false); // 적에 연결
+                SpriteRenderer pathImage = dashPath.AddComponent<SpriteRenderer>(); // 경로 표시 요소
+                pathImage.sprite = Projectile.GetSprite(); // 공통 흰색 선 이미지
+                pathImage.color = new Color(1f, 0.48f, 0.18f, 0.75f); // 경로 시험 색상
+                pathImage.sortingOrder = -1; // 적과 탄환 뒤 표시
+            } // 생성 종료
+            if (kind == EnemyKind.Dash && dashPath != null) // 돌진 경로 갱신 확인
+            { // 갱신 시작
+                Vector2 direction = dashVelocity.normalized; // 확정된 돌진 방향
+                dashPath.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction); // 경로 방향 적용
+                dashPath.transform.localPosition = direction * 20f; // 적 중심에서 화면 밖까지 배치
+                dashPath.transform.localScale = new Vector3(0.08f, 40f, 1f); // 경로 폭과 길이
+            } // 갱신 종료
         } // 초기화 종료
         private void UpdateVisual() // 표시 상태 갱신
         { // 갱신 시작
@@ -386,6 +402,10 @@ namespace ProjectG // 프로젝트 영역
             { // 예고 처리 시작
                 warningMark.SetActive(kind == EnemyKind.Dash && IsTelegraphing && IsAlive); // 돌진형 경고 상태 반영
             } // 예고 처리 종료
+            if (dashPath != null) // 경로 표시 확인
+            { // 경로 처리 시작
+                dashPath.SetActive(kind == EnemyKind.Dash && IsTelegraphing && IsAlive); // 예고 중에만 경로 표시
+            } // 경로 처리 종료
         } // 갱신 종료
     } // 클래스 종료
 } // 영역 종료

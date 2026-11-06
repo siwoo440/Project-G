@@ -27,6 +27,7 @@ namespace ProjectG // 프로젝트 영역
             } // 저장 종료
         } // 저장소 종료
         public static Func<IProgressStorage> StorageFactoryOverride; // 자동 시험 저장소 주입
+        public static Func<ITutorialStateStore> TutorialStorageFactoryOverride; // 안내 저장소 시험 주입
         public Func<string, bool> MeasurementWriterOverride; // 격리된 측정 보고 시험 연결
         private readonly Queue<string> pendingMeasurementReports = new Queue<string>(); // 순서대로 보관할 미저장 측정
         public int PendingMeasurementCount => pendingMeasurementReports.Count; // 저장 대기 보고서 수
@@ -50,6 +51,7 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         private GameObject battleRoot; // 현재 출격 객체 모음
         private PauseSettingsOverlay overlay; // 일시정지와 설정 화면
+        private ITutorialStateStore tutorialStore; // 세션별 안내 상태 저장소
         public GameFlowController Flow // 현재 화면 흐름
         { // 속성 시작
             get; // 값 조회
@@ -108,6 +110,7 @@ namespace ProjectG // 프로젝트 영역
                 Flow.ReportStartError(progressError); // 저장 오류와 준비 화면 표시
                 return; // 기존 진행 데이터 보존
             } // 출격 차단 종료
+            bool hasRunHistory = Progress.HasRunHistory; // 새 출격 저장 이전 이력
             if (string.IsNullOrEmpty(pendingStartId)) // 새 출격 식별자 확인
             { // 식별 시작
                 pendingStartId = Guid.NewGuid().ToString("N"); // 중복 없는 출격 식별자
@@ -138,9 +141,30 @@ namespace ProjectG // 프로젝트 영역
             CurrentStage = battleRoot.GetComponent<StageDirector>(); // 스테이지 조회
             overlay.Begin(CurrentPlayer, camera, progress, selection); // 전투 일시정지 연결
             CurrentPlayer.SetBindings(overlay.Bindings); // 공유 키 설정 적용
+            ITutorialStateStore tutorialState = GetTutorialStore(); // 별도 안내 상태 조회
+            if (tutorialState != null) // 안내 저장소 확인
+            { // 안내 시작
+                battleRoot.AddComponent<TutorialGuide>().Begin(CurrentPlayer, camera, progress, selection, overlay, tutorialState, hasRunHistory); // 실제 첫 출격 안내 연결
+            } // 안내 종료
             Flow.AttachBattle(CurrentPlayer, CurrentStage); // 결과 화면 연결
             menuCamera.enabled = false; // 메뉴 카메라 숨김
         } // 출격 종료
+        private ITutorialStateStore GetTutorialStore() // 주입 또는 별도 안내 저장소
+        { // 조회 시작
+            if (tutorialStore != null) // 기존 세션 저장소 확인
+            { // 재사용 시작
+                return tutorialStore; // 동일 저장소 재사용
+            } // 재사용 종료
+            try // 저장소 생성 보호
+            { // 생성 범위 시작
+                tutorialStore = TutorialStorageFactoryOverride != null ? TutorialStorageFactoryOverride() : Application.isEditor && Application.isBatchMode || StorageFactoryOverride != null ? (ITutorialStateStore)new MemoryTutorialStateStore() : new PlayerPrefsTutorialStateStore(); // 시험 격리와 실제 설정 분리
+                return tutorialStore; // 생성한 저장소 전달
+            } // 생성 범위 종료
+            catch (Exception) // 저장소 생성 오류
+            { // 오류 시작
+                return null; // 기존 전투 보존
+            } // 오류 종료
+        } // 조회 종료
         private bool EnsureProgress() // 영구 성장 로드와 중단 출격 복구
         { // 복원 시작
             progressAttempted = true; // 초기 복원 시도 기록

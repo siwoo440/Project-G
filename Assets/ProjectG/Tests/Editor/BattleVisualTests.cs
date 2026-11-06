@@ -7,10 +7,10 @@ public class BattleVisualTests // 전투 표시 시험
     [Test] // 경험치 표시 시험
     public void ExperienceShardUsesTransparentShapedSprite() // 경험치 결정 모양 확인
     { // 시험 시작
-        GameObject holder = new GameObject("Shard"); // 조각 객체 생성
+        GameObject holder = Object.Instantiate(Resources.Load<GameObject>("Prefabs/ExperienceShard")); // 실제 조각 프리팹 생성
         try // 시험 시작
         { // 시험 범위 시작
-            ExperienceShard shard = holder.AddComponent<ExperienceShard>(); // 조각 구성 요소
+            ExperienceShard shard = holder.GetComponent<ExperienceShard>(); // 조각 구성 요소
             shard.Begin(null, Vector2.zero, 1); // 조각 표시 생성
             Sprite sprite = holder.GetComponent<SpriteRenderer>().sprite; // 표시 이미지 조회
             Assert.That(sprite.texture.width, Is.GreaterThan(2)); // 전용 이미지 크기

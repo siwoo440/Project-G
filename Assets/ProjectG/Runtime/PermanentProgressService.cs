@@ -283,6 +283,7 @@ namespace ProjectG // 프로젝트 영역
             private set; // 상태 변경
         } // 속성 종료
         public int CommonMaterials => snapshot != null && IsLoaded ? snapshot.commonMaterials : 0; // 현재 공통 재료
+        public bool HasRunHistory => snapshot != null && IsLoaded && (!string.IsNullOrEmpty(snapshot.activeRunId) || snapshot.receipts.Count > 0); // 기존 출격 이력 확인
         public PermanentProgressService(IProgressStorage store) : this(store, new EmptyProgressUnlockCatalog()) // 기본 빈 해금 목록
         { // 생성 시작
         } // 생성 종료

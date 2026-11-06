@@ -327,6 +327,18 @@ namespace ProjectG // 프로젝트 영역
         { // 정리 시작
             Shutdown(); // 연결과 안전 상태 정리
         } // 정리 종료
+        public static Rect StageHeaderRect(Rect view) // 진행 정보의 실제 위치
+        { // 계산 시작
+            return new Rect(view.center.x - 350f, view.y + 10f, 700f, 32f); // 전투 화면 상단 중앙
+        } // 계산 종료
+        public static Rect PhaseNoticeRect(Rect view) // 보스 단계 안내의 실제 위치
+        { // 계산 시작
+            return new Rect(view.center.x - 200f, view.y + 44f, 400f, 32f); // 진행 정보 아래
+        } // 계산 종료
+        public static Rect ContextNoticeRect(Rect view) // 사건 안내의 실제 위치
+        { // 계산 시작
+            return new Rect(view.center.x - 350f, view.y + 80f, 700f, 32f); // 보스 단계 아래
+        } // 계산 종료
         private void OnGUI() // 시험 스테이지 정보 표시
         { // 표시 시작
             if (State == null || battleCamera == null) // 표시 조건 확인
@@ -340,6 +352,7 @@ namespace ProjectG // 프로젝트 영역
                 textStyle.normal.textColor = Color.white; // 흰색 글자
             } // 준비 종료
             Rect view = battleCamera.pixelRect; // 전투 화면 좌표
+            Rect guiView = new Rect(view.xMin, Screen.height - view.yMax, view.width, view.height); // 화면 위쪽 기준 전투 영역
             textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height / 50f)); // 화면 비례 글자 크기
             float top = Screen.height - view.yMax + 10f; // 전투 화면 상단
             Color previous = GUI.color; // 기존 화면 색상
@@ -348,10 +361,10 @@ namespace ProjectG // 프로젝트 영역
             string label = State.Phase == StagePhase.Result ? "STAGE CLEAR" : State.Phase == StagePhase.Failed ? "STAGE FAILED" : State.Phase.ToString().ToUpperInvariant(); // 시험 구간 이름
             string health = boss != null && boss.IsAlive ? "   BOSS " + Mathf.CeilToInt(boss.Health) + " / " + Mathf.CeilToInt(boss.MaximumHealth) : ""; // 보스 체력 표시
             string time = "   COMBAT " + Mathf.FloorToInt(State.CombatSeconds) + "s   TOTAL " + Mathf.FloorToInt(State.TotalSeconds) + "s"; // 전투와 전체 시간 구분
-            GUI.Label(new Rect(view.center.x - 350f, top, 700f, 32f), label + time + health, textStyle); // 구간과 시간 및 체력 표시
+            GUI.Label(StageHeaderRect(guiView), label + time + health, textStyle); // 구간과 시간 및 체력 표시
             if (phaseNoticeSeconds > 0f) // 보스 단계 알림 확인
             { // 알림 표시 시작
-                GUI.Label(new Rect(view.center.x - 200f, top + 34f, 400f, 32f), "BOSS PHASE " + bossPhaseNotice, textStyle); // 보스 단계 전환 안내
+                GUI.Label(PhaseNoticeRect(guiView), "BOSS PHASE " + bossPhaseNotice, textStyle); // 보스 단계 전환 안내
             } // 알림 표시 종료
             if (!string.IsNullOrEmpty(ContextMessage)) // 사건 안내 확인
             { // 사건 표시 시작
@@ -367,7 +380,7 @@ namespace ProjectG // 프로젝트 영역
                     contextStyle.font = font != null ? font : GUI.skin.font; // 사용 가능한 글꼴
                 } // 글꼴 준비 종료
                 contextStyle.fontSize = textStyle.fontSize; // 화면 비례 글자 크기
-                GUI.Label(new Rect(view.center.x - 350f, top + 70f, 700f, 32f), ContextMessage, contextStyle); // 첫 사건과 조사 안내 표시
+                GUI.Label(ContextNoticeRect(guiView), ContextMessage, contextStyle); // 첫 사건과 조사 안내 표시
             } // 사건 표시 종료
             GUI.color = previous; // 기존 화면 색상 복원
         } // 표시 종료

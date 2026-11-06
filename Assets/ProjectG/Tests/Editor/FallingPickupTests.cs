@@ -64,9 +64,9 @@ public class FallingPickupTests // 낙하 수집물 시험
     } // 정리 종료
     private ExperienceShard MakeShard(Vector2 position, int amount) // 직접 시험 조각 생성
     { // 생성 시작
-        GameObject holder = new GameObject("FallingShard"); // 조각 객체 생성
+        GameObject holder = Object.Instantiate(Resources.Load<GameObject>("Prefabs/ExperienceShard")); // 실제 조각 프리팹 생성
         holder.transform.SetParent(cameraObject.transform, false); // 격리 카메라에 연결
-        ExperienceShard shard = holder.AddComponent<ExperienceShard>(); // 조각 구성
+        ExperienceShard shard = holder.GetComponent<ExperienceShard>(); // 조각 구성
         shard.Begin(progress, position, amount); // 조각 위치와 경험치 설정
         return shard; // 시험 조각 반환
     } // 생성 종료

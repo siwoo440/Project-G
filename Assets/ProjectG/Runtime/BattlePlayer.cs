@@ -27,6 +27,7 @@ namespace ProjectG // 프로젝트 영역
         } // 속성 종료
         private CardSupport support; // 보조 공격 상태
         public event System.Action BattleRestarted; // 출격 초기화 알림
+        public event System.Action<TutorialSignal> TutorialAction; // 실제 행동 안내 신호
         public RapidCombo Combo // 속사 누적 상태
         { // 속성 시작
             get; // 값 조회
@@ -91,7 +92,12 @@ namespace ProjectG // 프로젝트 영역
             } // 차단 종료
             if (Character == CharacterType.Rapid) // 속사형 확인
             { // 속사 처리 시작
-                return Skills.TryRapid(Survival.IsAlive); // 집중 포화 발동
+                bool used = Skills.TryRapid(Survival.IsAlive); // 집중 포화 발동 확인
+                if (used) // 실제 발동 확인
+                { // 신호 시작
+                    TutorialAction?.Invoke(TutorialSignal.Skill); // 성공한 스킬 안내
+                } // 신호 종료
+                return used; // 실제 발동 결과
             } // 속사 처리 종료
             if (!Skills.TrySniper(Survival.IsAlive)) // 저격 스킬 조건 확인
             { // 차단 시작
@@ -102,6 +108,7 @@ namespace ProjectG // 프로젝트 영역
             shot.transform.SetParent(TransientRoot, true); // 전투 생성물 소속
             shot.transform.position = transform.position + new Vector3(0f, 0.25f, 0f); // 발사 위치
             shot.AddComponent<Projectile>().Begin(new Vector2(0f, 12f), top, 100, false, this, int.MaxValue); // 시험 관통탄
+            TutorialAction?.Invoke(TutorialSignal.Skill); // 성공한 스킬 안내
             return true; // 고유 스킬 발동
         } // 사용 종료
         public bool TryUseCommon() // 공용 스킬 사용
@@ -126,6 +133,7 @@ namespace ProjectG // 프로젝트 영역
                     bullet.AddComponent<Projectile>().Begin(new Vector2(spread, 10f), top, 12, false, this); // 산탄 시험 피해량
                 } // 발사 종료
             } // 산탄 종료
+            TutorialAction?.Invoke(TutorialSignal.Skill); // 성공한 스킬 안내
             return true; // 공용 스킬 발동
         } // 사용 종료
         public bool TryUseUltimate() // 필살기 사용
@@ -166,6 +174,7 @@ namespace ProjectG // 프로젝트 영역
                 BeamDamageRequested?.Invoke(beam, 220); // 실제 적 연결용 피해 요청
                 BeamEffect.Create(beam, TransientRoot); // 전투 소속 광선 표시
             } // 저격 필살기 종료
+            TutorialAction?.Invoke(TutorialSignal.Ultimate); // 성공한 필살기 안내
             return true; // 필살기 발동
         } // 사용 종료
         public void RegisterEnemyDefeat(EnemyRank rank, int experience = 0, Vector2? dropPosition = null) // 적 처치 보상
@@ -250,7 +259,7 @@ namespace ProjectG // 프로젝트 영역
         { // 조회 시작
             if (bindings == null) // 키 설정 확인
             { // 기본 표시 시작
-                return action == PlayerAction.Unique ? "J" : action == PlayerAction.Common ? "K" : action == PlayerAction.Ultimate ? "L" : ""; // 기본 스킬 키
+                return action == PlayerAction.MoveUp ? "W" : action == PlayerAction.MoveLeft ? "A" : action == PlayerAction.MoveDown ? "S" : action == PlayerAction.MoveRight ? "D" : action == PlayerAction.Focus ? "LEFTSHIFT" : action == PlayerAction.Unique ? "J" : action == PlayerAction.Common ? "K" : action == PlayerAction.Ultimate ? "L" : ""; // 기본 조작 키
             } // 기본 표시 종료
             return bindings.GetControl(action).ToUpperInvariant(); // 설정된 키 이름 표시
         } // 조회 종료
@@ -441,6 +450,10 @@ namespace ProjectG // 프로젝트 영역
             Combo.Advance(elapsed); // 누적 화력 유지와 감소
             int shots = session.Advance(input, pressed, held, toggle, elapsed, left, right, bottom, top, Skills.AttackIntervalScale * Build.IntervalScale); // 이동과 공격 계산
             transform.position = new Vector3(session.Position.x, session.Position.y, 0f); // 계산 위치 적용
+            if (((Vector2)transform.position - PreviousPosition).sqrMagnitude > 0.000001f) // 실제 이동 확인
+            { // 이동 신호 시작
+                TutorialAction?.Invoke(TutorialSignal.Move); // 실제 이동 안내
+            } // 이동 신호 종료
             for (int index = 0; index < shots; index++) // 발사 탄환 순회
             { // 발사 시작
                 float spread = shots == 2 ? (index == 0 ? -0.7f : 0.7f) : 0f; // 시험용 확산 방향
@@ -456,6 +469,10 @@ namespace ProjectG // 프로젝트 영역
                     projectile.SetFocusWidth(Build.FocusWidth); // 집중탄 시험 폭 적용
                 } // 집중 판정 종료
             } // 발사 종료
+            if (shots > 0 && session.Focused) // 실제 집중 사격 확인
+            { // 집중 신호 시작
+                TutorialAction?.Invoke(TutorialSignal.FocusShot); // 실제 집중 사격 안내
+            } // 집중 신호 종료
             support.Advance(elapsed, this, top); // 보조 공격 진행
         } // 진행 종료
         public void RegisterGraze() // 그레이즈 기록
@@ -465,6 +482,7 @@ namespace ProjectG // 프로젝트 영역
                 GrazeCount++; // 그레이즈 횟수 증가
                 Statistics?.RecordGraze(); // 그레이즈 기록 저장
                 Skills.GainGraze(1f + Build.Upgrades.GrazeBonus); // 등급별 강화 배율과 소수 충전
+                TutorialAction?.Invoke(TutorialSignal.Graze); // 실제 그레이즈 안내
             } // 기록 처리 종료
         } // 기록 종료
     } // 클래스 종료

@@ -6,16 +6,25 @@ namespace ProjectG // 프로젝트 영역
         private BattlePlayer player; // 플레이어 스킬 상태
         private Camera battleCamera; // 전투 화면 기준
         private Texture2D rapidIcon; // 고유 스킬 이미지
+        private Texture2D sniperIcon; // 저격형 고유 스킬 이미지
         private Texture2D shieldIcon; // 보호막 이미지
         private Texture2D scatterIcon; // 산탄 이미지
         private Texture2D ultimateIcon; // 필살기 이미지
         private GUIStyle countdownStyle; // 흰색 쿨타임 글자
         private GUIStyle keyStyle; // 스킬 키 글자
+        public Texture2D UniqueIcon // 현재 캐릭터의 고유기 이미지
+        { // 속성 시작
+            get // 이미지 조회
+            { // 조회 시작
+                return player != null && player.Character == CharacterType.Sniper ? sniperIcon : rapidIcon; // 선택 캐릭터에 맞는 이미지
+            } // 조회 종료
+        } // 속성 종료
         public void Begin(BattlePlayer target, Camera camera) // 스킬 화면 초기화
         { // 초기화 시작
             player = target; // 플레이어 참조
             battleCamera = camera; // 카메라 참조
             rapidIcon = Resources.Load<Texture2D>("SkillIcons/rapid"); // 고유 스킬 이미지 불러오기
+            sniperIcon = Resources.Load<Texture2D>("SkillIcons/sniper"); // 저격 고유 스킬 이미지 불러오기
             shieldIcon = Resources.Load<Texture2D>("SkillIcons/shield"); // 보호막 이미지 불러오기
             scatterIcon = Resources.Load<Texture2D>("SkillIcons/scatter"); // 산탄 이미지 불러오기
             ultimateIcon = Resources.Load<Texture2D>("SkillIcons/ultimate"); // 필살기 이미지 불러오기
@@ -32,7 +41,7 @@ namespace ProjectG // 프로젝트 영역
             Rect second = SkillHudLayout.Slot(view, 1); // K 사각형 위치
             Rect third = SkillHudLayout.Slot(view, 2); // L 사각형 위치
             bool blocked = !player.Survival.IsAlive || player.Skills.Blocked; // 공통 사용 제한
-            DrawSlot(first, rapidIcon, player.ControlLabel(PlayerAction.Unique), player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f); // 고유 스킬 표시
+            DrawSlot(first, UniqueIcon, player.ControlLabel(PlayerAction.Unique), player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f); // 캐릭터별 고유 스킬 표시
             Texture2D commonIcon = player.Skills.Common == CommonSkill.Shield ? shieldIcon : scatterIcon; // 공용 스킬 이미지 선택
             DrawSlot(second, commonIcon, player.ControlLabel(PlayerAction.Common), player.Skills.CommonCooldown, blocked, player.Survival.HasShield); // 공용 스킬 표시
             DrawSlot(third, ultimateIcon, player.ControlLabel(PlayerAction.Ultimate), 0f, blocked || player.Skills.Energy < 100, false); // 필살기 에너지 상태 표시

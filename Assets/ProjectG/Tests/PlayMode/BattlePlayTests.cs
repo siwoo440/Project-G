@@ -104,19 +104,18 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         Assert.That(player.Survival.Health, Is.EqualTo(90)); // 무적 중 중복 피해 차단
         Assert.That(blocked.gameObject.activeSelf, Is.False); // 무적 접촉 회수 확인
     } // 시험 종료
-    [UnityTest] // 적탄 예고 시험
-    public IEnumerator EnemyShotIsTelegraphedBeforeSpawning() // 적탄 사전 예고 확인
+    [UnityTest] // 적탄 발사 표시 시험
+    public IEnumerator EnemyShotSpawnsOnScheduleWithoutWarningMarker() // 경고 없이 기존 시간 발사
     { // 시험 시작
         yield return SceneManager.LoadSceneAsync("SampleScene", LoadSceneMode.Single); // 기본 장면 불러오기
         StartSceneBattle(); // 타이틀에서 출격
-        yield return new WaitForSeconds(3.2f); // 첫 적 공격 예고 대기
+        yield return new WaitForSeconds(3.2f); // 첫 적 발사 전 대기
         EnemyActor enemy = Object.FindFirstObjectByType<EnemyActor>(); // 현재 웨이브 적 조회
         Assert.That(enemy, Is.Not.Null); // 적 등장 확인
-        Assert.That(enemy.IsTelegraphing, Is.True); // 공격 예고 상태 확인
-        Assert.That(enemy.transform.Find("EnemyAttackWarning").gameObject.activeSelf, Is.True); // 경고 이미지 표시 확인
+        Assert.That(enemy.transform.Find("EnemyAttackWarning"), Is.Null); // 탄막 예고 표시 제거
         Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.Zero); // 조기 발사 방지
         yield return new WaitForSeconds(0.5f); // 발사 시점 대기
-        Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 예고 후 발사 확인
+        Assert.That(Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None).Length, Is.GreaterThan(0)); // 기존 발사 시간 확인
     } // 시험 종료
     [UnityTest] // 이동·집중·스킬 동시 입력 시험
     public IEnumerator MovementFocusAndThreeSkillsWorkTogether() // 동시 입력 연결 확인

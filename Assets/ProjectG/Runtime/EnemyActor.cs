@@ -138,11 +138,18 @@ namespace ProjectG // 프로젝트 영역
         } // 판정 종료
         private void Update() // 매 프레임 진행
         { // 진행 시작
-            if (Time.timeScale > 0f) // 전투 시간 확인
+            if (Time.timeScale > 0f && kind != EnemyKind.Dash) // 일반 적과 보스 진행 확인
             { // 진행 시작
                 Advance(Time.deltaTime); // 경과 시간 적용
             } // 진행 종료
         } // 진행 종료
+        private void LateUpdate() // 플레이어 이동 후 돌진 처리
+        { // 처리 시작
+            if (Time.timeScale > 0f && kind == EnemyKind.Dash) // 돌진 적과 전투 시간 확인
+            { // 돌진 진행 시작
+                Advance(Time.deltaTime); // 현재 프레임 이동 접촉 적용
+            } // 돌진 진행 종료
+        } // 처리 종료
         public void Advance(float elapsed) // 적 행동 진행
         { // 진행 시작
             if (!IsAlive || elapsed <= 0f || (player != null && player.Survival != null && !player.Survival.IsAlive)) // 정지와 생존 확인
@@ -315,14 +322,17 @@ namespace ProjectG // 프로젝트 영역
             weakImage.sprite = BattleVisuals.Weak; // 약점 조준 이미지
             weakImage.color = Color.white; // 약점 이미지 원본 색상
             weakImage.sortingOrder = 2; // 몸체 앞 표시
-            warningMark = new GameObject("EnemyAttackWarning"); // 공격 예고 객체
-            warningMark.transform.SetParent(transform, false); // 적에 연결
-            warningMark.transform.localPosition = new Vector3(0f, -1.95f, 0f); // 확대된 몸체 아래 예고
-            warningMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 경고 아이콘 크기
-            SpriteRenderer warningImage = warningMark.AddComponent<SpriteRenderer>(); // 예고 표시 요소
-            warningImage.sprite = BattleVisuals.Warning; // 공격 경고 아이콘
-            warningImage.color = Color.white; // 경고 이미지 원본 색상
-            warningImage.sortingOrder = 3; // 전경 표시
+            if (kind == EnemyKind.Dash) // 돌진 충돌 경고 유지
+            { // 돌진 경고 시작
+                warningMark = new GameObject("EnemyAttackWarning"); // 돌진 경고 객체
+                warningMark.transform.SetParent(transform, false); // 적에 연결
+                warningMark.transform.localPosition = new Vector3(0f, -1.95f, 0f); // 확대된 몸체 아래 경고
+                warningMark.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // 경고 아이콘 크기
+                SpriteRenderer warningImage = warningMark.AddComponent<SpriteRenderer>(); // 경고 표시 요소
+                warningImage.sprite = BattleVisuals.Warning; // 돌진 경고 아이콘
+                warningImage.color = Color.white; // 경고 이미지 원본 색상
+                warningImage.sortingOrder = 3; // 전경 표시
+            } // 돌진 경고 종료
         } // 생성 종료
         private void UpdateVisual() // 표시 상태 갱신
         { // 갱신 시작

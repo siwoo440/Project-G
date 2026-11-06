@@ -1,6 +1,7 @@
 using UnityEngine; // 유니티 객체 기능
 namespace ProjectG // 프로젝트 영역
 { // 영역 시작
+    [DefaultExecutionOrder(100)] // 돌진 접촉 이후 적탄 판정
     public sealed class EnemyBullet : MonoBehaviour // 적탄 객체
     { // 클래스 시작
         private Vector2 velocity; // 적탄 이동 속도

@@ -62,6 +62,7 @@ namespace ProjectG // 프로젝트 영역
             BattlePlayer controller = player.AddComponent<BattlePlayer>(); // 플레이어 조작 요소
             controller.AssignCamera(camera); // 전투 카메라 연결
             controller.Begin(new Vector2(0f, -3f)); // 플레이어 조작 시작
+            background.AddComponent<StageBackgroundScroll>().Begin(camera, controller); // 전투 배경 이동과 재출격 연결
             GameObject marker = new GameObject("HitboxIndicator"); // 피격 중심 표시 객체
             marker.transform.SetParent(player.transform, false); // 플레이어 중심에 배치
             marker.AddComponent<HitboxIndicator>().Begin(controller); // 상태별 피격 표시 연결

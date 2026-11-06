@@ -36,8 +36,8 @@ public class StageDirectorTests // 스테이지 통합 시험
             Object.DestroyImmediate(holder); // 플레이어 제거
         } // 정리 종료
     } // 시험 종료
-    [Test] // 강화 선택과 보스 전환 안전 시험
-    public void ItemChoiceStartsBossAfterSafeTransition() // 강화 선택과 보스 등장 확인
+    [Test] // 보스 전환 안전 시험
+    public void BossStartsWithoutChoiceAfterSafeTransition() // 선택 없는 보스 등장 확인
     { // 시험 시작
         GameObject scene = new GameObject("StageScene"); // 스테이지 객체
         GameObject holder = new GameObject("Player"); // 플레이어 객체
@@ -54,21 +54,26 @@ public class StageDirectorTests // 스테이지 통합 시험
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
             StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
-            stage.Advance(65f, 65f); // 첫 강화 선택까지 진행
-            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.UpgradeOne)); // 첫 강화 구간
-            Assert.That(selection.IsOpen, Is.True); // 강화 선택 표시
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 아이템 선택
-            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.MidBoss)); // 중간 보스 진입
+            EnemyBullet visible = pool.Spawn(Vector2.zero, Vector2.zero, 0.1f, 1, -10f, player); // 화면 안 적탄 생성
+            stage.Advance(65f, 65f); // 첫 전투 경계까지 진행
+            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.MidBoss)); // 선택 없는 중간 보스 진입
+            Assert.That(selection.IsOpen, Is.False); // 고정 강화 선택 미표시
+            Assert.That(visible.InUse, Is.False); // 보스 전환 적탄 정리
             Assert.That(player.Survival.IsInvulnerable, Is.True); // 전환 중 무적
             Assert.That(progress.Blocked, Is.True); // 카드 선택 지연
+            progress.CollectExperience(10); // 전환 중 레벨업 경험치 획득
+            Assert.That(progress.Level.PendingChoices, Is.EqualTo(1)); // 카드 선택 예약
+            Assert.That(progress.Offer, Is.Null); // 전환 중 카드 표시 지연
             Assert.That(player.Survival.TryHit(10), Is.False); // 전환 피해 차단
-            player.Survival.Advance(1f); // 선택 후 유예 시간 진행
             stage.Advance(1f, 1f); // 안전 구간 진행
             Assert.That(stage.Boss, Is.Null); // 보스 등장 전 대기
             stage.Advance(1f, 1f); // 안전 구간 종료
             Assert.That(stage.Boss, Is.Not.Null); // 중간 보스 생성
             Assert.That(player.Survival.IsInvulnerable, Is.False); // 전환 무적 종료
             Assert.That(progress.Blocked, Is.False); // 카드 선택 지연 해제
+            progress.CollectExperience(0); // 대기 카드 선택 갱신
+            Assert.That(progress.Offer, Is.Not.Null); // 보스 등장 후 카드 표시
+            progress.Shutdown(); // 카드 선택 정리와 시간 복원
             stage.Boss.ApplyDamage(100000f, player); // 보스 처치 시도
             stage.Boss.ApplyDamage(100000f, player); // 보스 단계 경계 진행
             stage.Boss.ApplyDamage(100000f, player); // 보스 최종 처치
@@ -98,9 +103,8 @@ public class StageDirectorTests // 스테이지 통합 시험
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
             StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
-            stage.Advance(65f, 65f); // 첫 강화 구간
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 아이템 선택
-            player.Survival.Advance(0.5f); // 선택 후 유예 시간 종료
+            stage.Advance(65f, 65f); // 중간 보스 전환 시작
+            Assert.That(selection.IsOpen, Is.False); // 고정 선택 미표시
             Assert.That(player.Survival.IsInvulnerable, Is.True); // 전환 무적 확인
             player.Begin(Vector2.zero); // 새 출격 시작
             Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.Preparation)); // 준비 구간 초기화
@@ -131,10 +135,9 @@ public class StageDirectorTests // 스테이지 통합 시험
             UpgradeItemSelection selection = scene.AddComponent<UpgradeItemSelection>(); // 강화 선택 구성
             StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
-            stage.Advance(65f, 65f); // 첫 강화 구간
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 아이템 선택
+            stage.Advance(65f, 65f); // 중간 보스 전환 시작
+            Assert.That(selection.IsOpen, Is.False); // 고정 선택 미표시
             Assert.That(player.Survival.IsInvulnerable, Is.True); // 전환 무적 확인
-            player.Survival.Advance(0.5f); // 선택 후 유예 시간 종료
             if (fail) // 실패 방식 확인
             { // 실패 처리 시작
                 stage.State.Fail(); // 출격 실패 처리

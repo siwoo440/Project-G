@@ -1,5 +1,6 @@
 using System; // 난수 기능
 using System.Collections.Generic; // 카드 목록 기능
+using System.Globalization; // 일정한 숫자 표기
 using System.Linq; // 후보 필터 기능
 namespace ProjectG // 프로젝트 영역
 { // 영역 시작
@@ -114,9 +115,13 @@ namespace ProjectG // 프로젝트 영역
         { // 조회 시작
             return initial.Concat(fallback).First(card => card.Id == id); // 카드 반환
         } // 조회 종료
-        public static bool IsEligible(CardId id, CardInventory inventory, CharacterType character, CommonSkill skill, bool damaged, bool energyMissing = true) // 후보 가능 여부
+        public static bool IsEligible(CardId id, CardInventory inventory, CharacterType character, CommonSkill skill, bool damaged, bool energyMissing = true, CardBuild build = null) // 후보 가능 여부
         { // 확인 시작
             CardData card = Find(id); // 카드 데이터 확인
+            if (build != null && ((id == CardId.C01 && build.Damage(1f, false) >= 1.5999f) || (id == CardId.C04 && build.Damage(1f, true) >= 1.5999f) || (id == CardId.C02 && build.IntervalScale <= 0.6001f) || ((id == CardId.C03 || id == CardId.S02) && build.ExtraPierce >= 3) || (id == CardId.C05 && build.UniqueCooldownReduction >= 0.3999f))) // 아이템과 공유 상한 확인
+            { // 제외 시작
+                return false; // 효과 없는 카드 제외
+            } // 제외 종료
             if (card.Owner.HasValue && card.Owner.Value != character) // 캐릭터 확인
             { // 제외 시작
                 return false; // 다른 캐릭터 제외
@@ -147,9 +152,9 @@ namespace ProjectG // 프로젝트 영역
             } // 제외 종료
             return true; // 유효 후보
         } // 확인 종료
-        public static CardData[] Offer(CardInventory inventory, CharacterType character, CommonSkill skill, bool damaged, Random random, bool energyMissing = true) // 세 장 후보 생성
+        public static CardData[] Offer(CardInventory inventory, CharacterType character, CommonSkill skill, bool damaged, Random random, bool energyMissing = true, CardBuild build = null) // 세 장 후보 생성
         { // 생성 시작
-            List<CardData> available = initial.Where(card => IsEligible(card.Id, inventory, character, skill, damaged)).ToList(); // 유효 카드 목록
+            List<CardData> available = initial.Where(card => IsEligible(card.Id, inventory, character, skill, damaged, energyMissing, build)).ToList(); // 공유 상한 반영 후보 목록
             List<CardData> selected = new List<CardData>(); // 선택지 목록
             while (selected.Count < 3 && available.Count > 0) // 후보 선택 반복
             { // 선택 시작
@@ -168,7 +173,7 @@ namespace ProjectG // 프로젝트 영역
                 { // 완료 시작
                     break; // 대체 종료
                 } // 완료 종료
-                if (IsEligible(card.Id, inventory, character, skill, damaged, energyMissing)) // 대체 효과 유효 확인
+                if (IsEligible(card.Id, inventory, character, skill, damaged, energyMissing, build)) // 대체 효과 유효 확인
                 { // 추가 시작
                     selected.Add(card); // 서로 다른 대체 보상
                 } // 추가 종료
@@ -181,22 +186,22 @@ namespace ProjectG // 프로젝트 영역
             int next = level + 1; // 선택 후 카드 단계
             switch (card.Id) // 카드 종류 구분
             { // 구분 시작
-                case CardId.C01: return "공용 피해 +" + level * 10 + "% → +" + next * 10 + "%"; // 기본 피해 변경
-                case CardId.C02: return "발사 간격 -" + level * 8 + "% → -" + next * 8 + "%"; // 발사 간격 변경
-                case CardId.C03: return "추가 관통 " + level + " → " + next; // 관통 변경
-                case CardId.C04: return "집중 피해 +" + level * 8 + "% → +" + next * 8 + "%"; // 집중 피해 변경
-                case CardId.C05: return "J 대기 감소 " + level * 10 + "% → " + next * 10 + "%"; // 고유기 변경
+                case CardId.C01: return PercentChange("기본 피해", player.Build.Damage(1f, false) - 1f, Math.Min(0.6f, player.Build.Damage(1f, false) - 1f + 0.1f), "+") + " / " + PercentChange("집중 피해", player.Build.Damage(1f, true) - 1f, Math.Min(0.6f, player.Build.Damage(1f, true) - 1f + 0.1f), "+"); // 실제 기본과 집중 피해 변경
+                case CardId.C02: return PercentChange("발사 간격", 1f - player.Build.IntervalScale, Math.Min(0.4f, 1f - player.Build.IntervalScale + 0.08f), "-"); // 실제 발사 간격 감소
+                case CardId.C03: return "추가 관통 " + player.Build.ExtraPierce + " → " + Math.Min(3, player.Build.ExtraPierce + 1); // 실제 추가 관통 변경
+                case CardId.C04: return PercentChange("집중 피해", player.Build.Damage(1f, true) - 1f, Math.Min(0.6f, player.Build.Damage(1f, true) - 1f + 0.08f), "+"); // 실제 집중 피해 변경
+                case CardId.C05: return PercentChange("J 대기 감소", player.Build.UniqueCooldownReduction, Math.Min(0.4f, player.Build.UniqueCooldownReduction + 0.1f), ""); // 실제 고유기 대기 감소
                 case CardId.C06: return "보호막 1회·12초 → 산탄 3발·10초"; // 공용 스킬 비교
                 case CardId.C07: return "드론 피해 " + (level == 0 ? 0 : 3 + level * 3) + " → " + (3 + next * 3); // 드론 피해 변경
                 case CardId.C08: return "칼날 피해 " + (level == 0 ? 0 : 4 + level * 4) + " → " + (4 + next * 4); // 칼날 피해 변경
                 case CardId.C09: return "흡수 반경 +" + level * 20 + "% → +" + next * 20 + "%"; // 흡수 반경 변경
                 case CardId.C10: return "미장착 → 피격 후 1회 방어"; // 보호 장치 변경
-                case CardId.C11: return "집중 폭 -" + level * 10 + "% → -" + next * 10 + "%"; // 집중 폭 변경
+                case CardId.C11: return PercentChange("집중 폭", player.Build.FocusWidth, Math.Max(0.1f, player.Build.FocusWidth - 0.1f), "") + " / " + PercentChange("집중 피해", player.Build.Damage(1f, true) - 1f, Math.Min(0.6f, player.Build.Damage(1f, true) - 1f + 0.1f), "+"); // 실제 집중 폭과 피해 변경
                 case CardId.C12: return "체력 " + player.Survival.Health + " → " + Math.Min(player.Survival.MaximumHealth, player.Survival.Health + 20); // 즉시 회복량
                 case CardId.R01: return "유지 시간 2초 → 3초"; // 누적 유지 변경
                 case CardId.R02: return "기본 공격 좌우 폭 100% → 120%"; // 사격 폭 변경
                 case CardId.S01: return "약점 추가 +50% → +65%"; // 약점 피해 변경
-                case CardId.S02: return "기본·집중 추가 관통 +1"; // 저격 관통 변경
+                case CardId.S02: return "추가 관통 " + player.Build.ExtraPierce + " → " + Math.Min(3, player.Build.ExtraPierce + 1); // 실제 저격 관통 변경
                 case CardId.F01: return "최대 체력 " + player.Survival.MaximumHealth + " → " + (player.Survival.MaximumHealth + 1); // 대체 보상 하나
                 case CardId.F02: return "최대 체력 " + player.Survival.MaximumHealth + " → " + (player.Survival.MaximumHealth + 2); // 대체 보상 둘
                 case CardId.F03: return "최대 체력 " + player.Survival.MaximumHealth + " → " + (player.Survival.MaximumHealth + 3); // 대체 보상 셋
@@ -205,6 +210,12 @@ namespace ProjectG // 프로젝트 영역
                 default: return ""; // 알 수 없는 카드
             } // 구분 종료
         } // 설명 종료
+        private static string PercentChange(string label, float current, float target, string sign) // 비율 변화 표기
+        { // 표기 시작
+            string before = Math.Round(current * 100d, 2).ToString("0.##", CultureInfo.InvariantCulture); // 현재 비율 표시
+            string after = Math.Round(target * 100d, 2).ToString("0.##", CultureInfo.InvariantCulture); // 변경 비율 표시
+            return label + " " + sign + before + "% → " + sign + after + "%"; // 현재와 변경 비교
+        } // 표기 종료
         private static CardData Draw(List<CardData> pool, Random random) // 등급 가중 추첨
         { // 추첨 시작
             int normal = pool.Any(card => card.Tier == CardTier.Normal) ? 75 : 0; // 일반 등급 가중치

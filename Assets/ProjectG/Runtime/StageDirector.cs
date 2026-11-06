@@ -16,7 +16,6 @@ namespace ProjectG // 프로젝트 영역
         private float phaseNoticeSeconds; // 보스 단계 알림 시간
         private int bossPhaseNotice; // 표시할 보스 단계
         private int spawnIndex; // 시험 웨이브 번호
-        private bool choicePending; // 강화 선택 시작 대기
         private bool ownsProgressBlock; // 카드 표시 지연 소유
         private bool ownsTransitionSafety; // 보스 전환 안전 상태 소유
         private GUIStyle textStyle; // 화면 안내 글꼴
@@ -69,10 +68,6 @@ namespace ProjectG // 프로젝트 영역
             { // 연결 시작
                 player.BattleRestarted += ResetStage; // 새 출격 연결
             } // 연결 종료
-            if (selection != null) // 강화 선택 확인
-            { // 연결 시작
-                selection.ChoiceCompleted += CompleteChoice; // 선택 완료 연결
-            } // 연결 종료
             ResetStage(); // 스테이지 시작
         } // 초기화 종료
         private void Update() // 매 프레임 스테이지 진행
@@ -91,16 +86,10 @@ namespace ProjectG // 프로젝트 영역
                 State.Fail(); // 출격 실패
                 return; // 전투 진행 종료
             } // 실패 종료
+            StagePhase previousPhase = State.Phase; // 이전 스테이지 구간
             State.Advance(combatDelta, totalDelta); // 단계와 시간 진행
+            float bossElapsed = previousPhase == State.Phase ? combatDelta : State.PhaseSeconds; // 진입 이후 보스 경과 시간
             phaseNoticeSeconds = Mathf.Max(0f, phaseNoticeSeconds - Mathf.Max(0f, combatDelta)); // 단계 알림 시간 감소
-            if ((State.Phase == StagePhase.UpgradeOne || State.Phase == StagePhase.UpgradeTwo) && selection != null && !selection.IsOpen) // 선택 화면 종료 여부 확인
-            { // 재시도 준비 시작
-                choicePending = true; // 유효한 선택까지 재시도
-            } // 재시도 준비 종료
-            if (choicePending && selection != null && !selection.IsOpen) // 강화 선택 대기 확인
-            { // 선택 시작
-                choicePending = !selection.Begin(player, battleCamera, progress, pool); // 일시정지 해제까지 재시도
-            } // 선택 종료
             if (combatDelta <= 0f) // 전투 정지 확인
             { // 정지 시작
                 return; // 적과 보스 진행 생략
@@ -111,7 +100,7 @@ namespace ProjectG // 프로젝트 영역
             } // 웨이브 종료
             if (State.Phase == StagePhase.MidBoss || State.Phase == StagePhase.FinalBoss) // 보스 구간 확인
             { // 보스 처리 시작
-                AdvanceBoss(combatDelta); // 보스 등장과 처치 확인
+                AdvanceBoss(bossElapsed); // 실제 보스 구간 경과로 등장 처리
             } // 보스 처리 종료
         } // 진행 종료
         private void AdvanceWaves(float elapsed) // 일반 적 웨이브 처리
@@ -200,13 +189,7 @@ namespace ProjectG // 프로젝트 영역
         private void OnPhaseChanged(StagePhase phase) // 구간 전환 처리
         { // 전환 시작
             spawnTimer = 0f; // 새 구간 등장 시간 초기화
-            if (phase == StagePhase.UpgradeOne || phase == StagePhase.UpgradeTwo) // 강화 선택 확인
-            { // 선택 준비 시작
-                ClearEnemies(); // 기존 일반 적 정리
-                ClearBullets(); // 화면 적탄 정리
-                choicePending = true; // 안전한 선택 시작 대기
-            } // 선택 준비 종료
-            else if (phase == StagePhase.MidBoss || phase == StagePhase.FinalBoss) // 보스 구간 확인
+            if (phase == StagePhase.MidBoss || phase == StagePhase.FinalBoss) // 보스 구간 확인
             { // 보스 준비 시작
                 ClearEnemies(); // 이전 적 정리
                 ClearBullets(); // 화면 적탄 정리
@@ -225,7 +208,6 @@ namespace ProjectG // 프로젝트 영역
             else if (phase == StagePhase.Result || phase == StagePhase.Failed) // 출격 종료 확인
             { // 종료 처리 시작
                 player.Statistics?.Complete(phase == StagePhase.Result, State.CombatSeconds, State.TotalSeconds); // 최종 전투 기록 확정
-                choicePending = false; // 대기 선택 취소
                 if (selection != null) // 선택 객체 확인
                 { // 선택 정리 시작
                     selection.Cancel(); // 강화 선택 닫기
@@ -236,14 +218,6 @@ namespace ProjectG // 프로젝트 영역
                 ReleaseTransitionSafety(); // 보스 전환 안전 해제
             } // 종료 처리 종료
         } // 전환 종료
-        private void CompleteChoice() // 강화 선택 완료 알림
-        { // 처리 시작
-            choicePending = false; // 선택 대기 해제
-            if (State != null) // 진행 상태 확인
-            { // 단계 진행 시작
-                State.CompleteUpgrade(); // 다음 보스 구간 이동
-            } // 단계 진행 종료
-        } // 처리 종료
         private void ResetStage() // 새 출격 진행 초기화
         { // 초기화 시작
             if (selection != null) // 선택 화면 확인
@@ -264,7 +238,6 @@ namespace ProjectG // 프로젝트 영역
             spawnIndex = 0; // 웨이브 번호 초기화
             bossDelay = 0f; // 보스 대기 초기화
             phaseNoticeSeconds = 0f; // 단계 알림 초기화
-            choicePending = false; // 선택 대기 초기화
         } // 초기화 종료
         private void ReleaseProgressBlock() // 보스 전환 카드 지연 해제
         { // 해제 시작
@@ -334,7 +307,6 @@ namespace ProjectG // 프로젝트 영역
             } // 해제 처리 종료
             if (selection != null) // 강화 선택 존재 확인
             { // 해제 처리 시작
-                selection.ChoiceCompleted -= CompleteChoice; // 선택 완료 연결 해제
                 selection.Cancel(); // 선택 상태 정리
             } // 해제 처리 종료
             if (State != null) // 단계 상태 확인

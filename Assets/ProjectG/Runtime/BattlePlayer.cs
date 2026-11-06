@@ -37,13 +37,14 @@ namespace ProjectG // 프로젝트 영역
         public event System.Action<int> UltimateDamageRequested; // 필살기 피해 요청
         public event System.Action<int> ExperienceRewarded; // 경험치 보상 알림
         public event System.Action<int, Vector2> ExperienceDropRequested; // 경험치 조각 생성 요청
+        public event System.Action<EnemyRank, Vector2> EnemyDefeated; // 적 등급과 처치 위치 알림
         public void AssignBulletPool(EnemyBulletPool pool) // 적탄 풀 연결
         { // 연결 시작
             bulletPool = pool; // 적탄 풀 보관
         } // 연결 종료
         public bool ApplyCard(CardId id) // 카드 효과 적용
         { // 적용 시작
-            if (Build == null || Skills == null || Survival == null || !Survival.IsAlive || !CardCatalog.IsEligible(id, Build.Cards, Character, Skills.Common, Survival.Health < Survival.MaximumHealth, Skills.Energy < 100)) // 적용 조건 확인
+            if (Build == null || Skills == null || Survival == null || !Survival.IsAlive || !CardCatalog.IsEligible(id, Build.Cards, Character, Skills.Common, Survival.Health < Survival.MaximumHealth, Skills.ExactEnergy < 100f, Build)) // 적용 조건과 공유 상한 확인
             { // 차단 시작
                 return false; // 무효 카드 차단
             } // 차단 종료
@@ -172,6 +173,7 @@ namespace ProjectG // 프로젝트 영역
                     ExperienceRewarded?.Invoke(experience); // 기존 경험치 보상 알림
                     ExperienceDropRequested?.Invoke(experience, dropPosition ?? (Vector2)transform.position); // 경험치 조각 생성 요청
                 } // 보상 알림 종료
+                EnemyDefeated?.Invoke(rank, dropPosition ?? (Vector2)transform.position); // 강화 아이템 드롭 요청
             } // 충전 종료
         } // 보상 종료
         public PlayerSurvival Survival // 플레이어 생존 상태
@@ -451,7 +453,7 @@ namespace ProjectG // 프로젝트 영역
             { // 기록 처리 시작
                 GrazeCount++; // 그레이즈 횟수 증가
                 Statistics?.RecordGraze(); // 그레이즈 기록 저장
-                Skills.GainGraze(1f + Build.Upgrades.Count(UpgradeItemId.Graze) * 0.20f); // 강화 배율과 소수 충전
+                Skills.GainGraze(1f + Build.Upgrades.GrazeBonus); // 등급별 강화 배율과 소수 충전
             } // 기록 처리 종료
         } // 기록 종료
     } // 클래스 종료

@@ -175,6 +175,70 @@ namespace ProjectG // 프로젝트 영역
             Level.Gain(amount); // 경험치와 레벨 반영
             TryOpen(); // 카드 선택 확인
         } // 수집 종료
+        public bool HasExperienceInRange(float radius) // 회수 가능한 경험치 확인
+        { // 확인 시작
+            foreach (ExperienceShard shard in shards) // 활성 조각 순회
+            { // 순회 시작
+                if (InMagnetRange(shard, radius)) // 수집 범위 확인
+                { // 확인 시작
+                    return true; // 유효 조각 존재
+                } // 확인 종료
+            } // 순회 종료
+            return false; // 유효 조각 없음
+        } // 확인 종료
+        public int AvailableExperienceInRange(float radius) // 범위 안 경험치 합계
+        { // 계산 시작
+            long total = 0; // 회수 가능한 경험치 합계
+            foreach (ExperienceShard shard in shards) // 조각 목록 순회
+            { // 순회 시작
+                if (InMagnetRange(shard, radius)) // 회수 범위 확인
+                { // 합계 시작
+                    total += shard.AvailableValue; // 활성 조각 값 누적
+                } // 합계 종료
+            } // 순회 종료
+            return (int)Math.Min(total, int.MaxValue); // 정수 상한 내 합계
+        } // 계산 종료
+        public bool CollectExperienceInRange(float radius) // 범위 안 경험치 일괄 회수
+        { // 회수 시작
+            if (Level == null || Player == null || Player.Survival == null || !Player.Survival.IsAlive) // 전투 상태 확인
+            { // 차단 시작
+                return false; // 회수 불가
+            } // 차단 종료
+            long total = 0; // 회수 경험치 합계
+            foreach (ExperienceShard shard in shards) // 조각 목록 순회
+            { // 순회 시작
+                if (InMagnetRange(shard, radius)) // 범위 안 조각 확인
+                { // 회수 시작
+                    total += shard.Take(); // 중복 방지 후 값 누적
+                } // 회수 종료
+            } // 순회 종료
+            if (total <= 0) // 실제 회수량 확인
+            { // 실패 시작
+                return false; // 빈 회수 차단
+            } // 실패 종료
+            CollectExperience((int)Math.Min(total, int.MaxValue)); // 일괄 경험치와 카드 선택 반영
+            return true; // 회수 성공
+        } // 회수 종료
+        private bool InMagnetRange(ExperienceShard shard, float radius) // 조각과 회수 범위 비교
+        { // 비교 시작
+            if (shard == null || !shard.gameObject.activeInHierarchy || Player == null || float.IsNaN(radius) || radius <= 0f) // 유효 조건 확인
+            { // 제외 시작
+                return false; // 비활성 또는 잘못된 값 제외
+            } // 제외 종료
+            Vector2 position = shard.transform.position; // 조각 월드 위치
+            if (float.IsPositiveInfinity(radius)) // 전체 전투 화면 확인
+            { // 화면 범위 시작
+                if (battleCamera == null) // 카메라 확인
+                { // 차단 시작
+                    return false; // 화면 범위 미확인
+                } // 차단 종료
+                Vector3 center = battleCamera.transform.position; // 카메라 월드 중심
+                float height = battleCamera.orthographicSize; // 화면 세로 반경
+                float width = height * 16f / 9f; // 화면 가로 반경
+                return Mathf.Abs(position.x - center.x) <= width && Mathf.Abs(position.y - center.y) <= height; // 화면 안 조각만 허용
+            } // 화면 범위 종료
+            return (position - (Vector2)Player.transform.position).sqrMagnitude <= radius * radius; // 플레이어 기준 거리 확인
+        } // 비교 종료
         public bool Select(int index) // 카드 선택
         { // 선택 시작
             if (Offer == null || ConfirmingSwap || index < 0 || index >= Offer.Length) // 선택 조건 확인
@@ -232,7 +296,7 @@ namespace ProjectG // 프로젝트 영역
                 Time.timeScale = 0f; // 전투 정지
                 ownsPause = true; // 카드 정지 소유
             } // 정지 종료
-            Offer = CardCatalog.Offer(Player.Build.Cards, Player.Character, Player.Skills.Common, Player.Survival.Health < Player.Survival.MaximumHealth, random, Player.Skills.Energy < 100); // 유효 카드 세 장 추첨
+            Offer = CardCatalog.Offer(Player.Build.Cards, Player.Character, Player.Skills.Common, Player.Survival.Health < Player.Survival.MaximumHealth, random, Player.Skills.ExactEnergy < 100f, Player.Build); // 공유 상한을 반영한 카드 추첨
         } // 열기 종료
         private void ReleasePause() // 카드 정지 해제
         { // 해제 시작

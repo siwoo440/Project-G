@@ -7,6 +7,7 @@ namespace ProjectG // 프로젝트 영역
         private bool upgradeSafe; // 강화 선택 안전 상태
         private float transitionSafety; // 선택 후 안전 유예
         private float shieldTime; // 남은 보호막 시간
+        private int upgradeShieldCharges; // 아이템 보호막 남은 횟수
         private bool reactiveShield; // 피격 후 보호 장치
         private float reactiveCooldown; // 보호 장치 재충전
         public event System.Action Damaged; // 실제 체력 피해 알림
@@ -20,7 +21,15 @@ namespace ProjectG // 프로젝트 영역
             get; // 값 조회
             private set; // 값 설정
         } // 속성 종료
-        public bool HasShield => shieldTime > 0.000001f; // 보호막 활성 여부
+        public bool HasShield => shieldTime > 0.000001f || upgradeShieldCharges > 0; // 보호막 활성 여부
+        public int UpgradeShieldCharges => upgradeShieldCharges; // 아이템 보호막 남은 횟수
+        public void RefreshUpgradeShield(int charges) // 아이템 보호막 갱신
+        { // 갱신 시작
+            if (IsAlive) // 플레이어 생존 확인
+            { // 적용 시작
+                upgradeShieldCharges = Mathf.Max(upgradeShieldCharges, Mathf.Clamp(charges, 0, 5)); // 기존과 새 횟수의 큰 값
+            } // 적용 종료
+        } // 갱신 종료
         public void ActivateShield(float duration) // 보호막 활성화
         { // 활성화 시작
             if (IsAlive) // 생존 상태 확인
@@ -73,11 +82,16 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 피해 차단
             } // 차단 종료
-            if (HasShield) // 보호막 확인
+            if (shieldTime > 0.000001f) // 기존 스킬 보호막 확인
             { // 방어 시작
                 shieldTime = 0f; // 보호막 1회 소모
                 return false; // 체력 피해 방어
             } // 방어 종료
+            if (upgradeShieldCharges > 0) // 아이템 보호막 확인
+            { // 아이템 방어 시작
+                upgradeShieldCharges--; // 보호 횟수 한 번 소모
+                return false; // 체력 피해 방어
+            } // 아이템 방어 종료
             Health = Mathf.Max(0, Health - damage); // 체력 감소와 하한
             Damaged?.Invoke(); // 실제 피격 횟수 알림
             invulnerability = 1f; // 피격 후 무적 시간

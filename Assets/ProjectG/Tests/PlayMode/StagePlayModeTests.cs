@@ -14,13 +14,16 @@ public class StagePlayModeTests // 실제 스테이지 종료 시험
         BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 조회
         BattleProgress progress = playerObject.GetComponent<BattleProgress>(); // 성장 상태 조회
         StageDirector stage = cameraObject.GetComponent<StageDirector>(); // 스테이지 조회
-        UpgradeItemSelection selection = cameraObject.GetComponent<UpgradeItemSelection>(); // 강화 선택 조회
         try // 시험 시작
         { // 시험 범위 시작
-            stage.Advance(65f, 65f); // 첫 강화 구간 진입
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 아이템 선택
-            player.Survival.Advance(0.5f); // 선택 후 유예 시간 종료
+            stage.Advance(65f, 65f); // 중간 보스 전환 시작
+            Assert.That(cameraObject.GetComponent<UpgradeItemSelection>(), Is.Null); // 고정 강화 선택 제거 확인
+            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.MidBoss)); // 중간 보스 전환 확인
+            Assert.That(stage.Boss, Is.Null); // 안전 시간 중 보스 대기
             Assert.That(player.Survival.IsInvulnerable, Is.True); // 보스 전환 무적 확인
+            Assert.That(progress.Blocked, Is.True); // 보스 전환 카드 선택 지연
+            stage.Advance(1f, 1f); // 안전 시간 중간 진행
+            Assert.That(stage.Boss, Is.Null); // 보스 등장 전 대기 유지
             Object.Destroy(stage); // 스테이지 제어 제거
             yield return null; // 제거 처리 대기
             Assert.That(player.Survival.IsInvulnerable, Is.False); // 안전 상태 해제

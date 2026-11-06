@@ -4,7 +4,7 @@ using ProjectG; // 스테이지 기능
 public class StageFullFlowTests // 스테이지 전체 흐름 시험
 { // 시험 시작
     [Test] // 출격부터 완료까지 시험
-    public void BothChoicesAndBossesLeadToClearAndReset() // 강화와 보스 순서 확인
+    public void BothBossesLeadToClearWithoutFixedChoicesAndReset() // 보스 순서와 선택 없는 진행 확인
     { // 시험 시작
         GameObject scene = new GameObject("StageScene"); // 스테이지 객체
         GameObject holder = new GameObject("Player"); // 플레이어 객체
@@ -21,19 +21,27 @@ public class StageFullFlowTests // 스테이지 전체 흐름 시험
             StageDirector stage = scene.AddComponent<StageDirector>(); // 스테이지 구성
             stage.Begin(player, camera, pool, progress, selection); // 스테이지 시작
             Assert.That(stage.ContextMessage, Does.Contain("균열 조사")); // 첫 사건 안내
-            stage.Advance(65f, 65f); // 첫 강화 구간 진행
-            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.UpgradeOne)); // 첫 강화 단계
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 강화 획득
+            stage.Advance(65f, 65f); // 첫 전투 경계 진행
+            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.MidBoss)); // 중간 보스 단계
+            Assert.That(selection.IsOpen, Is.False); // 첫 고정 선택 미표시
+            Assert.That(stage.Boss, Is.Null); // 보스 안전 시간 보존
             stage.Advance(2f, 2f); // 중간 보스 안전 구간
             Assert.That(stage.Boss, Is.Not.Null); // 중간 보스 등장
             stage.Boss.ApplyDamage(10000f, player); // 중간 보스 처치
             stage.Advance(0.1f, 0.1f); // 처치 결과 진행
             Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.CombatTwo)); // 후속 일반 전투
-            stage.Advance(50f, 50f); // 둘째 강화 구간 진행
-            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.UpgradeTwo)); // 둘째 강화 단계
-            Assert.That(selection.TryChoose(0), Is.True); // 둘째 강화 획득
+            EnemyBullet visible = pool.Spawn(Vector2.zero, Vector2.zero, 0.1f, 1, -10f, player); // 최종 보스 전 적탄 생성
+            stage.Advance(50f, 50f); // 둘째 전투 경계 진행
+            Assert.That(stage.State.Phase, Is.EqualTo(StagePhase.FinalBoss)); // 최종 보스 단계
+            Assert.That(selection.IsOpen, Is.False); // 둘째 고정 선택 미표시
+            Assert.That(visible.InUse, Is.False); // 최종 보스 전환 적탄 정리
+            Assert.That(stage.Boss, Is.Null); // 최종 보스 안전 시간 보존
+            Assert.That(player.Survival.IsInvulnerable, Is.True); // 최종 보스 전환 무적
+            Assert.That(progress.Blocked, Is.True); // 최종 보스 전환 카드 지연
             stage.Advance(2f, 2f); // 최종 보스 안전 구간
             Assert.That(stage.Boss, Is.Not.Null); // 최종 보스 등장
+            Assert.That(player.Survival.IsInvulnerable, Is.False); // 최종 보스 전환 무적 해제
+            Assert.That(progress.Blocked, Is.False); // 최종 보스 전환 카드 허용
             stage.Boss.ApplyDamage(10000f, player); // 첫 체력 단계
             Assert.That(stage.Boss.PatternIndex, Is.EqualTo(1)); // 둘째 단계 확인
             stage.Boss.ApplyDamage(10000f, player); // 둘째 체력 단계

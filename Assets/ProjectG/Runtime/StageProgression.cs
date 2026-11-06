@@ -5,10 +5,8 @@ namespace ProjectG // 프로젝트 영역
     { // 구간 목록 시작
         Preparation, // 출격 준비와 약한 적
         CombatOne, // 첫 일반 전투
-        UpgradeOne, // 첫 강화 아이템 선택
         MidBoss, // 중간 보스
         CombatTwo, // 두 번째 일반 전투
-        UpgradeTwo, // 두 번째 강화 아이템 선택
         FinalBoss, // 최종 보스
         Result, // 스테이지 완료
         Failed // 출격 실패
@@ -50,7 +48,7 @@ namespace ProjectG // 프로젝트 영역
             while (remaining > 0f) // 시간 경계 순회
             { // 순회 시작
                 float limit = Phase == StagePhase.Preparation ? 20f : Phase == StagePhase.CombatOne ? 45f : Phase == StagePhase.CombatTwo ? 50f : 0f; // 시험 구간 시간
-                if (limit <= 0f) // 선택 또는 보스 구간 확인
+                if (limit <= 0f) // 보스 구간 확인
                 { // 대기 시작
                     PhaseSeconds += remaining; // 구간 시간 누적
                     return; // 명시적 완료 대기
@@ -62,18 +60,9 @@ namespace ProjectG // 프로젝트 영역
                 { // 진행 대기 시작
                     return; // 다음 프레임 대기
                 } // 진행 대기 종료
-                Change(Phase == StagePhase.Preparation ? StagePhase.CombatOne : Phase == StagePhase.CombatOne ? StagePhase.UpgradeOne : StagePhase.UpgradeTwo); // 다음 구간 진입
+                Change(Phase == StagePhase.Preparation ? StagePhase.CombatOne : Phase == StagePhase.CombatOne ? StagePhase.MidBoss : StagePhase.FinalBoss); // 선택 없는 다음 구간
             } // 순회 종료
         } // 진행 종료
-        public bool CompleteUpgrade() // 강화 아이템 선택 완료
-        { // 완료 시작
-            if (Phase != StagePhase.UpgradeOne && Phase != StagePhase.UpgradeTwo) // 선택 구간 확인
-            { // 무효 처리 시작
-                return false; // 중복 또는 잘못된 완료
-            } // 무효 처리 종료
-            Change(Phase == StagePhase.UpgradeOne ? StagePhase.MidBoss : StagePhase.FinalBoss); // 다음 보스 구간
-            return true; // 선택 완료
-        } // 완료 종료
         public bool DefeatBoss() // 보스 처치 알림
         { // 처리 시작
             if (Phase != StagePhase.MidBoss && Phase != StagePhase.FinalBoss) // 보스 구간 확인

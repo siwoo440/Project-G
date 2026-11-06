@@ -70,8 +70,9 @@ namespace ProjectG // 프로젝트 영역
             progress.Begin(controller, camera); // 경험치와 카드 연결
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
-            UpgradeItemSelection selection = camera.gameObject.AddComponent<UpgradeItemSelection>(); // 강화 아이템 선택 구성
-            camera.gameObject.AddComponent<StageDirector>().Begin(controller, camera, pool, progress, selection); // 시험 스테이지 연결
+            UpgradeDropManager drops = camera.gameObject.AddComponent<UpgradeDropManager>(); // 전투 중 아이템 드롭 구성
+            drops.Begin(controller, camera, new UpgradeDropEffects(controller, progress)); // 등급 효과와 경험치 회수 연결
+            camera.gameObject.AddComponent<StageDirector>().Begin(controller, camera, pool, progress, null); // 고정 선택 없는 스테이지 연결
             return player; // 생성 플레이어 반환
         } // 생성 종료
     } // 클래스 종료

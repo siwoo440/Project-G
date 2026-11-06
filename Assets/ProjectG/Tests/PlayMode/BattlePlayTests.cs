@@ -257,7 +257,6 @@ public class BattlePlayTests // 실제 전투 흐름 시험
         GameObject playerObject = BattleSetup.Create(camera); // 시험 전투 생성
         BattlePlayer player = playerObject.GetComponent<BattlePlayer>(); // 플레이어 참조
         StageDirector encounter = cameraObject.GetComponent<StageDirector>(); // 스테이지 등장기 참조
-        UpgradeItemSelection selection = cameraObject.GetComponent<UpgradeItemSelection>(); // 강화 선택 참조
         try // 시험 시작
         { // 시험 범위 시작
             encounter.Advance(2.1f, 2.1f); // 첫 적 등장
@@ -265,9 +264,12 @@ public class BattlePlayTests // 실제 전투 흐름 시험
             Assert.That(first, Is.Not.Null); // 일반 적 생성 확인
             Transform firstBody = first.transform.Find("EnemyBody"); // 일반 적 몸체 조회
             Assert.That(first.transform.position.y + firstBody.lossyScale.y * 0.5f, Is.LessThanOrEqualTo(camera.transform.position.y + camera.orthographicSize)); // 일반 적 화면 경계
-            encounter.Advance(63f, 63f); // 첫 강화 구간 진입
-            Assert.That(selection.TryChoose(0), Is.True); // 첫 강화 선택
-            encounter.Advance(2.1f, 2.1f); // 중간 보스 등장
+            encounter.Advance(62.9f, 62.9f); // 첫 전투 경계 도달
+            Assert.That(encounter.State.Phase, Is.EqualTo(StagePhase.MidBoss)); // 중간 보스 전환 확인
+            Assert.That(cameraObject.GetComponent<UpgradeItemSelection>(), Is.Null); // 고정 강화 선택 제거 확인
+            encounter.Advance(1f, 1f); // 첫 안전 시간 진행
+            Assert.That(encounter.Boss, Is.Null); // 안전 시간 중 보스 대기
+            encounter.Advance(1.1f, 1.1f); // 중간 보스 등장
             for (int index = 0; index < 2; index++) // 두 보스 순회
             { // 순회 시작
                 EnemyActor enemy = encounter.Boss; // 현재 보스 확인
@@ -282,7 +284,8 @@ public class BattlePlayTests // 실제 전투 흐름 시험
                 if (index == 0) // 중간 보스 종료 확인
                 { // 다음 보스 시작
                     encounter.Advance(50f, 50f); // 두 번째 일반 전투 진행
-                    Assert.That(selection.TryChoose(0), Is.True); // 둘째 강화 선택
+                    Assert.That(encounter.State.Phase, Is.EqualTo(StagePhase.FinalBoss)); // 최종 보스 전환 확인
+                    Assert.That(encounter.Boss, Is.Null); // 최종 보스 안전 대기 확인
                     encounter.Advance(2.1f, 2.1f); // 최종 보스 등장
                 } // 다음 보스 종료
             } // 순회 종료

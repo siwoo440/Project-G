@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 영역
     { // 클래스 시작
         private float energy; // 소수 포함 필살기 에너지
         public int Energy => Mathf.FloorToInt(energy + 0.00001f); // 표시용 정수 에너지
+        public float ExactEnergy => energy; // 소수 포함 실제 에너지
         public float UniqueCooldownReduction; // 고유 스킬 쿨타임 감소율
         public float RapidActive // 고유 스킬 남은 활성 시간
         { // 속성 시작

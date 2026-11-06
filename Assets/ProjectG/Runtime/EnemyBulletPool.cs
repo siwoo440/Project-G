@@ -6,8 +6,20 @@ namespace ProjectG // 프로젝트 영역
     { // 클래스 시작
         private readonly Stack<EnemyBullet> available = new Stack<EnemyBullet>(); // 회수된 적탄 목록
         private readonly List<EnemyBullet> activeScan = new List<EnemyBullet>(); // 활성 적탄 조회 재사용 목록
+        private Camera cachedView; // 재사용할 풀의 카메라
         private int created; // 생성된 적탄 수
         private const int MaximumBullets = 256; // 시험용 적탄 상한
+        internal Camera View // 현재 풀의 카메라 조회
+        { // 조회 시작
+            get // 현재 카메라 반환
+            { // 반환 시작
+                if (cachedView == null) // 카메라 부재 또는 파괴 확인
+                { // 재조회 시작
+                    cachedView = GetComponent<Camera>(); // 새 카메라 조회
+                } // 재조회 종료
+                return cachedView; // 현재 카메라 반환
+            } // 반환 종료
+        } // 조회 종료
         public int ActiveCount // 현재 활성 적탄 수
         { // 조회 시작
             get // 활성 개수 조회

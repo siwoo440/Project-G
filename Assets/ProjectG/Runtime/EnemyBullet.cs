@@ -79,7 +79,7 @@ namespace ProjectG // 프로젝트 영역
                     return; // 추가 판정 생략
                 } // 접촉 회수 종료
             } // 접촉 판정 종료
-            Camera view = Owner != null ? Owner.GetComponent<Camera>() : null; // 풀의 전투 카메라
+            Camera view = Owner != null ? Owner.View : null; // 풀의 현재 전투 카메라
             float halfHeight = view != null ? view.orthographicSize : 0f; // 화면 세로 반경
             float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
             Vector3 center = view != null ? view.transform.position : Vector3.zero; // 화면 중심

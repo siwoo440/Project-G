@@ -53,6 +53,24 @@ namespace ProjectG // 프로젝트 영역
         { // 복사 시작
             return (CombatMeasurementSnapshot)MemberwiseClone(); // 입력 값의 독립 사본
         } // 복사 종료
+        internal void CopyFrom(CombatMeasurementSnapshot source) // 검증된 전투 기록 복사
+        { // 복사 시작
+            CombatSeconds = source.CombatSeconds; // 전투 시간 복사
+            TotalSeconds = source.TotalSeconds; // 전체 시간 복사
+            CardsSelected = source.CardsSelected; // 카드 선택 수 복사
+            UltimateActivations = source.UltimateActivations; // 필살기 수 복사
+            ItemDrops = source.ItemDrops; // 드롭 수 복사
+            ItemPickups = source.ItemPickups; // 획득 수 복사
+            EnemyDefeats = source.EnemyDefeats; // 처치 수 복사
+            Hits = source.Hits; // 피격 수 복사
+            Grazes = source.Grazes; // 그레이즈 수 복사
+            MidBossDefeats = source.MidBossDefeats; // 중간 보스 기록 복사
+            FinalBossDefeats = source.FinalBossDefeats; // 최종 보스 기록 복사
+            BossPhase = source.BossPhase; // 보스 단계 복사
+            CurrentStagePhase = source.CurrentStagePhase; // 스테이지 구간 복사
+            ActiveEnemyProjectiles = source.ActiveEnemyProjectiles; // 활성 적탄 수 복사
+            PeakEnemyProjectiles = source.PeakEnemyProjectiles; // 최대 적탄 수 복사
+        } // 복사 종료
     } // 기록 종료
     public sealed class PlayMeasurement // 자동 또는 실제 플레이 측정 모델
     { // 측정 시작
@@ -110,7 +128,11 @@ namespace ProjectG // 프로젝트 영역
             { // 거부 시작
                 return false; // 기존 측정 기록 유지
             } // 거부 종료
-            combat = snapshot.Copy(); // 입력 값의 독립 사본 보관
+            if (combat == null) // 첫 유효 기록 확인
+            { // 저장소 준비 시작
+                combat = new CombatMeasurementSnapshot(); // 출격별 독립 저장소 생성
+            } // 저장소 준비 종료
+            combat.CopyFrom(snapshot); // 검증된 입력을 기존 저장소에 복사
             return true; // 유효 스냅샷 반영
         } // 반영 종료
         private static bool ValidSeconds(double value) // 시간 값의 유효 범위

@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 영역
         private int? lastObservedBossPhase; // 마지막으로 확인한 최종 보스 단계
         private Func<MeasurementContext> environmentProvider; // 격리 가능한 표시 환경 조회
         private readonly MeasurementContext currentEnvironment = new MeasurementContext(); // 매 프레임 재사용할 표시 조건
+        private readonly CombatMeasurementSnapshot snapshot = new CombatMeasurementSnapshot(); // 매 프레임 재사용할 전투 기록
         private GraphicsDeviceType lastDeviceType; // 마지막으로 확인한 그래픽 장치 종류
         private bool hasDeviceType; // 장치 종류 초기 조회 여부
         private string lastGraphicsApi; // 재사용할 그래픽 API 이름
@@ -139,7 +140,6 @@ namespace ProjectG // 프로젝트 영역
             } // 생략 종료
             RunStatistics stats = player.Statistics; // 현재 출격 통계
             StageProgression progress = stage.State; // 현재 스테이지 상태
-            CombatMeasurementSnapshot snapshot = new CombatMeasurementSnapshot(); // 독립 전투 기록 생성
             snapshot.CombatSeconds = stats.Finished ? stats.CombatSeconds : progress.CombatSeconds; // 확정 또는 진행 중 전투 시간
             snapshot.TotalSeconds = stats.Finished ? stats.TotalSeconds : progress.TotalSeconds; // 확정 또는 진행 중 전체 시간
             snapshot.CardsSelected = stats.Cards.Count; // 실제 카드 선택 수

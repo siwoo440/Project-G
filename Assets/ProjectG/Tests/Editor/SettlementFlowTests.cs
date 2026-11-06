@@ -8,6 +8,7 @@ public class SettlementFlowTests // 정산 화면 통합 시험
         public string Data; // 저장된 내용
         public bool FailReads; // 읽기 실패 여부
         public bool FailWrites; // 쓰기 실패 여부
+        public bool LoseAcknowledgement; // 저장 응답 누락 여부
         public ProgressReadStatus Read(out string data, out string error) // 저장 내용 읽기
         { // 읽기 시작
             data = Data; // 보관 내용 반환
@@ -22,6 +23,12 @@ public class SettlementFlowTests // 정산 화면 통합 시험
                 return false; // 기존 내용 유지
             } // 거부 종료
             Data = data; // 내용 기록
+            if (LoseAcknowledgement) // 저장 후 응답 오류 확인
+            { // 응답 누락 시작
+                LoseAcknowledgement = false; // 다음 저장 응답 복원
+                error = "저장 응답 누락"; // 저장 결과 미확인 안내
+                return false; // 저장 후 오류 전달
+            } // 응답 누락 종료
             return true; // 저장 완료
         } // 쓰기 종료
     } // 저장소 종료
@@ -77,6 +84,38 @@ public class SettlementFlowTests // 정산 화면 통합 시험
         { // 정리 시작
             DestroyHost(holder); // 주입 서비스와 시험 객체 제거
             Time.timeScale = previousScale; // 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
+    [Test] // 저장 완료 후 응답 누락 화면 시험
+    public void SavedSettlementWithLostAcknowledgementShowsResultOnce() // 저장 확인 후 결과 표시
+    { // 시험 시작
+        GameObject holder = new GameObject("LostSettlementHost"); // 격리된 메뉴 객체
+        float previousScale = Time.timeScale; // 기존 시간 배율
+        try // 시험 범위 준비
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 전투 시간 초기화
+            MemoryStore store = new MemoryStore(); // 격리된 메모리 저장소
+            GameSessionHost host = CreateHost(holder, store); // 출격 화면 연결
+            Prepare(host); // 출격 준비 화면
+            Assert.That(host.Flow.StartRun(), Is.True); // 출격 시작 저장
+            store.LoseAcknowledgement = true; // 정산 저장 후 응답 누락
+            host.CurrentStage.State.Fail(); // 실제 전투 실패 처리
+            Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Result)); // 원문 확인 후 결과 표시
+            Assert.That(host.Flow.SettlementPending, Is.False); // 불필요한 재시도 대기 방지
+            Assert.That(host.CurrentReceipt, Is.Not.Null); // 확인된 영수증 표시
+            Assert.That(host.CurrentReceipt.AlreadySettled, Is.False); // 최초 지급 결과 확인
+            Assert.That(host.Progress.Mastery(CharacterType.Rapid), Is.EqualTo(10)); // 숙련도 한 번 지급
+            Assert.That(host.Progress.CommonMaterials, Is.EqualTo(3)); // 공통 재료 한 번 지급
+            string persisted = store.Data; // 실제 저장 원문 보관
+            Assert.That(host.Progress.TrySettle(host.CurrentReceipt.RunId, CharacterType.Rapid, false, out SettlementReceipt repeated, out string error), Is.True, error); // 같은 정산 재조회
+            Assert.That(repeated.AlreadySettled, Is.True); // 기존 영수증 재사용
+            Assert.That(store.Data, Is.EqualTo(persisted)); // 재조회 중 저장 변경 없음
+            Assert.That(host.Progress.Mastery(CharacterType.Rapid), Is.EqualTo(10)); // 중복 숙련도 방지
+        } // 시험 범위 종료
+        finally // 시험 정리
+        { // 정리 시작
+            DestroyHost(holder); // 시험 객체와 저장소 제거
+            Time.timeScale = previousScale; // 기존 시간 배율 복원
         } // 정리 종료
     } // 시험 종료
     [Test] // 포기 정산 실패 시험

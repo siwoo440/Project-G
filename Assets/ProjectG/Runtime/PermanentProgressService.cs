@@ -530,10 +530,36 @@ namespace ProjectG // 프로젝트 영역
                     error = "영구 성장 데이터가 저장 가능한 크기나 형식을 벗어났습니다"; // 복원 불가 오류 안내
                     return false; // 기존 저장과 메모리 보존
                 } // 저장 크기 오류 종료
-                if (!storage.Write(expectedRaw, serialized, out error)) // 확인한 원문과 비교 후 원자 저장
+                bool written; // 저장 응답 결과
+                string writeError; // 저장 오류 또는 예외 안내
+                try // 저장소 기록 요청
+                { // 저장 요청 시작
+                    written = storage.Write(expectedRaw, serialized, out writeError); // 확인한 원문과 비교 후 원자 저장
+                } // 저장 요청 종료
+                catch (Exception exception) // 저장 응답 예외
+                { // 예외 처리 시작
+                    written = false; // 저장 상태 재확인 필요
+                    writeError = "영구 성장 데이터 저장 실패: " + exception.Message; // 원래 예외 안내 보관
+                } // 예외 처리 종료
+                if (!written) // 저장 실패 또는 응답 예외 확인
                 { // 저장 실패 시작
-                    error = string.IsNullOrWhiteSpace(error) ? "영구 성장 데이터 저장 실패" : error; // 기본 오류 안내
-                    return false; // 이전 메모리 상태 유지
+                    writeError = string.IsNullOrWhiteSpace(writeError) ? "영구 성장 데이터 저장 실패" : writeError; // 원래 저장 오류 보관
+                    bool confirmed = false; // 목표 원문 확인 여부
+                    try // 저장 결과 재조회
+                    { // 재조회 시작
+                        ProgressReadStatus status = storage.Read(out string current, out string readError); // 실제 저장 원문 확인
+                        confirmed = status == ProgressReadStatus.Found && string.IsNullOrEmpty(readError) && string.Equals(current, serialized, StringComparison.Ordinal); // 목표 원문과 정확히 일치하는 경우만 확인
+                    } // 재조회 종료
+                    catch (Exception) // 재조회 예외
+                    { // 재조회 실패 시작
+                        confirmed = false; // 불확실한 저장 상태 유지
+                    } // 재조회 실패 종료
+                    if (!confirmed) // 저장 결과 미확인
+                    { // 확인 실패 시작
+                        error = writeError; // 원래 저장 오류 유지
+                        return false; // 이전 메모리 상태 보존
+                    } // 확인 실패 종료
+                    error = null; // 실제 원문 확인 후 오류 해제
                 } // 저장 실패 종료
                 snapshot = next; // 저장이 끝난 상태만 반영
                 expectedRaw = serialized; // 저장된 원문 보관

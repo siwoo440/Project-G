@@ -16,6 +16,8 @@ namespace ProjectG // 프로젝트 영역
             public UpgradeDrop Drop; // 아이템 종류와 등급
             public GameObject Visual; // 전투 루트의 표시 객체
             public float Remaining; // 남은 시험 유지 시간
+            public Vector2 SpawnPlayerPosition; // 드롭 생성 시 플레이어 위치
+            public bool FirstAdvance; // 생성 이후 첫 획득 판정 여부
             public RunStatistics Statistics; // 드롭이 생성된 출격 기록
             public DropRecord Record; // 드롭의 종류 등급과 결과
         } // 자료 종료
@@ -102,12 +104,14 @@ namespace ProjectG // 프로젝트 영역
             entry.Drop = drop; // 종류와 등급 보관
             entry.Visual = visual; // 이미지 객체 보관
             entry.Remaining = TrialLifetime; // 시험 유지 시간 보관
+            entry.SpawnPlayerPosition = player.transform.position; // 생성 이전 이동 제외 기준
+            entry.FirstAdvance = true; // 생성 이후 첫 판정 기록
             entry.Statistics = player.Statistics; // 생성 당시 출격 기록 보관
             entry.Record = entry.Statistics?.RecordDropSpawned(drop); // 실제 드롭 종류와 등급 기록
             drops.Add(entry); // 필드 아이템 등록
             return true; // 필드 드롭 성공
         } // 드롭 종료
-        private void Update() // 전투 시간 갱신
+        private void LateUpdate() // 플레이어 이동 이후 전투 시간 갱신
         { // 갱신 시작
             Advance(Time.deltaTime); // 이동 접촉과 유지 시간 진행
         } // 갱신 종료
@@ -137,21 +141,22 @@ namespace ProjectG // 프로젝트 영역
                     RemoveAt(index, DropOutcome.Discarded); // 유실 드롭 폐기와 참조 정리
                     continue; // 다음 아이템 확인
                 } // 연결 정리 종료
+                Vector2 start = entry.FirstAdvance ? entry.SpawnPlayerPosition : player.PreviousPosition; // 생성 이후 또는 이전 프레임 위치
+                entry.FirstAdvance = false; // 첫 획득 판정 완료
+                float liveFraction = Mathf.Clamp01(entry.Remaining / elapsed); // 이번 프레임에서 아이템이 남은 비율
+                Vector2 end = Vector2.Lerp(start, player.transform.position, liveFraction); // 만료 전까지 이동한 위치
                 entry.Remaining -= elapsed; // 시험 유지 시간 차감
-                if (entry.Remaining <= 0f) // 시험 유지 시간 종료 확인
-                { // 만료 시작
-                    RemoveAt(index, DropOutcome.Expired); // 자연 만료 기록과 정리
-                    continue; // 다음 아이템 확인
-                } // 만료 종료
                 Vector2 itemPosition = entry.Visual.transform.position; // 현재 필드 위치
-                if (!CollisionMath.Intersects(itemPosition, player.PreviousPosition, player.transform.position, TrialPickupRadius)) // 이동 구간 접촉 확인
-                { // 접촉 대기 시작
+                string feedback = null; // 획득 안내 초기화
+                bool acquiredDuringLifetime = CollisionMath.Intersects(itemPosition, start, end, TrialPickupRadius) && effects.CanApply(entry.Drop.Id, entry.Drop.Grade) && effects.TryApply(entry.Drop.Id, entry.Drop.Grade, out feedback); // 유효 시간 안의 접촉과 효과 적용
+                if (!acquiredDuringLifetime) // 획득 실패 확인
+                { // 대기 또는 만료 시작
+                    if (entry.Remaining <= 0f) // 유지 시간 종료 확인
+                    { // 만료 시작
+                        RemoveAt(index, DropOutcome.Expired); // 자연 만료 기록과 정리
+                    } // 만료 종료
                     continue; // 다음 아이템 확인
-                } // 접촉 대기 종료
-                if (!effects.CanApply(entry.Drop.Id, entry.Drop.Grade) || !effects.TryApply(entry.Drop.Id, entry.Drop.Grade, out string feedback)) // 현재 효과 재검증과 적용
-                { // 효과 없음 시작
-                    continue; // 임시 시험 처리로 드롭 유지
-                } // 효과 없음 종료
+                } // 대기 또는 만료 종료
                 UpgradeDrop acquired = entry.Drop; // 성공한 아이템 보관
                 RemoveAt(index, DropOutcome.Acquired); // 획득 기록과 아이템 제거
                 LastFeedback = string.IsNullOrWhiteSpace(feedback) ? UpgradeItemState.Label(acquired.Id, acquired.Grade) : feedback; // 실제 변화 또는 안전한 효과 안내
@@ -303,14 +308,14 @@ namespace ProjectG // 프로젝트 영역
                 return "전투 정보 없음"; // 유효 상태 없음 안내
             } // 미준비 종료
             UpgradeItemState items = player.Build.Upgrades; // 현재 아이템 성장
-            string damage = "화력 " + items.Count(UpgradeItemId.Damage) + "회 +" + Mathf.RoundToInt(items.DamageBonus * 100f) + "%"; // 피해 획득과 증가량
-            string fire = "연사 " + items.Count(UpgradeItemId.FireRate) + "회 -" + Mathf.RoundToInt(items.FireRateBonus * 100f) + "%"; // 연사 획득과 감소량
-            string pierce = "관통 " + items.Count(UpgradeItemId.Pierce) + "회 +" + items.PierceBonus; // 관통 획득과 증가량
-            string cooldown = "고유기 대기 " + items.Count(UpgradeItemId.UniqueCooldown) + "회 -" + Mathf.RoundToInt(items.UniqueCooldownBonus * 100f) + "%"; // 고유기 대기 감소
+            string damage = "화력 " + items.Count(UpgradeItemId.Damage) + "회 +" + Mathf.RoundToInt(items.DamageBonus * 100f) + "% / 기본 피해 +" + Mathf.RoundToInt((player.Build.Damage(1f, false) - 1f) * 100f) + "% / 집중 +" + Mathf.RoundToInt((player.Build.Damage(1f, true) - 1f) * 100f) + "%"; // 아이템 피해와 실제 합산
+            string fire = "연사 " + items.Count(UpgradeItemId.FireRate) + "회 -" + Mathf.RoundToInt(items.FireRateBonus * 100f) + "% / 발사 간격 -" + Mathf.RoundToInt((1f - player.Build.IntervalScale) * 100f) + "%"; // 아이템 연사와 실제 합산
+            string pierce = "관통 " + items.Count(UpgradeItemId.Pierce) + "회 +" + items.PierceBonus + " / 추가 관통 +" + player.Build.ExtraPierce; // 아이템 관통과 실제 합산
+            string cooldown = "고유기 대기 " + items.Count(UpgradeItemId.UniqueCooldown) + "회 -" + Mathf.RoundToInt(items.UniqueCooldownBonus * 100f) + "% / J 대기 -" + Mathf.RoundToInt(player.Build.UniqueCooldownReduction * 100f) + "%"; // 아이템 대기와 실제 합산
             string graze = "근접 충전 " + items.Count(UpgradeItemId.Graze) + "회 +" + Mathf.RoundToInt(items.GrazeBonus * 100f) + "%"; // 근접 충전 증가
             string shield = "강화 방어막 " + player.Survival.UpgradeShieldCharges + "회"; // 남은 방어 횟수
             string consumables = "회복 " + items.Count(UpgradeItemId.Heal) + "회 · 충전 " + items.Count(UpgradeItemId.Energy) + "회 · 자석 " + items.Count(UpgradeItemId.Magnet) + "회"; // 즉시 아이템 획득 수
-            return "아이템 누적 효과\n" + damage + "\n" + fire + "\n" + pierce + "\n" + cooldown + "\n" + graze + "\n" + shield + "\n" + consumables; // 실제 출격 정보 표시
+            return "아이템 누적 수치 / 카드 합산 실제 수치\n" + damage + "\n" + fire + "\n" + pierce + "\n" + cooldown + "\n" + graze + "\n" + shield + "\n" + consumables; // 획득 기록과 실제 전투 효과 구분
         } // 요약 종료
         private void DrawInfo(Rect view) // 전투 정보 화면 표시
         { // 표시 시작

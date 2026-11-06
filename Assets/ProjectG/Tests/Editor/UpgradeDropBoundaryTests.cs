@@ -40,7 +40,8 @@ public class UpgradeDropBoundaryTests // 강화 아이템 획득 경계 시험
             Effects effects = new Effects(); // 실제 획득 관찰
             UpgradeDropManager manager = cameraObject.AddComponent<UpgradeDropManager>(); // 드롭 관리자
             manager.Begin(player, camera, effects, new ZeroRandom()); // 고정 드롭 연결
-            Assert.That(manager.TryDrop(EnemyRank.Normal, Vector2.zero), Is.True); // 아이템 생성
+            float dropHeight = UpgradeDropManager.TrialFallSpeed * (UpgradeDropManager.TrialLifetime - 0.1f); // 만료 직전에 중심에 닿는 시작 높이
+            Assert.That(manager.TryDrop(EnemyRank.Normal, new Vector2(0f, dropHeight)), Is.True); // 낙하할 아이템 생성
             manager.Advance(UpgradeDropManager.TrialLifetime - 0.1f); // 만료 직전까지 대기
             Assert.That(manager.ActiveCount, Is.EqualTo(1)); // 유효 아이템 확인
             player.Step(Vector2.right, false, false, false, 0.5f, -8f, 8f, -5f, 5f); // 반 초의 이동 구간
@@ -72,7 +73,8 @@ public class UpgradeDropBoundaryTests // 강화 아이템 획득 경계 시험
             Effects effects = new Effects(); // 획득 효과 관찰
             UpgradeDropManager manager = cameraObject.AddComponent<UpgradeDropManager>(); // 드롭 관리자
             manager.Begin(player, camera, effects, new ZeroRandom()); // 고정 드롭 연결
-            Assert.That(manager.TryDrop(EnemyRank.Normal, Vector2.zero), Is.True); // 아이템 생성
+            float dropHeight = UpgradeDropManager.TrialFallSpeed * (UpgradeDropManager.TrialLifetime - 0.1f); // 만료 직전에 중심에 닿는 시작 높이
+            Assert.That(manager.TryDrop(EnemyRank.Normal, new Vector2(0f, dropHeight)), Is.True); // 낙하할 아이템 생성
             manager.Advance(UpgradeDropManager.TrialLifetime - 0.1f); // 만료 직전까지 대기
             Time.timeScale = 0f; // 카드 선택과 일시정지
             manager.Advance(1f); // 정지 중 진행 시도

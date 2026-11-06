@@ -157,7 +157,7 @@ namespace ProjectG // 프로젝트 영역
             CardData first = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R01 : CardId.S01); // 첫 기본 후보 조회
             CardData second = CardCatalog.Find(SelectedCharacter == CharacterType.Rapid ? CardId.R02 : CardId.S02); // 두 번째 기본 후보 조회
             string progress = ProgressDescription != null ? ProgressDescription(SelectedCharacter) : "영구 성장 정보를 불러올 수 없습니다."; // 실제 보유량 또는 오류 안내
-            return character + "  영구 성장\n\n" + progress + "\n\n무료 기본 후보 · 레벨업 시 제시 가능\n" + first.Name + "  :  " + first.Description + "\n" + second.Name + "  :  " + second.Description + "\n\n유료 해금 상품: 미정\n고유 도전 과제: 조건·보상 미정"; // 저장된 성장과 확정되지 않은 항목
+            return character + "  영구 성장\n\n" + progress + "\n\n무료 기본 후보 · 레벨업 시 제시 가능\n" + first.Name + "  :  " + first.Description + "\n" + second.Name + "  :  " + second.Description + "\n\n유료 해금 상품: 미정\n첫 고유 과제: 준비 중"; // 저장된 성장과 준비 중인 과제
         } // 정보 생성 종료
         public bool SelectCommonSkill(CommonSkill skill) // 공용 스킬 선택
         { // 선택 시작
@@ -793,7 +793,7 @@ namespace ProjectG // 프로젝트 영역
             } // 카드 기록 종료
             string chosen = cards.Length == 0 ? "없음" : cards.ToString(); // 카드 미선택 표시
             string reward = receipt == null ? "정산 정보 없음" : "숙련도 +" + receipt.MasteryGained + "   공통 재료 +" + receipt.CommonMaterialsGained + "   전용 재료 +" + receipt.CharacterMaterialsGained; // 저장된 지급 내역
-            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n" + reward + "\n고유 도전 과제: 조건·보상 미정, 진행 측정 대기\n전투 기록은 저장되지 않습니다."; // 실제 기록과 정산 표시
+            return "전투 시간: " + Mathf.FloorToInt(stats.CombatSeconds) + "초\n전체 시간: " + Mathf.FloorToInt(stats.TotalSeconds) + "초\n처치: " + stats.Defeats + "   그레이즈: " + stats.Grazes + "   피격: " + stats.Hits + "\n선택 카드: " + chosen + "\n\n" + reward + "\n첫 고유 과제: 준비 중\n전투 기록은 저장되지 않습니다."; // 실제 기록과 정산 표시
         } // 요약 종료
         private void DrawSettlementError() // 정산 오류와 재시도 화면
         { // 표시 시작

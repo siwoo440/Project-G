@@ -11,6 +11,7 @@ namespace ProjectG // 프로젝트 영역
         private int? cardSeed; // 재현 시험용 선택 시드
         public int? CardSeed => cardSeed; // 현재 카드 추첨 시드
         private Camera battleCamera; // 전투 카메라
+        internal Camera BattleCamera => battleCamera; // 현재 전투 화면 조회
         private InputAction first; // 첫 카드 키
         private InputAction second; // 둘째 카드 키
         private InputAction third; // 셋째 카드 키

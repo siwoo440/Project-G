@@ -199,7 +199,7 @@ namespace ProjectG // 프로젝트 영역
         public int characterMaterialsGained; // 지급 전용 재료
     } // 영수증 데이터 종료
     [Serializable] // 유니티 직렬화 표시
-    internal sealed class ProgressSnapshot // 하나로 저장하는 성장 스냅샷
+    internal class ProgressSnapshot // 하나로 저장하는 성장 스냅샷
     { // 스냅샷 시작
         public int schemaVersion = 1; // 저장 형식 버전
         public int commonMaterials; // 공통 재료
@@ -213,6 +213,28 @@ namespace ProjectG // 프로젝트 영역
         public List<string> sniperUnlocks = new List<string>(); // 저격형 해금 목록
         public List<ProgressReceipt> receipts = new List<ProgressReceipt>(); // 정산 완료 출격 목록
     } // 스냅샷 종료
+    internal enum CharacterAchievement // 결정된 캐릭터별 첫 과제
+    { // 과제 시작
+        RapidBasicHits50, // 속사형의 기본·집중 적중 과제
+        SniperWeakHits10 // 저격형의 약점 적중 과제
+    } // 과제 종료
+    internal interface IAchievementVerifier // 향후 주입할 과제 증거 검증기
+    { // 검증 계약 시작
+        bool IsVerified(CharacterAchievement achievement, string runId); // 확인된 출격 증거 검사
+    } // 검증 계약 종료
+    [Serializable] // 유니티 직렬화 표시
+    internal sealed class ProgressAchievementReceipt // 출격 정산과 분리된 과제 영수증
+    { // 영수증 시작
+        public CharacterAchievement achievement; // 과제 식별자
+        public string runId; // 검증된 출격 식별자
+        public CharacterType character; // 과제 대상 캐릭터
+        public int characterMaterialsGained; // 한 번 지급한 전용 재료
+    } // 영수증 종료
+    [Serializable] // 유니티 직렬화 표시
+    internal sealed class ProgressSnapshotV2 : ProgressSnapshot // 과제 기록이 있는 저장 형식
+    { // 저장 형식 시작
+        public List<ProgressAchievementReceipt> achievementReceipts = new List<ProgressAchievementReceipt>(); // 별도 과제 영수증
+    } // 저장 형식 종료
     public sealed class ProgressUnlockDefinition // 확정된 해금 항목 정의
     { // 정의 시작
         public readonly CharacterType Character; // 해금 캐릭터
@@ -245,6 +267,7 @@ namespace ProjectG // 프로젝트 영역
     { // 서비스 시작
         private readonly IProgressStorage storage; // 주입된 저장소
         private readonly IProgressUnlockCatalog unlockCatalog; // 확정된 해금 항목 목록
+        private readonly IAchievementVerifier achievementVerifier; // 명시적으로 주입한 과제 증거 검증기
         private ProgressSnapshot snapshot; // 마지막 저장 완료 상태
         private string expectedRaw; // 마지막으로 확인한 저장 원문
         private IDisposable sessionHandle; // 게임 실행 동안 유지하는 저장소 소유
@@ -258,10 +281,14 @@ namespace ProjectG // 프로젝트 영역
         public PermanentProgressService(IProgressStorage store) : this(store, new EmptyProgressUnlockCatalog()) // 기본 빈 해금 목록
         { // 생성 시작
         } // 생성 종료
-        public PermanentProgressService(IProgressStorage store, IProgressUnlockCatalog catalog) // 저장소와 확정 목록 연결
+        public PermanentProgressService(IProgressStorage store, IProgressUnlockCatalog catalog) : this(store, catalog, null) // 검증기 없는 기본 경로
+        { // 생성 시작
+        } // 생성 종료
+        internal PermanentProgressService(IProgressStorage store, IProgressUnlockCatalog catalog, IAchievementVerifier verifier) // 격리된 검증기 주입
         { // 생성 시작
             storage = store; // 저장소 보관
             unlockCatalog = catalog; // 확인된 해금 목록 보관
+            achievementVerifier = verifier; // 명시된 증거 검증기 보관
         } // 생성 종료
         public bool Load(out string error) // 저장된 전체 스냅샷 복원
         { // 복원 시작
@@ -301,12 +328,12 @@ namespace ProjectG // 프로젝트 영역
                     error = "영구 성장 데이터가 비어 있습니다"; // 손상 오류 안내
                     return false; // 빈 원문 덮어쓰기 차단
                 } // 오류 종료
-                if (!ProgressJsonValidation.IsValid(raw)) // 필수 필드와 타입 확인
+                if (!ProgressJsonValidation.IsValid(raw, out int schemaVersion)) // 버전별 필수 필드와 타입 확인
                 { // 형식 오류 시작
                     error = "영구 성장 데이터가 손상되었거나 지원되지 않습니다"; // 손상 오류 안내
                     return false; // 원본 보존
                 } // 형식 오류 종료
-                ProgressSnapshot parsed = JsonUtility.FromJson<ProgressSnapshot>(raw); // 전체 데이터 역직렬화
+                ProgressSnapshot parsed = schemaVersion == 2 ? (ProgressSnapshot)JsonUtility.FromJson<ProgressSnapshotV2>(raw) : JsonUtility.FromJson<ProgressSnapshot>(raw); // 확인된 버전으로 역직렬화
                 if (!Validate(parsed)) // 저장 값과 범위 확인
                 { // 오류 시작
                     error = "영구 성장 데이터가 손상되었거나 지원되지 않습니다"; // 손상 오류 안내
@@ -335,6 +362,83 @@ namespace ProjectG // 프로젝트 영역
         { // 조회 시작
             return IsLoaded && ValidCharacter(character) && ValidId(optionId) && Unlocks(snapshot, character).Contains(optionId); // 캐릭터별 해금 확인
         } // 조회 종료
+        internal bool HasAchievement(CharacterAchievement achievement) // 내부 과제 기록 조회
+        { // 조회 시작
+            if (!IsLoaded || !(snapshot is ProgressSnapshotV2 upgraded) || upgraded.achievementReceipts == null) // 유효한 과제 저장 확인
+            { // 미기록 시작
+                return false; // 이전 버전 또는 미로드 상태
+            } // 미기록 종료
+            foreach (ProgressAchievementReceipt receipt in upgraded.achievementReceipts) // 별도 과제 기록 순회
+            { // 조회 반복 시작
+                if (receipt.achievement == achievement) // 과제 일치 확인
+                { // 기록 확인 시작
+                    return true; // 기존 과제 기록 확인
+                } // 기록 확인 종료
+            } // 조회 반복 종료
+            return false; // 기록되지 않은 과제
+        } // 조회 종료
+        internal bool TryRecordAchievement(CharacterAchievement achievement, string runId, out string error) // 검증된 내부 과제 지급 요청
+        { // 요청 시작
+            error = null; // 이전 오류 제거
+            if (!IsLoaded || !ValidId(runId) || !AchievementCharacter(achievement, out CharacterType character) || achievementVerifier == null) // 서비스와 검증기 확인
+            { // 차단 시작
+                error = "확인된 과제 증거를 사용할 수 없습니다"; // 미활성 판정 안내
+                return false; // 무증거 지급 차단
+            } // 차단 종료
+            bool active = snapshot.activeRunId == runId && snapshot.activeCharacter == character; // 진행 중인 해당 캐릭터 출격
+            ProgressReceipt run = FindReceipt(snapshot, runId); // 이미 정산된 출격 조회
+            if (!active && (run == null || run.character != character)) // 출격과 캐릭터 소속 확인
+            { // 차단 시작
+                error = "과제와 출격 정보가 일치하지 않습니다"; // 소속 오류 안내
+                return false; // 확인되지 않은 출격 차단
+            } // 차단 종료
+            try // 주입된 증거 검증
+            { // 검증 범위 시작
+                if (!achievementVerifier.IsVerified(achievement, runId)) // 과제 충족 증거 확인
+                { // 차단 시작
+                    error = "과제 달성 근거를 확인하지 못했습니다"; // 미확인 증거 안내
+                    return false; // 조건 임의 확정 차단
+                } // 차단 종료
+            } // 검증 범위 종료
+            catch (Exception exception) // 검증기 오류 확인
+            { // 오류 시작
+                error = "과제 증거 검증 실패: " + exception.Message; // 검증 실패 안내
+                return false; // 불확실한 증거 차단
+            } // 오류 종료
+            if (HasAchievement(achievement)) // 최초 지급 여부 확인
+            { // 재조회 시작
+                return true; // 기존 지급 유지와 중복 저장 생략
+            } // 재조회 종료
+            try // 과제 보상과 이행 준비
+            { // 준비 범위 시작
+                ProgressSnapshotV2 next = snapshot.schemaVersion == 2 ? (ProgressSnapshotV2)Clone(snapshot) : JsonUtility.FromJson<ProgressSnapshotV2>(JsonUtility.ToJson(snapshot)); // 이전 상태의 독립 신규 형식
+                if (snapshot.schemaVersion == 1) // 최초 이행 확인
+                { // 이행 시작
+                    next.schemaVersion = 2; // 과제 기록 버전 설정
+                    next.achievementReceipts = new List<ProgressAchievementReceipt>(); // 이전 형식의 빈 과제 목록
+                } // 이행 종료
+                if (character == CharacterType.Rapid) // 속사형 과제 확인
+                { // 속사 보상 시작
+                    next.rapidMaterials = checked(next.rapidMaterials + 1); // 전용 재료 한 개 추가
+                } // 속사 보상 종료
+                else // 저격형 과제
+                { // 저격 보상 시작
+                    next.sniperMaterials = checked(next.sniperMaterials + 1); // 전용 재료 한 개 추가
+                } // 저격 보상 종료
+                ProgressAchievementReceipt receipt = new ProgressAchievementReceipt(); // 독립 과제 영수증 생성
+                receipt.achievement = achievement; // 과제 식별자 기록
+                receipt.runId = runId; // 검증한 출격 기록
+                receipt.character = character; // 보상 캐릭터 기록
+                receipt.characterMaterialsGained = 1; // 최초 전용 재료 기록
+                next.achievementReceipts.Add(receipt); // 별도 과제 영수증 추가
+                return Commit(next, out error); // 보상과 기록의 원자 저장
+            } // 준비 범위 종료
+            catch (OverflowException) // 보상 숫자 초과 확인
+            { // 범위 오류 시작
+                error = "과제 보상이 저장 가능한 범위를 초과했습니다"; // 범위 초과 안내
+                return false; // 이전 상태 보존
+            } // 범위 오류 종료
+        } // 요청 종료
         public bool TryBegin(string runId, CharacterType character, out string error) // 실제 출격 시작 저장
         { // 시작 처리
             error = null; // 오류 초기화
@@ -573,7 +677,8 @@ namespace ProjectG // 프로젝트 영역
         } // 저장 종료
         private static ProgressSnapshot Clone(ProgressSnapshot value) // 변경 전 깊은 복사
         { // 복사 시작
-            return JsonUtility.FromJson<ProgressSnapshot>(JsonUtility.ToJson(value)); // 직렬화 기반 독립 복사
+            string raw = JsonUtility.ToJson(value); // 실제 버전의 직렬화 원문
+            return value.schemaVersion == 2 ? (ProgressSnapshot)JsonUtility.FromJson<ProgressSnapshotV2>(raw) : JsonUtility.FromJson<ProgressSnapshot>(raw); // 버전별 독립 복사
         } // 복사 종료
         private static bool ValidCharacter(CharacterType character) // 허용 캐릭터 확인
         { // 검사 시작
@@ -600,7 +705,7 @@ namespace ProjectG // 프로젝트 영역
         } // 검색 종료
         private static bool Validate(ProgressSnapshot value) // 저장 상태의 범위와 무결성 확인
         { // 검사 시작
-            if (value == null || value.schemaVersion != 1 || value.commonMaterials < 0 || value.rapidMastery < 0 || value.sniperMastery < 0 || value.rapidMaterials < 0 || value.sniperMaterials < 0 || value.rapidUnlocks == null || value.sniperUnlocks == null || value.receipts == null) // 형식과 음수 검사
+            if (value == null || (value.schemaVersion != 1 && value.schemaVersion != 2) || value.commonMaterials < 0 || value.rapidMastery < 0 || value.sniperMastery < 0 || value.rapidMaterials < 0 || value.sniperMaterials < 0 || value.rapidUnlocks == null || value.sniperUnlocks == null || value.receipts == null) // 형식과 음수 검사
             { // 오류 시작
                 return false; // 잘못된 저장 차단
             } // 오류 종료
@@ -620,8 +725,39 @@ namespace ProjectG // 프로젝트 영역
             { // 오류 시작
                 return false; // 모순된 출격 차단
             } // 오류 종료
-            return ValidUnlocks(value.rapidUnlocks) && ValidUnlocks(value.sniperUnlocks); // 캐릭터별 해금 목록 검사
+            return ValidUnlocks(value.rapidUnlocks) && ValidUnlocks(value.sniperUnlocks) && ValidAchievements(value); // 해금과 과제 기록 검사
         } // 검사 종료
+        private static bool ValidAchievements(ProgressSnapshot value) // 버전별 과제 영수증 검사
+        { // 검사 시작
+            if (value.schemaVersion == 1) // 기존 형식 확인
+            { // 이전 버전 시작
+                return !(value is ProgressSnapshotV2); // 과제 필드가 없는 기존 형식
+            } // 이전 버전 종료
+            if (!(value is ProgressSnapshotV2 upgraded) || upgraded.achievementReceipts == null) // 신규 형식과 목록 확인
+            { // 오류 시작
+                return false; // 과제 목록 누락 차단
+            } // 오류 종료
+            HashSet<CharacterAchievement> seen = new HashSet<CharacterAchievement>(); // 과제별 중복 검색
+            foreach (ProgressAchievementReceipt receipt in upgraded.achievementReceipts) // 별도 과제 영수증 순회
+            { // 영수증 검사 시작
+                if (receipt == null || !ValidId(receipt.runId) || receipt.characterMaterialsGained != 1 || !AchievementCharacter(receipt.achievement, out CharacterType character) || receipt.character != character || !seen.Add(receipt.achievement)) // 과제와 캐릭터 보상 확인
+                { // 오류 시작
+                    return false; // 잘못된 과제 또는 중복 차단
+                } // 오류 종료
+                bool active = receipt.runId == value.activeRunId && receipt.character == value.activeCharacter; // 진행 중 출격 확인
+                ProgressReceipt run = FindReceipt(value, receipt.runId); // 종료된 출격 확인
+                if (!active && (run == null || run.character != receipt.character)) // 출격 소속 확인
+                { // 오류 시작
+                    return false; // 확인되지 않은 출격 차단
+                } // 오류 종료
+            } // 영수증 검사 종료
+            return true; // 모든 과제 기록 유효
+        } // 검사 종료
+        private static bool AchievementCharacter(CharacterAchievement achievement, out CharacterType character) // 과제의 캐릭터 확인
+        { // 확인 시작
+            character = achievement == CharacterAchievement.SniperWeakHits10 ? CharacterType.Sniper : CharacterType.Rapid; // 결정된 캐릭터 연결
+            return achievement == CharacterAchievement.RapidBasicHits50 || achievement == CharacterAchievement.SniperWeakHits10; // 허용 과제 확인
+        } // 확인 종료
         private static bool ValidUnlocks(List<string> values) // 해금 식별자 중복 검사
         { // 검사 시작
             HashSet<string> ids = new HashSet<string>(StringComparer.Ordinal); // 중복 검색 집합

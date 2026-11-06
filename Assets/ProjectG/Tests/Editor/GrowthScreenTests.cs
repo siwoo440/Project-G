@@ -105,6 +105,8 @@ public class GrowthScreenTests // 영구 성장 화면 시험
             Assert.That(rapid, Does.Contain("추격 사격 1").And.Contain("확산 포화 1")); // 속사형 기본 후보
             Assert.That(rapid, Does.Not.Contain("약점 사냥 1")); // 다른 캐릭터 후보 제외
             Assert.That(rapid, Does.Contain("기본 후보").And.Contain("미정")); // 무료 후보와 미정 안내
+            Assert.That(rapid, Does.Contain("첫 고유 과제: 준비 중")); // 미구현 과제 준비 안내
+            Assert.That(rapid, Does.Not.Contain("조건·보상 미정")); // 결정된 과제의 잘못된 미정 표시 방지
             Assert.That(host.Flow.Back(), Is.True); // 출격 준비 복귀
             Assert.That(host.Flow.Back(), Is.True); // 캐릭터 선택 복귀
             Assert.That(host.Flow.SelectCharacter(CharacterType.Sniper), Is.True); // 저격형 선택

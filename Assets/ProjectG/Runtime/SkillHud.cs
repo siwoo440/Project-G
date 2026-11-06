@@ -19,6 +19,14 @@ namespace ProjectG // 프로젝트 영역
                 return player != null && player.Character == CharacterType.Sniper ? sniperIcon : rapidIcon; // 선택 캐릭터에 맞는 이미지
             } // 조회 종료
         } // 속성 종료
+        public Color UltimateIconTint // 필살기 에너지에 따른 아이콘 색상
+        { // 속성 시작
+            get // 표시 색상 조회
+            { // 조회 시작
+                bool insufficient = player == null || player.Skills == null || player.Skills.ExactEnergy < 100f; // 실제 충전 부족 확인
+                return insufficient ? new Color(0.2f, 0.2f, 0.2f, 1f) : Color.white; // 부족 시 어두운 실루엣
+            } // 조회 종료
+        } // 속성 종료
         public void Begin(BattlePlayer target, Camera camera) // 스킬 화면 초기화
         { // 초기화 시작
             player = target; // 플레이어 참조
@@ -41,12 +49,12 @@ namespace ProjectG // 프로젝트 영역
             Rect second = SkillHudLayout.Slot(view, 1); // K 사각형 위치
             Rect third = SkillHudLayout.Slot(view, 2); // L 사각형 위치
             bool blocked = !player.Survival.IsAlive || player.Skills.Blocked; // 공통 사용 제한
-            DrawSlot(first, UniqueIcon, player.ControlLabel(PlayerAction.Unique), player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f); // 캐릭터별 고유 스킬 표시
+            DrawSlot(first, UniqueIcon, player.ControlLabel(PlayerAction.Unique), player.Skills.RapidCooldown, blocked, player.Skills.RapidActive > 0f, Color.white); // 캐릭터별 고유 스킬 표시
             Texture2D commonIcon = player.Skills.Common == CommonSkill.Shield ? shieldIcon : scatterIcon; // 공용 스킬 이미지 선택
-            DrawSlot(second, commonIcon, player.ControlLabel(PlayerAction.Common), player.Skills.CommonCooldown, blocked, player.Survival.HasShield); // 공용 스킬 표시
-            DrawSlot(third, ultimateIcon, player.ControlLabel(PlayerAction.Ultimate), 0f, blocked || player.Skills.Energy < 100, false); // 필살기 에너지 상태 표시
+            DrawSlot(second, commonIcon, player.ControlLabel(PlayerAction.Common), player.Skills.CommonCooldown, blocked, player.Survival.HasShield, Color.white); // 공용 스킬 표시
+            DrawSlot(third, ultimateIcon, player.ControlLabel(PlayerAction.Ultimate), 0f, blocked, false, UltimateIconTint); // 충전 상태별 필살기 표시
         } // 표시 종료
-        private void DrawSlot(Rect slot, Texture2D icon, string key, float cooldown, bool unavailable, bool active) // 스킬 한 칸 표시
+        private void DrawSlot(Rect slot, Texture2D icon, string key, float cooldown, bool unavailable, bool active, Color iconTint) // 스킬 한 칸 표시
         { // 표시 시작
             if (countdownStyle == null) // 글자 스타일 확인
             { // 스타일 생성 시작
@@ -62,7 +70,7 @@ namespace ProjectG // 프로젝트 영역
             keyStyle.fontSize = Mathf.Max(11, Mathf.RoundToInt(slot.height * 0.20f)); // 키 크기 설정
             Color previous = GUI.color; // 기존 화면 색상 보관
             float opacity = HudOcclusion.Alpha(slot, HudOcclusion.PlayerRect(battleCamera, player)); // 플레이어 겹침 투명도
-            GUI.color = new Color(1f, 1f, 1f, opacity); // 원본 이미지와 투명도
+            GUI.color = new Color(iconTint.r, iconTint.g, iconTint.b, opacity); // 아이콘 밝기와 겹침 투명도
             GUI.DrawTexture(slot, icon != null ? icon : Texture2D.whiteTexture, ScaleMode.ScaleToFit); // 스킬 이미지 표시
             if (cooldown > 0.000001f || unavailable) // 사용 불가 상태 확인
             { // 어두운 덮개 시작

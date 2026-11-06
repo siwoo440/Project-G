@@ -24,16 +24,30 @@ namespace ProjectG // 프로젝트 영역
         } // 값 종료
         public static bool IsValid(string raw) // 저장 원문의 필수 타입 검사
         { // 검사 시작
+            return IsValid(raw, out _); // 버전을 포함한 동일 검사
+        } // 검사 종료
+        public static bool IsValid(string raw, out int schemaVersion) // 버전별 저장 원문 검사
+        { // 검사 시작
+            schemaVersion = 0; // 확인 전 버전 초기화
             if (string.IsNullOrEmpty(raw) || raw.Length > 4194304) // 빈 원문과 과도한 크기 확인
             { // 오류 시작
                 return false; // 안전하지 않은 원문 차단
             } // 오류 종료
             Reader reader = new Reader(raw); // 엄격한 JSON 검사기
-            if (!reader.TryParse(out Node root) || !ObjectHas(root, new string[] // 최상위 필드 확인
-            { // 필드 목록 시작
+            if (!reader.TryParse(out Node root) || root == null || root.Kind != JsonKind.Object || !root.Fields.TryGetValue("schemaVersion", out Node version) || !Integer(version) || !int.TryParse(version.Text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out schemaVersion)) // 버전 필드 확인
+            { // 오류 시작
+                return false; // 유효하지 않은 버전 거부
+            } // 오류 종료
+            string[] fields = schemaVersion == 1 ? new string[] // 이전 버전 필드 선택
+            { // 이전 필드 시작
                 "schemaVersion", "commonMaterials", "rapidMastery", "sniperMastery", "rapidMaterials", "sniperMaterials", // 성장 숫자 필드
                 "activeRunId", "activeCharacter", "rapidUnlocks", "sniperUnlocks", "receipts" // 출격과 해금 필드
-            })) // 필드 목록 종료
+            } : schemaVersion == 2 ? new string[] // 과제 지원 버전 선택
+            { // 신규 필드 시작
+                "schemaVersion", "commonMaterials", "rapidMastery", "sniperMastery", "rapidMaterials", "sniperMaterials", // 성장 숫자 필드
+                "activeRunId", "activeCharacter", "rapidUnlocks", "sniperUnlocks", "receipts", "achievementReceipts" // 출격과 별도 과제 필드
+            } : null; // 미지원 버전 차단
+            if (fields == null || !ObjectHas(root, fields)) // 버전별 정확한 필드 확인
             { // 오류 시작
                 return false; // 누락 또는 알 수 없는 필드 차단
             } // 오류 종료
@@ -71,6 +85,28 @@ namespace ProjectG // 프로젝트 영역
                     return false; // 손상된 정산 내역 차단
                 } // 오류 종료
             } // 영수증 검사 종료
+            if (schemaVersion == 2) // 과제 기록 버전 확인
+            { // 과제 검사 시작
+                Node achievements = root.Fields["achievementReceipts"]; // 별도 과제 영수증 목록
+                if (achievements.Kind != JsonKind.Array) // 과제 배열 확인
+                { // 오류 시작
+                    return false; // 잘못된 과제 목록 차단
+                } // 오류 종료
+                foreach (Node achievement in achievements.Items) // 과제 영수증 순회
+                { // 과제 항목 검사 시작
+                    if (!ObjectHas(achievement, new string[] // 과제 필드 확인
+                    { // 필드 목록 시작
+                        "achievement", "runId", "character", "characterMaterialsGained" // 과제 식별과 보상 필드
+                    })) // 필드 목록 종료
+                    { // 오류 시작
+                        return false; // 누락과 추가 필드 차단
+                    } // 오류 종료
+                    if (!Integer(achievement.Fields["achievement"]) || achievement.Fields["runId"].Kind != JsonKind.String || !Integer(achievement.Fields["character"]) || !Integer(achievement.Fields["characterMaterialsGained"])) // 과제 값 타입 확인
+                    { // 오류 시작
+                        return false; // 잘못된 과제 값 차단
+                    } // 오류 종료
+                } // 과제 항목 검사 종료
+            } // 과제 검사 종료
             return true; // 필드와 타입 확인 완료
         } // 검사 종료
         private static bool ObjectHas(Node node, string[] required) // 객체 필드의 정확한 일치 확인

@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 영역
         } // 자료 종료
         public const float TrialPickupRadius = 0.65f; // 미정인 획득 반경 시험값
         public const float TrialLifetime = 20f; // 미정인 유지 시간 시험값
+        public const float TrialFallSpeed = 0.5f; // 초당 낙하 속도 시험값
         private readonly List<ActiveDrop> drops = new List<ActiveDrop>(); // 살아 있는 필드 아이템
         private readonly Dictionary<string, Sprite> skillSprites = new Dictionary<string, Sprite>(); // 기존 스킬 이미지 재사용
         private BattlePlayer player; // 출격 플레이어
@@ -146,9 +147,11 @@ namespace ProjectG // 프로젝트 영역
                 float liveFraction = Mathf.Clamp01(entry.Remaining / elapsed); // 이번 프레임에서 아이템이 남은 비율
                 Vector2 end = Vector2.Lerp(start, player.transform.position, liveFraction); // 만료 전까지 이동한 위치
                 entry.Remaining -= elapsed; // 시험 유지 시간 차감
-                Vector2 itemPosition = entry.Visual.transform.position; // 현재 필드 위치
+                Vector2 itemStart = entry.Visual.transform.position; // 낙하 전 아이템 위치
+                Vector2 itemEnd = itemStart + Vector2.down * (TrialFallSpeed * elapsed * liveFraction); // 만료 전까지 낙하한 위치
+                entry.Visual.transform.position = new Vector3(itemEnd.x, itemEnd.y, entry.Visual.transform.position.z); // 낙하 위치 표시
                 string feedback = null; // 획득 안내 초기화
-                bool acquiredDuringLifetime = CollisionMath.Intersects(itemPosition, start, end, TrialPickupRadius) && effects.CanApply(entry.Drop.Id, entry.Drop.Grade) && effects.TryApply(entry.Drop.Id, entry.Drop.Grade, out feedback); // 유효 시간 안의 접촉과 효과 적용
+                bool acquiredDuringLifetime = CollisionMath.Intersects(Vector2.zero, itemStart - start, itemEnd - end, TrialPickupRadius) && effects.CanApply(entry.Drop.Id, entry.Drop.Grade) && effects.TryApply(entry.Drop.Id, entry.Drop.Grade, out feedback); // 유효 시간 안의 상대 이동 접촉과 효과 적용
                 if (!acquiredDuringLifetime) // 획득 실패 확인
                 { // 대기 또는 만료 시작
                     if (entry.Remaining <= 0f) // 유지 시간 종료 확인

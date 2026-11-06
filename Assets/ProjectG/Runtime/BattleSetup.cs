@@ -37,8 +37,9 @@ namespace ProjectG // 프로젝트 영역
             float verticalScale = actual / target; // 세로 표시 비율
             return new Rect(0f, (1f - verticalScale) / 2f, 1f, verticalScale); // 상하 중앙 정렬
         } // 계산 종료
-        public static GameObject Create(Camera camera) // 전투 화면 생성
+        public static GameObject Create(Camera camera, int? seed = null) // 전투 화면과 재현 시드 생성
         { // 생성 시작
+            int runSeed = seed ?? System.Guid.NewGuid().GetHashCode(); // 지정 또는 새 출격 시드
             camera.orthographic = true; // 직교 카메라 사용
             camera.orthographicSize = 5f; // 시험용 화면 높이
             camera.aspect = 16f / 9f; // 목표 화면 비율
@@ -67,12 +68,14 @@ namespace ProjectG // 프로젝트 영역
             player.AddComponent<BattleHud>().Begin(controller, camera); // 시험용 체력 표시
             player.AddComponent<SkillHud>().Begin(controller, camera); // 스킬 세 칸 표시
             BattleProgress progress = player.AddComponent<BattleProgress>(); // 경험치와 카드 구성
-            progress.Begin(controller, camera); // 경험치와 카드 연결
+            progress.Begin(controller, camera, runSeed); // 경험치와 카드 시드 연결
             EnemyBulletPool pool = camera.gameObject.AddComponent<EnemyBulletPool>(); // 적탄 재사용 풀 생성
             controller.AssignBulletPool(pool); // 필살기 적탄 소거 연결
             UpgradeDropManager drops = camera.gameObject.AddComponent<UpgradeDropManager>(); // 전투 중 아이템 드롭 구성
-            drops.Begin(controller, camera, new UpgradeDropEffects(controller, progress)); // 등급 효과와 경험치 회수 연결
-            camera.gameObject.AddComponent<StageDirector>().Begin(controller, camera, pool, progress, null); // 고정 선택 없는 스테이지 연결
+            drops.Begin(controller, camera, new UpgradeDropEffects(controller, progress), seed: runSeed ^ 1597463007); // 재출격에도 복원할 독립 드롭 시드
+            StageDirector stage = camera.gameObject.AddComponent<StageDirector>(); // 스테이지 진행 구성
+            stage.Begin(controller, camera, pool, progress, null); // 고정 선택 없는 스테이지 연결
+            player.AddComponent<BattleMeasurementRecorder>().Begin(controller, stage, pool, runSeed); // 출격 통계와 재현 시드 수집
             return player; // 생성 플레이어 반환
         } // 생성 종료
     } // 클래스 종료

@@ -7,7 +7,9 @@ namespace ProjectG // 프로젝트 영역
     public sealed class BattleProgress : MonoBehaviour // 경험치와 카드 선택
     { // 클래스 시작
         private readonly List<ExperienceShard> shards = new List<ExperienceShard>(); // 경험치 조각 재사용 목록
-        private readonly System.Random random = new System.Random(); // 카드 후보 난수
+        private System.Random random = new System.Random(); // 카드 후보 난수
+        private int? cardSeed; // 재현 시험용 선택 시드
+        public int? CardSeed => cardSeed; // 현재 카드 추첨 시드
         private Camera battleCamera; // 전투 카메라
         private InputAction first; // 첫 카드 키
         private InputAction second; // 둘째 카드 키
@@ -42,7 +44,7 @@ namespace ProjectG // 프로젝트 영역
             set; // 값 설정
         } // 속성 종료
         public bool ConfirmingSwap => pendingSwap >= 0; // 공용 스킬 교체 확인
-        public void Begin(BattlePlayer player, Camera camera) // 성장 상태 연결
+        public void Begin(BattlePlayer player, Camera camera, int? seed = null) // 성장 상태와 선택 시드 연결
         { // 초기화 시작
             if (Player != null) // 기존 연결 확인
             { // 기존 연결 정리 시작
@@ -52,6 +54,8 @@ namespace ProjectG // 프로젝트 영역
             ReleasePause(); // 기존 정지 해제
             Player = player; // 플레이어 보관
             battleCamera = camera; // 카메라 보관
+            cardSeed = seed; // 선택 시드 보관
+            random = seed.HasValue ? new System.Random(seed.Value) : new System.Random(); // 재현 또는 일반 난수 준비
             cardFrame = Resources.Load<Texture2D>("BattleArt/ui_card_frame"); // 카드 배경 불러오기
             Level = new LevelState(); // 레벨 초기화
             Offer = null; // 기존 카드 제거
@@ -325,6 +329,10 @@ namespace ProjectG // 프로젝트 영역
         private void ResetBattle() // 출격 상태 초기화
         { // 초기화 시작
             ClearShards(); // 이전 경험치 조각 제거
+            if (cardSeed.HasValue) // 재현 시드 확인
+            { // 난수 복원 시작
+                random = new System.Random(cardSeed.Value); // 독립 출격의 같은 시드 복원
+            } // 난수 복원 종료
             Level = new LevelState(); // 레벨 초기화
             Offer = null; // 선택 화면 초기화
             pendingSwap = -1; // 교체 확인 초기화

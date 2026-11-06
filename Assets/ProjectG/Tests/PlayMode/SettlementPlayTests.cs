@@ -78,6 +78,46 @@ public class SettlementPlayTests // 실제 전투 정산 흐름 시험
             Time.timeScale = previousScale; // 이전 시간 배율 복원
         } // 정리 종료
     } // 시험 종료
+    [UnityTest] // 출격 결과 측정 보고 시험
+    public IEnumerator SettlementExportsOnlyRecordedRunWithoutWritingUserFiles() // 격리 보고와 정산 연결 확인
+    { // 시험 시작
+        float previousScale = Time.timeScale; // 이전 시간 배율 보관
+        GameObject holder = new GameObject("MeasurementPlayHost"); // 시험 메뉴 객체
+        GameSessionHost host = null; // 시험 관리자 참조
+        try // 시험 시작
+        { // 시험 범위 시작
+            Time.timeScale = 1f; // 정상 시간 배율
+            host = CreateHost(holder, new MemoryStore()); // 격리 저장소 연결
+            string report = null; // 저장 요청 보고 내용
+            int writes = 0; // 저장 요청 횟수
+            host.MeasurementWriterOverride = text => // 격리 보고서 수집
+            { // 수집 시작
+                report = text; // 실제 보고 보관
+                writes++; // 저장 요청 증가
+                return true; // 시험 저장 성공
+            }; // 수집 종료
+            StartBattle(host); // 실제 시험 출격
+            BattlePlayer player = host.CurrentPlayer; // 현재 출격 플레이어
+            player.Skills.GainEnergy(100); // 필살기 에너지 준비
+            Assert.That(player.TryUseUltimate(), Is.True); // 실제 필살기 발동
+            yield return null; // 실제 프레임 처리
+            host.CurrentStage.State.Fail(); // 실패 결과 확정
+            Assert.That(host.Flow.Screen, Is.EqualTo(GameFlowScreen.Result)); // 결과 화면 확인
+            Assert.That(writes, Is.EqualTo(1)); // 출격당 보고서 한 번 요청
+            Assert.That(report, Does.Contain("필살기 1")); // 실제 필살기 기록 확인
+            Assert.That(report, Does.Contain("출격 시드:")); // 재현 시드 기록 확인
+            Assert.That(report, Does.Contain("미측정")); // 배치 렌더 성능 미측정 확인
+        } // 시험 범위 종료
+        finally // 시험 정리
+        { // 정리 시작
+            if (host != null && host.Progress != null) // 주입 서비스 확인
+            { // 해제 시작
+                host.Progress.Dispose(); // 격리 저장소 해제
+            } // 해제 종료
+            Object.Destroy(holder); // 시험 전투 제거
+            Time.timeScale = previousScale; // 이전 시간 배율 복원
+        } // 정리 종료
+    } // 시험 종료
     [UnityTest] // 저장 실패와 프레임 정지 시험
     public IEnumerator FailedWritePausesBattleUntilSettlementRetrySucceeds() // 정산 오류 대기와 재시도 확인
     { // 시험 시작

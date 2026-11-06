@@ -145,6 +145,7 @@ namespace ProjectG // 프로젝트 영역
                     boss = Spawn(State.Phase == StagePhase.MidBoss ? EnemyKind.MidBoss : EnemyKind.FinalBoss, true); // 보스 생성
                     if (boss != null) // 생성 성공 확인
                     { // 완료 시작
+                        player.Statistics?.RecordBossEncounter(State.Phase == StagePhase.MidBoss ? EnemyRank.MidBoss : EnemyRank.FinalBoss); // 실제 보스 등장 기록
                         boss.PhaseChanged += AnnounceBossPhase; // 보스 단계 알림 연결
                         ReleaseProgressBlock(); // 대기 카드 선택 허용
                         ReleaseTransitionSafety(); // 보스 등장 안전 해제
@@ -154,6 +155,7 @@ namespace ProjectG // 프로젝트 영역
             } // 등장 대기 종료
             if (!boss.IsAlive) // 보스 처치 확인
             { // 처치 시작
+                player.Statistics?.RecordBossClear(State.Phase == StagePhase.MidBoss ? EnemyRank.MidBoss : EnemyRank.FinalBoss); // 실제 보스 돌파 기록
                 RemoveObject(boss.gameObject); // 처치 보스 정리
                 boss = null; // 보스 참조 해제
                 State.DefeatBoss(); // 다음 구간 알림

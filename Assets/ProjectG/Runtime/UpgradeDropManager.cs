@@ -16,6 +16,8 @@ namespace ProjectG // 프로젝트 영역
             public UpgradeDrop Drop; // 아이템 종류와 등급
             public GameObject Visual; // 전투 루트의 표시 객체
             public float Remaining; // 남은 시험 유지 시간
+            public RunStatistics Statistics; // 드롭이 생성된 출격 기록
+            public DropRecord Record; // 드롭의 종류 등급과 결과
         } // 자료 종료
         public const float TrialPickupRadius = 0.65f; // 미정인 획득 반경 시험값
         public const float TrialLifetime = 20f; // 미정인 유지 시간 시험값
@@ -25,6 +27,7 @@ namespace ProjectG // 프로젝트 영역
         private Camera battleCamera; // 전투 카메라
         private IUpgradeDropEffects effects; // 등급 효과 연결
         private UpgradeDropRoller roller; // 유효 후보 추첨기
+        private int? replaySeed; // 같은 출격 조건 재현 시드
         private GUIStyle labelStyle; // 아이템 안내 글꼴
         private GUIStyle feedbackStyle; // 획득 안내 글꼴
         private GUIStyle infoStyle; // 전투 정보 글꼴
@@ -38,21 +41,30 @@ namespace ProjectG // 프로젝트 영역
             private set; // 안내 변경
         } // 속성 종료
         public event Action<UpgradeDrop, string> Collected; // 실제 획득 알림
-        public void Begin(BattlePlayer target, Camera camera, IUpgradeDropEffects effectHandler, System.Random random = null) // 전투와 효과 연결
+        public void Begin(BattlePlayer target, Camera camera, IUpgradeDropEffects effectHandler, System.Random random = null, int? seed = null) // 전투와 효과 연결
         { // 연결 시작
             Disconnect(); // 이전 출격 연결 해제
             player = target; // 현재 플레이어 보관
             battleCamera = camera; // 현재 카메라 보관
             effects = effectHandler; // 실제 효과 처리 보관
-            roller = new UpgradeDropRoller(random); // 드롭 난수 준비
+            replaySeed = seed; // 출격 재현 시드 보관
+            roller = new UpgradeDropRoller(seed.HasValue ? new System.Random(seed.Value) : random); // 시드 또는 주입 난수 준비
             LastFeedback = null; // 이전 획득 안내 제거
             feedbackRemaining = 0f; // 이전 안내 시간 제거
             if (player != null) // 플레이어 확인
             { // 출격 연결 시작
-                player.BattleRestarted += Clear; // 같은 장면의 재출격 정리
+                player.BattleRestarted += ResetForNextRun; // 재출격 정리와 시드 복원
                 player.EnemyDefeated += HandleEnemyDefeated; // 적 처치 드롭 연결
             } // 출격 연결 종료
         } // 연결 종료
+        private void ResetForNextRun() // 재출격 드롭과 난수 초기화
+        { // 초기화 시작
+            Clear(); // 이전 출격 드롭 정리
+            if (replaySeed.HasValue) // 재현 시드 확인
+            { // 복원 시작
+                roller = new UpgradeDropRoller(new System.Random(replaySeed.Value)); // 같은 출격 시드 복원
+            } // 복원 종료
+        } // 초기화 종료
         private void HandleEnemyDefeated(EnemyRank rank, Vector2 position) // 적 처치 드롭 처리
         { // 처리 시작
             TryDrop(rank, position); // 처치 위치 추첨
@@ -63,6 +75,10 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 유효한 전투 없이 생성 차단
             } // 차단 종료
+            if (rank == EnemyRank.Normal) // 일반 적 처치 확인
+            { // 추첨 기록 시작
+                player.Statistics?.RecordDropAttempt(); // 실제 일반 적 추첨 기록
+            } // 추첨 기록 종료
             if (!roller.TryRoll(rank, effects.CanApply, out UpgradeDrop drop)) // 드롭 확률과 유효 후보 확인
             { // 미드롭 시작
                 return false; // 보상 없는 처치
@@ -86,6 +102,8 @@ namespace ProjectG // 프로젝트 영역
             entry.Drop = drop; // 종류와 등급 보관
             entry.Visual = visual; // 이미지 객체 보관
             entry.Remaining = TrialLifetime; // 시험 유지 시간 보관
+            entry.Statistics = player.Statistics; // 생성 당시 출격 기록 보관
+            entry.Record = entry.Statistics?.RecordDropSpawned(drop); // 실제 드롭 종류와 등급 기록
             drops.Add(entry); // 필드 아이템 등록
             return true; // 필드 드롭 성공
         } // 드롭 종료
@@ -116,13 +134,13 @@ namespace ProjectG // 프로젝트 영역
                 ActiveDrop entry = drops[index]; // 현재 필드 아이템
                 if (entry.Visual == null) // 제거된 객체 확인
                 { // 연결 정리 시작
-                    drops.RemoveAt(index); // 유실된 참조 제거
+                    RemoveAt(index, DropOutcome.Discarded); // 유실 드롭 폐기와 참조 정리
                     continue; // 다음 아이템 확인
                 } // 연결 정리 종료
                 entry.Remaining -= elapsed; // 시험 유지 시간 차감
                 if (entry.Remaining <= 0f) // 시험 유지 시간 종료 확인
                 { // 만료 시작
-                    RemoveAt(index); // 만료된 드롭 정리
+                    RemoveAt(index, DropOutcome.Expired); // 자연 만료 기록과 정리
                     continue; // 다음 아이템 확인
                 } // 만료 종료
                 Vector2 itemPosition = entry.Visual.transform.position; // 현재 필드 위치
@@ -135,7 +153,7 @@ namespace ProjectG // 프로젝트 영역
                     continue; // 임시 시험 처리로 드롭 유지
                 } // 효과 없음 종료
                 UpgradeDrop acquired = entry.Drop; // 성공한 아이템 보관
-                RemoveAt(index); // 재획득 전 아이템 제거
+                RemoveAt(index, DropOutcome.Acquired); // 획득 기록과 아이템 제거
                 LastFeedback = string.IsNullOrWhiteSpace(feedback) ? UpgradeItemState.Label(acquired.Id, acquired.Grade) : feedback; // 실제 변화 또는 안전한 효과 안내
                 feedbackRemaining = 2.5f; // 획득 안내 시험 시간
                 Collected?.Invoke(acquired, LastFeedback); // 실제 획득 결과 전달
@@ -149,15 +167,17 @@ namespace ProjectG // 프로젝트 영역
         { // 정리 시작
             for (int index = drops.Count - 1; index >= 0; index--) // 이전 드롭 역순 확인
             { // 정리 반복 시작
-                RemoveAt(index); // 이전 필드 표시 제거
+                RemoveAt(index, DropOutcome.Discarded); // 이전 드롭 폐기와 제거
             } // 정리 반복 종료
             LastFeedback = null; // 이전 획득 안내 제거
             feedbackRemaining = 0f; // 이전 안내 시간 초기화
         } // 정리 종료
-        private void RemoveAt(int index) // 해당 필드 아이템 제거
+        private void RemoveAt(int index, DropOutcome outcome) // 드롭 결과 기록과 제거
         { // 제거 시작
-            GameObject visual = drops[index].Visual; // 기존 표시 객체
+            ActiveDrop entry = drops[index]; // 생성 당시 드롭 정보
+            GameObject visual = entry.Visual; // 기존 표시 객체
             drops.RemoveAt(index); // 같은 프레임 재획득 차단
+            entry.Statistics?.RecordDropOutcome(entry.Record, outcome); // 해당 출격에 최초 결과 기록
             if (visual == null) // 표시 객체 존재 확인
             { // 생략 시작
                 return; // 제거 생략
@@ -176,7 +196,7 @@ namespace ProjectG // 프로젝트 영역
         { // 연결 해제 시작
             if (player != null) // 이전 플레이어 확인
             { // 해제 시작
-                player.BattleRestarted -= Clear; // 재출격 연결 해제
+                player.BattleRestarted -= ResetForNextRun; // 재출격 연결 해제
                 player.EnemyDefeated -= HandleEnemyDefeated; // 적 처치 연결 해제
             } // 해제 종료
             Clear(); // 이전 드롭 정리
@@ -184,6 +204,7 @@ namespace ProjectG // 프로젝트 영역
             battleCamera = null; // 이전 카메라 해제
             effects = null; // 이전 효과 해제
             roller = null; // 이전 난수 해제
+            replaySeed = null; // 이전 출격 시드 해제
         } // 연결 해제 종료
         private void OnDisable() // 전투 구성 비활성화
         { // 비활성 시작

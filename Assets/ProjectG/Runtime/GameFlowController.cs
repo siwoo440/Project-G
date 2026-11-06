@@ -25,7 +25,13 @@ namespace ProjectG // 프로젝트 영역
         private SettlementReceipt receipt; // 저장된 정산 영수증
         public Func<bool, bool> SettlementRequested; // 출격 결과 저장 요청
         public Func<CharacterType, string> ProgressDescription; // 캐릭터 성장 설명 조회
+        public Func<bool> MeasurementRetryRequested; // 측정 보고 저장 재시도 연결
         public bool SettlementPending => settlementAction != SettlementAction.None; // 정산 재시도 대기
+        public string MeasurementNotice // 측정 보고 저장 안내
+        { // 속성 시작
+            get; // 안내 조회
+            private set; // 안내 변경
+        } // 속성 종료
         public string RecoveryNotice // 이전 출격 복구 안내
         { // 속성 시작
             get; // 안내 조회
@@ -85,6 +91,7 @@ namespace ProjectG // 프로젝트 영역
             settlementAction = SettlementAction.None; // 이전 저장 대기 초기화
             ErrorText = ""; // 이전 오류 초기화
             RecoveryNotice = ""; // 이전 복구 안내 초기화
+            MeasurementNotice = ""; // 이전 측정 안내 초기화
             receipt = null; // 이전 영수증 초기화
             DetachBattle(); // 이전 전투 알림 해제
             menuCamera = camera; // 메뉴 카메라 보관
@@ -410,6 +417,11 @@ namespace ProjectG // 프로젝트 영역
         } // 정리 종료
         private void Update() // 메뉴 입력 처리
         { // 입력 시작
+            Keyboard measurementKeyboard = Keyboard.current; // 측정 재시도 입력 확인
+            if (!SettlementPending && !InputBlocked && !string.IsNullOrEmpty(MeasurementNotice) && measurementKeyboard != null && measurementKeyboard.tabKey.wasPressedThisFrame) // 측정 저장 재시도 키 확인
+            { // 재시도 시작
+                MeasurementRetryRequested?.Invoke(); // 대기 보고서 저장 재시도
+            } // 재시도 종료
             if (SettlementPending) // 저장 재시도 대기 확인
             { // 재시도 입력 시작
                 if (Time.frameCount == enteredFrame) // 동일 프레임 확인
@@ -630,6 +642,10 @@ namespace ProjectG // 프로젝트 영역
             } // 오류 표시 종료
             if (Screen == GameFlowScreen.Battle || menuCamera == null) // 메뉴 표시 조건
             { // 생략 시작
+                if (Screen == GameFlowScreen.Battle && menuCamera != null && !InputBlocked) // 전투 중 측정 안내 확인
+                { // 안내 표시 시작
+                    DrawMeasurementNotice(View()); // 미저장 측정 안내 표시
+                } // 안내 표시 종료
                 return; // 전투 화면 제외
             } // 생략 종료
             PrepareStyles(); // 한글 글꼴 준비
@@ -680,7 +696,27 @@ namespace ProjectG // 프로젝트 영역
                 DrawButton(ConfirmRect(view, true), "확인", confirmSelected); // 이동 확인
                 DrawButton(ConfirmRect(view, false), "취소", !confirmSelected); // 이동 취소
             } // 확인 표시 종료
+            if (!InputBlocked) // 설정 화면과 겹침 확인
+            { // 안내 표시 시작
+                DrawMeasurementNotice(view); // 미저장 측정 안내 표시
+            } // 안내 표시 종료
             GUI.color = previous; // 기존 색상 복원
+        } // 표시 종료
+        public void SetMeasurementNotice(string notice) // 측정 저장 상태 안내 변경
+        { // 변경 시작
+            MeasurementNotice = notice ?? ""; // 빈 값과 오류 안내 보관
+        } // 변경 종료
+        private void DrawMeasurementNotice(Rect view) // 측정 저장 오류 표시
+        { // 표시 시작
+            if (string.IsNullOrEmpty(MeasurementNotice)) // 미저장 안내 확인
+            { // 생략 시작
+                return; // 안내 없는 경우 제외
+            } // 생략 종료
+            PrepareStyles(); // 한글 글꼴 준비
+            textStyle.fontSize = Mathf.Max(14, Mathf.RoundToInt(view.height * 0.022f)); // 화면 비례 안내 크기
+            Rect area = new Rect(view.x + view.width * 0.02f, view.y + view.height * 0.91f, view.width * 0.70f, view.height * 0.07f); // 화면 하단 안내 영역
+            DrawPanel(area); // 기존 이미지 프레임 표시
+            GUI.Label(new Rect(area.x + area.width * 0.03f, area.y, area.width * 0.94f, area.height), MeasurementNotice, textStyle); // 오류와 재시도 안내
         } // 표시 종료
         private void DrawPreparation(Rect view) // 캐릭터와 출격 정보 표시
         { // 표시 시작

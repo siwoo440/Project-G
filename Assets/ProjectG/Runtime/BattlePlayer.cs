@@ -129,6 +129,7 @@ namespace ProjectG // 프로젝트 영역
             { // 차단 시작
                 return false; // 필살기 차단
             } // 차단 종료
+            Statistics?.RecordUltimate(); // 실제 발동 횟수 기록
             float halfHeight = battleCamera.orthographicSize; // 화면 세로 반경
             float halfWidth = halfHeight * 16f / 9f; // 화면 가로 반경
             Vector3 center = battleCamera.transform.position; // 화면 중심

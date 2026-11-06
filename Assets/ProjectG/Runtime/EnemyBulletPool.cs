@@ -5,8 +5,26 @@ namespace ProjectG // 프로젝트 영역
     public sealed class EnemyBulletPool : MonoBehaviour // 적탄 재사용 풀
     { // 클래스 시작
         private readonly Stack<EnemyBullet> available = new Stack<EnemyBullet>(); // 회수된 적탄 목록
+        private readonly List<EnemyBullet> activeScan = new List<EnemyBullet>(); // 활성 적탄 조회 재사용 목록
         private int created; // 생성된 적탄 수
         private const int MaximumBullets = 256; // 시험용 적탄 상한
+        public int ActiveCount // 현재 활성 적탄 수
+        { // 조회 시작
+            get // 활성 개수 조회
+            { // 집계 시작
+                activeScan.Clear(); // 이전 조회 목록 비움
+                GetComponentsInChildren(false, activeScan); // 활성 자식 적탄 조회
+                int count = 0; // 현재 활성 개수
+                foreach (EnemyBullet bullet in activeScan) // 적탄 순회
+                { // 순회 시작
+                    if (bullet != null && bullet.InUse && bullet.gameObject.activeInHierarchy) // 실제 활성 상태 확인
+                    { // 집계 시작
+                        count++; // 활성 적탄 증가
+                    } // 집계 종료
+                } // 순회 종료
+                return count; // 현재 개수 반환
+            } // 집계 종료
+        } // 조회 종료
         public EnemyBullet Spawn(Vector2 position, Vector2 velocity, float radius, int damage, float bottom, BattlePlayer player, bool clearable = true) // 적탄 생성
         { // 생성 시작
             EnemyBullet bullet; // 사용할 적탄

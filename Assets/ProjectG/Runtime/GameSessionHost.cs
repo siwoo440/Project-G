@@ -1,4 +1,5 @@
 using System; // 출격 식별자 기능
+using System.Collections.Generic; // 미저장 보고서 대기열
 using UnityEngine; // 유니티 장면 기능
 namespace ProjectG // 프로젝트 영역
 { // 영역 시작
@@ -26,6 +27,9 @@ namespace ProjectG // 프로젝트 영역
             } // 저장 종료
         } // 저장소 종료
         public static Func<IProgressStorage> StorageFactoryOverride; // 자동 시험 저장소 주입
+        public Func<string, bool> MeasurementWriterOverride; // 격리된 측정 보고 시험 연결
+        private readonly Queue<string> pendingMeasurementReports = new Queue<string>(); // 순서대로 보관할 미저장 측정
+        public int PendingMeasurementCount => pendingMeasurementReports.Count; // 저장 대기 보고서 수
         private Camera menuCamera; // 메뉴 카메라
         private string currentRunId; // 현재 출격 식별자
         private string pendingStartId; // 저장 재시도 출격 식별자
@@ -79,6 +83,7 @@ namespace ProjectG // 프로젝트 영역
             Flow.Begin(menuCamera); // 타이틀 표시
             Flow.SettlementRequested = SettleBattle; // 결과 저장 요청 연결
             Flow.ProgressDescription = DescribeProgress; // 선택 캐릭터 성장 표시 연결
+            Flow.MeasurementRetryRequested = RetryMeasurementReports; // 측정 저장 재시도 연결
             Flow.RunRequested += StartBattle; // 출격 요청 연결
             Flow.LeaveBattleRequested += ClearBattle; // 전투 정리 요청 연결
             Flow.SettingsRequested += OpenSettings; // 메뉴 설정 연결
@@ -191,8 +196,87 @@ namespace ProjectG // 프로젝트 영역
             } // 저장 실패 종료
             CurrentReceipt = receipt; // 저장된 영수증 보관
             Flow.SetReceipt(receipt); // 결과 화면 영수증 연결
+            if (!receipt.AlreadySettled) // 최초 정산 확인
+            { // 보고 시작
+                WriteMeasurementReport(); // 출격 측정 기록 저장
+            } // 보고 종료
             return true; // 정산 완료
         } // 정산 종료
+        private void WriteMeasurementReport() // 실제 출격 측정 보고 저장
+        { // 저장 시작
+            if (!Application.isPlaying || CurrentPlayer == null) // 실제 출격 상태 확인
+            { // 생략 시작
+                return; // 편집 또는 누락된 출격 제외
+            } // 생략 종료
+            BattleMeasurementRecorder recorder = CurrentPlayer.GetComponent<BattleMeasurementRecorder>(); // 출격 측정 수집기
+            if (recorder == null) // 수집기 확인
+            { // 생략 시작
+                return; // 없는 측정 기록 제외
+            } // 생략 종료
+            recorder.RefreshSnapshot(); // 정산된 출격의 최종 통계
+            string report = recorder.BuildReport(); // 실제 수집값 보고
+            if (MeasurementWriterOverride == null && (Application.isBatchMode || StorageFactoryOverride != null || !ownsProgress)) // 격리 시험 중 실제 파일 접근 확인
+            { // 격리 시작
+                return; // 명시적 시험 기록기가 없는 사용자 파일 접근 차단
+            } // 격리 종료
+            pendingMeasurementReports.Enqueue(report); // 원본 보고를 출격 순서로 보관
+            RetryMeasurementReports(); // 기존 보고부터 저장 시도
+        } // 저장 종료
+        public bool RetryMeasurementReports() // 미저장 보고서 순서대로 재시도
+        { // 재시도 시작
+            while (pendingMeasurementReports.Count > 0) // 대기 보고 확인
+            { // 저장 반복 시작
+                string report = pendingMeasurementReports.Peek(); // 가장 오래된 원본 조회
+                if (!TryWriteMeasurement(report, out string error)) // 실제 저장 결과 확인
+                { // 저장 실패 시작
+                    if (Flow != null) // 화면 연결 확인
+                    { // 안내 시작
+                        Flow.SetMeasurementNotice("측정 보고 저장 실패 " + pendingMeasurementReports.Count + "건 · Tab 재시도 · 종료 시 대기 기록 삭제"); // 실패와 임시 보관 안내
+                    } // 안내 종료
+                    Debug.LogWarning(error); // 저장 실패 원인 기록
+                    return false; // 실패 보고와 이후 순서 보존
+                } // 저장 실패 종료
+                pendingMeasurementReports.Dequeue(); // 저장에 성공한 보고만 제거
+            } // 저장 반복 종료
+            if (Flow != null) // 화면 연결 확인
+            { // 안내 해제 시작
+                Flow.SetMeasurementNotice(""); // 저장 성공 후 오류 해제
+            } // 안내 해제 종료
+            return true; // 모든 대기 보고 저장 완료
+        } // 재시도 종료
+        private bool TryWriteMeasurement(string report, out string error) // 격리 또는 실제 보고서 저장
+        { // 저장 시작
+            error = null; // 이전 오류 비움
+            try // 저장 경로 확인
+            { // 저장 범위 시작
+                if (MeasurementWriterOverride != null) // 명시적 시험 저장소 확인
+                { // 시험 저장 시작
+                    if (MeasurementWriterOverride(report)) // 격리 저장 성공 확인
+                    { // 성공 시작
+                        return true; // 시험 보고 저장 성공
+                    } // 성공 종료
+                    error = "측정 보고서 저장 실패"; // 시험 저장 실패 안내
+                    return false; // 미저장 원본 보존
+                } // 시험 저장 종료
+                if (Application.isBatchMode || StorageFactoryOverride != null || !ownsProgress) // 자동 시험의 실제 파일 접근 확인
+                { // 격리 시작
+                    error = "격리 시험에서 실제 측정 파일 접근 차단"; // 격리 실패 사유
+                    return false; // 실제 사용자 파일 보호
+                } // 격리 종료
+                string directory = System.IO.Path.Combine(Application.persistentDataPath, "ProjectGMeasurements"); // 별도 측정 보고 폴더
+                if (!MeasurementReportWriter.TryWrite(directory, report, out string path, out error)) // 새 보고서 생성 확인
+                { // 실패 시작
+                    return false; // 보고 대기열 유지
+                } // 실패 종료
+                Debug.Log("전투 측정 기록: " + path); // 확인 가능한 저장 위치
+                return true; // 실제 보고 저장 성공
+            } // 저장 범위 종료
+            catch (Exception exception) // 시험 저장기 또는 경로 오류
+            { // 오류 처리 시작
+                error = "측정 보고서 저장 실패: " + exception.Message; // 오류 사유 기록
+                return false; // 정산과 미저장 보고 보존
+            } // 오류 처리 종료
+        } // 저장 종료
         private string DescribeProgress(CharacterType character) // 선택 캐릭터 성장 요약
         { // 요약 시작
             if (!progressAttempted) // 초기 저장 복원 확인
@@ -260,6 +344,7 @@ namespace ProjectG // 프로젝트 영역
                 Flow.SettingsRequested -= OpenSettings; // 설정 요청 해제
                 Flow.SettlementRequested = null; // 정산 요청 해제
                 Flow.ProgressDescription = null; // 성장 표시 연결 해제
+                Flow.MeasurementRetryRequested = null; // 측정 재시도 연결 해제
             } // 이벤트 해제 종료
             if (overlay != null) // 일시정지 화면 확인
             { // 이벤트 해제 시작

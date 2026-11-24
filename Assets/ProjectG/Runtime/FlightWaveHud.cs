@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private int shownTotal = -1; // 표시한 마지막 전체 소요 시간
         private bool shownComplete; // 현재 표시한 항로 완료 여부
         private bool shownBoss; // 중간 보스 전투의 표시 상태
+        private bool shownFinal; // 최종 보스 전투의 표시 상태
 
         private void LateUpdate() // 처치와 웨이브 변화를 실제 HUD에 반영
         {
@@ -25,12 +26,13 @@ namespace ProjectG // 프로젝트 게임 영역
                 shownSecond = second; // 마지막 갱신 상태
                 timer.text = $"{second / 60:00}:{second % 60:00}"; // 분·초 큰 숫자
             }
-            if (shownWave != encounter.WaveNumber || shownComplete != encounter.IsStageComplete || shownBoss != encounter.IsMidBossActive) // 웨이브·보스·항로 상태의 변화
+            if (shownWave != encounter.WaveNumber || shownComplete != encounter.IsStageComplete || shownBoss != encounter.IsMidBossActive || shownFinal != encounter.IsFinalBossActive) // 웨이브·보스·항로 상태의 변화
             {
                 shownWave = encounter.WaveNumber; // 실제 출현 번호
                 shownComplete = encounter.IsStageComplete; // 표시한 항로 완료 상태
                 shownBoss = encounter.IsMidBossActive; // 표시한 중간 보스 상태
-                wave.text = shownBoss ? "중간 보스" : shownComplete ? "항로 완료" : shownWave == 0 ? "준비" : $"Wave : {shownWave}"; // 전투 구간에 맞는 표기
+                shownFinal = encounter.IsFinalBossActive; // 표시한 최종 보스 상태
+                wave.text = shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownComplete ? "항로 완료" : shownWave == 0 ? "준비" : $"Wave : {shownWave}"; // 전투 구간에 맞는 표기
             }
             int enemies = encounter.ActiveEnemyCount; // 현재 씬에 남은 마물 수
             if (shownEnemies != enemies) // 처치 또는 이탈로 달라진 값

@@ -3,8 +3,7 @@ using UnityEngine; // 보스 진입 위치와 실제 탄막 방향
 namespace ProjectG // 프로젝트 게임 영역
 {
     [DisallowMultipleComponent] // 중간 보스당 한 공격 실행기
-    [RequireComponent(typeof(FlightEnemy))] // 공통 체력과 처치 보상 연결
-    public sealed class FlightMidBoss : MonoBehaviour // 직선 연사와 부채탄을 교대하는 중간 보스
+    public sealed class FlightMidBoss : FlightStageBoss // 직선 연사와 부채탄을 교대하는 중간 보스
     {
         [SerializeField] private Transform arrivalPoint; // 씬에서 편집하는 보스 진입 위치
         [SerializeField] private Transform combatPoint; // 실제 보스가 공격하는 공중 좌표
@@ -22,11 +21,10 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool entering; // 공격 위치로 이동 중인지 구분
         private FlightThreatPattern pattern; // 이번 차례의 탄막 배열
 
-        public FlightEnemy Enemy => GetComponent<FlightEnemy>(); // 공통 체력과 보상 컴포넌트
         public int AimedBursts { get; private set; } // 실제 직선 연사 횟수
         public int FanBursts { get; private set; } // 실제 부채탄 발사 횟수
 
-        internal void Begin(FlightThreatPool sharedPool, Transform target) // 웨이브에서 실제 보스 진입
+        internal override void Begin(FlightThreatPool sharedPool, Transform target) // 웨이브에서 실제 보스 진입
         {
             pool = sharedPool; // 전체 적과 상한 공유
             pilot = target; // 공격 각도 계산 대상

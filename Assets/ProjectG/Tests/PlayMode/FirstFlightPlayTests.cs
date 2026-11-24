@@ -1383,7 +1383,86 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(encounter.Find("DiverEnemy").gameObject.activeSelf, Is.True); // 돌진형이 후속 전투에 합류
             yield return AdvanceStageTo(timeline, defeat + 65f); // 두 번째 일반 전투와 회수 구간 종료
             yield return WaitFrames(2); // 최종 보스 진입 전 상태 반영
-            Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.True); // 17일차 항로 완료
+            Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.False); // 최종 격파 전에 항로 완료 금지
+            Assert.That(encounter.Find("FinalBoss").gameObject.activeSelf, Is.True); // 회수 구간 뒤 실제 최종 보스 진입
+        }
+
+        [UnityTest] // 최종 보스의 3페이즈와 출격 종료
+        public IEnumerator OuterIslandsFinalBossClampsDamageAndClearsEveryPhase() // 실제 시간표·체력·탄막·완료를 연결
+        {
+            yield return LoadOuterIslands(); // 배포 항로 진입
+            Transform encounter = GameObject.Find("EnemyEncounter").transform; // 실제 항로와 보스의 하이러키
+            Transform boss = encounter.Find("FinalBoss"); // 최종 보스 씬 오브젝트
+            Assert.That(boss, Is.Not.Null, "최종 보스 씬 오브젝트"); // 배치와 시작 경로 확인
+            Transform hud = LocateCombatHud().transform.Find("BossReadout"); // 최종 보스의 전용 체력 표시
+            Assert.That(hud, Is.Not.Null); // 편집 가능한 보스 HUD
+            Assert.That(hud.gameObject.activeSelf, Is.False); // 보스가 없을 때 표시 숨김
+            Transform pilot = FindPilot(); // 기존 전투 조작과 체력
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 무작위 자동 처치를 배제한 시간표 검증
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 보스 진행까지 생존할 시험 기체
+            vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 210f }); // 실제 시간표 검증용 보호
+            Component timeline = encounter.GetComponent("FlightEnemyEncounter"); // 일차별 공통 전투 시간
+            Time.captureDeltaTime = 0.1f; // 긴 일정의 재현 가능한 프레임 시간
+            yield return AdvanceStageTo(timeline, 82f); // 첫 일반 전투 뒤 중간 보스
+            Component mid = encounter.Find("MidBoss").GetComponent("FlightEnemy"); // 실제 와이드 웨이브의 관문
+            mid.GetType().GetMethod("ReceiveHit").Invoke(mid, new object[] { 600 }); // 중간 보스 격파 경로
+            float midDefeat = StageTime(timeline, "ElapsedSeconds"); // 후속 전투의 기준 시각
+            yield return AdvanceStageTo(timeline, midDefeat + 64f); // 두 번째 회수 구간
+            Assert.That(boss.gameObject.activeSelf, Is.False); // 회수 시간을 앞지르지 않는 최종 보스
+            yield return AdvanceStageTo(timeline, midDefeat + 67.2f); // 최종 보스 진입과 첫 조준탄
+            Component life = boss.GetComponent("FlightEnemy"); // 실제 적 체력과 격파 보상
+            Component phases = boss.GetComponent("FlightFinalBoss"); // 체력 단계별 실제 공격
+            Component pool = GetThreatPool(); // 공유하는 모든 실제 적탄
+            var hit = life.GetType().GetMethod("ReceiveHit"); // 일반 사격과 관통탄의 공통 피해 경로
+            Assert.That(Metric(life, "Health"), Is.EqualTo(1500)); // 최종 보스 시험 체력
+            Assert.That(Metric(phases, "Phase"), Is.EqualTo(1)); // 첫 조준 페이즈
+            Assert.That(Metric(pool, "ActiveCount"), Is.GreaterThan(0)); // 실제 1페이즈 적탄
+            Assert.That(hud.gameObject.activeSelf, Is.True); // 활성 보스의 전용 체력바
+            Assert.That(HudText(hud.Find("Health")), Is.EqualTo("1,500 / 1,500")); // 실제 전용 체력 수치
+            Assert.That(HudText(hud.Find("PhaseDots/Dot1")), Is.EqualTo("●")); // 모두 남은 첫 점의 점등
+            Assert.That(HudText(hud.Find("PhaseDots/Dot3")), Is.EqualTo("●")); // 마지막 점도 점등
+            var fill = (RectTransform)hud.Find("Fill"); // 체력에 비례해 붉은 길이가 변하는 사각형
+            float full = fill.rect.width; // 가득 찬 체력 길이
+
+            hit.Invoke(life, new object[] { 3000 }); // 여러 경계를 넘는 큰 단일 피해
+            hit.Invoke(life, new object[] { 3000 }); // 같은 프레임의 연속 피해
+            float phaseTwo = StageTime(timeline, "ElapsedSeconds"); // 실제 첫 전환 시각
+            Assert.That(Metric(life, "Health"), Is.EqualTo(1000)); // 초과 피해 폐기와 중복 피해 차단
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 첫 패턴의 모든 잔류탄 회수
+            yield return WaitFrames(4); // 전환 중의 실제 프레임과 HUD 갱신
+            hit.Invoke(life, new object[] { 100 }); // 전환 도중 별도의 탄환 피해
+            Assert.That(Metric(life, "Health"), Is.EqualTo(1000)); // 전환 끝까지 체력 고정
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 이전 연사의 재발사 차단
+            Assert.That(HudText(hud.Find("PhaseDots/Dot1")), Is.EqualTo("○")); // 끝난 페이즈 소등
+            Assert.That(HudText(hud.Find("PhaseDots/Dot2")), Is.EqualTo("●")); // 남은 두 점 유지
+            Assert.That(fill.rect.width / full, Is.EqualTo(2f / 3f).Within(0.015f)); // 경계에 맞춰 체력바 감소
+            yield return AdvanceStageTo(timeline, phaseTwo + 1.6f); // 전환 뒤 원형 확산 발사
+            Assert.That(Metric(phases, "Phase"), Is.EqualTo(2)); // 두 번째 페이즈 활성
+            Assert.That(Metric(pool, "ActiveCount"), Is.GreaterThanOrEqualTo(12)); // 실제 원형 확산
+
+            hit.Invoke(life, new object[] { 3000 }); // 두 번째 체력 경계 타격
+            float phaseThree = StageTime(timeline, "ElapsedSeconds"); // 두 번째 전환 시각
+            Assert.That(Metric(life, "Health"), Is.EqualTo(500)); // 마지막 페이즈까지 초과 피해 차단
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 두 번째 패턴 회수
+            yield return AdvanceStageTo(timeline, phaseThree + 1.55f); // 좌우 교차 나선이 발사되는 때
+            Assert.That(Metric(phases, "Phase"), Is.EqualTo(3)); // 마지막 페이즈
+            Assert.That(Metric(pool, "ActiveCount"), Is.GreaterThanOrEqualTo(8)); // 두 발사점의 실제 교차탄
+            Assert.That(HudText(hud.Find("PhaseDots/Dot2")), Is.EqualTo("○")); // 두 번째 점 소등
+            Assert.That(HudText(hud.Find("PhaseDots/Dot3")), Is.EqualTo("●")); // 마지막 점 점등
+            Component rewards = pilot.GetComponent("FlightSkillController"); // 기존 공통 처치 에너지
+            Component drops = GameObject.Find("EnhancementDrops").GetComponent("FlightEnhancements"); // 강화 아이템의 실시간 기록
+            int previousUltimate = Metric(rewards, "Ultimate"); // 최종 처치 직전 자원
+            int previousDrops = Metric(drops, "ActiveCount"); // 최종 처치 직전 강화 수
+            hit.Invoke(life, new object[] { 500 }); // 최종 격파
+            hit.Invoke(life, new object[] { 500 }); // 중복 정산 방지 확인
+            float finished = StageTime(timeline, "ElapsedSeconds"); // 결과에 보관할 마지막 전투 시간
+            yield return WaitFrames(5); // 종료와 화면 정리 후 프레임
+            Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.True); // 최종 격파가 출격 완료를 결정
+            Assert.That(StageTime(timeline, "ElapsedSeconds"), Is.EqualTo(finished)); // 결과 이후 시계 정지
+            Assert.That(Metric(rewards, "Ultimate"), Is.EqualTo(previousUltimate + 20)); // 최종 보스 에너지 한 번 지급
+            Assert.That(Metric(drops, "ActiveCount"), Is.EqualTo(previousDrops)); // 최종 강화 아이템 미지급
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 마지막 페이즈 적탄 회수
+            Assert.That(hud.gameObject.activeSelf, Is.False); // 완료 뒤 HUD 숨김
         }
 
         [UnityTest] // 보스의 교대 패턴과 공격 후 약점

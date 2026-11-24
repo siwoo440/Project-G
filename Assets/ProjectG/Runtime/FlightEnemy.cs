@@ -25,6 +25,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private Quaternion tailRest; // 꼬리의 기준 회전
         private Color idleEmission; // 평상시 핵의 발광색
         private Camera view; // 체력바가 향하는 실제 카메라
+        private FlightFinalBoss phases; // 최종 보스의 피해 경계를 처리하는 컴포넌트
         private float fullWidth; // 전체 체력 표시의 원래 너비
         private Rect fullImage; // 생성 PNG의 실제 그림 범위
         private float visibleUntil; // 마지막 피격 후 표시 종료 시점
@@ -32,6 +33,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool flashing; // 재질을 변경할 필요가 있는 피격 반응 상태
 
         public int Health { get; private set; } // 현재 마물의 시험 체력
+        public int MaxHealth => maxHealth; // 보스 HUD가 참조하는 최대값
         public int ExperienceReward => experienceReward; // 처치한 적의 경험치 보상
         public FlightLootTier LootTier => lootTier; // 현재 적의 강화 출처
         public event System.Action<FlightEnemy> Defeated; // 실제 처치와 드롭 정보
@@ -39,6 +41,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Awake() // 편집된 모델과 이미지의 기준 상태 보관
         {
             properties = new MaterialPropertyBlock(); // 런타임 메인 스레드에서 재질 속성 생성
+            TryGetComponent(out phases); // 최종 보스에서만 체력 경계 적용
             neutralPosition = model.localPosition; // 비행 애니메이션 시작 높이
             leftRest = leftWing.localRotation; // 왼쪽 날개 초기 방향
             rightRest = rightWing.localRotation; // 오른쪽 날개 초기 방향
@@ -65,7 +68,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 제로 피해로 체력바를 열지 않음
             }
 
-            Health = Mathf.Max(0, Health - damage); // 실제 마물 체력 감소
+            int nextHealth = Mathf.Max(0, Health - damage); // 단일 타격의 남은 체력
+            if (phases != null) // 최종 보스의 현재 전투 단계
+            {
+                nextHealth = phases.ResolveHealth(Health, nextHealth, maxHealth); // 페이즈 경계를 넘은 초과 피해 제한
+            }
+            if (nextHealth == Health) // 전환 무적으로 피해가 막힌 경우
+            {
+                return; // 피격 반응과 피해 추가 처리 생략
+            }
+            Health = nextHealth; // 실제로 반영한 마물 체력
             if (Health == 0) // 처치로 마물 활동이 끝난 상태
             {
                 gameObject.SetActive(false); // 마물 모델과 피격 오브젝트 숨김

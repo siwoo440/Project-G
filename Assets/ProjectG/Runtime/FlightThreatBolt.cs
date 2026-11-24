@@ -1,10 +1,10 @@
 using UnityEngine; // 빠른 적탄의 월드 이동
 
 namespace ProjectG // 프로젝트 게임 영역
-{ // 영역 시작
+{
     [DefaultExecutionOrder(110)] // 비행체 이동과 카메라 적용 후 판정
     public sealed class FlightThreatBolt : MonoBehaviour // 3차원 적탄 프리팹
-    { // 적탄 시작
+    {
         [SerializeField, Min(0.01f)] private float radius = 0.10f; // 시험 적탄의 실제 반경
         [SerializeField, Min(1)] private int damage = 20; // 시험 적탄의 피해
         [SerializeField, Min(0.01f)] private float range = 130f; // 적탄의 최대 진행 거리
@@ -19,7 +19,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool grazeAwarded; // 상대 기체에 대한 중복 그레이즈 방지
 
         internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed) // 실제 발사된 적탄 초기화
-        { // 초기화 시작
+        {
             owner = pool; // 해당 탄을 관리하는 풀 참조
             vitals = target; // 현재 씬 비행체 참조
             remaining = range; // 이전 사용에서 소진한 거리 복구
@@ -28,15 +28,15 @@ namespace ProjectG // 프로젝트 게임 영역
             grazeAwarded = false; // 재사용 탄의 새 그레이즈 가능 상태
             previousPilot = vitals.transform.position; // 탄환 출발 때 기체 좌표
             speed = travelSpeed; // 발사 시 지정한 시험 속도
-        } // 초기화 종료
+        }
 
         private void LateUpdate() // 이동하는 탄환과 기체의 상대 궤적 검사
-        { // 검사 시작
+        {
             if (vitals.IsDefeated) // 현재 출격 종료 여부
-            { // 탄환 종료 시작
+            {
                 owner.Return(this); // 실패 뒤 적탄을 비활성 풀로 회수
                 return; // 이전 체력에 추가 영향 방지
-            } // 탄환 종료 종료
+            }
 
             Vector3 start = transform.position; // 적탄의 이전 프레임 위치
             float duration = Mathf.Min(secondsLeft, Time.deltaTime); // 현재 탄환이 진행할 유효 시간
@@ -49,15 +49,15 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 pilotAtEnd = Vector3.Lerp(previousPilot, currentPilot, portion); // 탄환이 지형에 도달한 때의 기체 위치
             bool hit = vitals.ResolveThreat(start - previousPilot, end - pilotAtEnd, radius, damage, ref nearCandidate, ref grazeAwarded); // 체력과 그레이즈 판정
             if (hit || terrain || remaining <= step || secondsLeft <= duration) // 접촉이나 거리·시간 만료 처리
-            { // 제거 시작
+            {
                 owner.Return(this); // 종료된 탄을 풀로 돌려보냄
                 return; // 적탄 진행 종료
-            } // 제거 종료
+            }
 
             remaining -= step; // 남은 월드 사거리
             secondsLeft -= duration; // 남은 활성 시간
             previousPilot = currentPilot; // 다음 상대 경로의 기체 출발점
             transform.position = end; // 실제 적탄 이동
-        } // 검사 종료
-    } // 적탄 종료
-} // 영역 종료
+        }
+    }
+}

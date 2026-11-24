@@ -4,24 +4,38 @@ using UnityEngine.InputSystem; // 전투 시험 시작 키
 
 namespace ProjectG // 프로젝트 게임 영역
 {
-    public sealed class FlightEnemyEncounter : MonoBehaviour // 마물 3종의 반복 시험
+    public sealed class FlightEnemyEncounter : MonoBehaviour // 연습 또는 스테이지의 실제 적 전투
     {
+        [System.Serializable] // 씬에서 웨이브마다 조정할 정보
+        private sealed class StageWave // 예정된 출현 시각과 경로형 적
+        {
+            [Min(0f)] public float startsAt; // 전투 진행 시간 기준 출발 시각
+            public FlightEnemyRoute[] enemies; // 이 웨이브의 적 배치 그룹
+        }
+
         [SerializeField] private FlightPilotVitals pilot; // 실제 플레이어 생존 상태
         [SerializeField] private FlightThreatPool pool; // 마물들이 함께 쓰는 적탄 풀
         [SerializeField] private FlightEnemyRoute[] routes; // 씬에서 조정하는 마물 경로
         [SerializeField] private FlightEnemy openingEnemy; // 출격 직후 첫 웨이브의 시험 표적
         [SerializeField] private FlightBindings bindings; // 설정에서 지정한 웨이브 키
+        [SerializeField] private StageWave[] stageWaves = System.Array.Empty<StageWave>(); // 실전 항로의 순차 출현 목록
+        [SerializeField, Min(0f)] private float stageEndTime = 80f; // 드롭 회수 구간의 시험 종료 시각
         private Vector3 openingPosition; // 재출격할 때 첫 적이 나타날 위치
         private Quaternion openingRotation; // 첫 적의 원래 비행 방향
+        private bool stopped; // 완료·실패·포기 뒤의 시간 고정 상태
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
-        public float ElapsedSeconds { get; private set; } // 설정 선택을 제외한 출격 경과 시간
+        public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
+        public float TotalSeconds { get; private set; } // 메뉴와 카드 선택을 포함한 소요 시간
+        public bool IsStageComplete { get; private set; } // 일반 전투 항로의 종료 상태
+        private bool IsStage => stageWaves.Length > 0; // 실전 웨이브의 씬 등록 여부
+        private bool HasOpeningTarget => !IsStage && WaveNumber == 1; // 시험 씬의 시작 표적 표시 여부
 
         public int ActiveEnemyCount // 현재 웨이브에서 아직 보이는 적 수
         {
             get // 실제 활성 개체만 합산
             {
-                if (WaveNumber == 1) // 시작 시험 표적
+                if (HasOpeningTarget) // 시작 시험 표적
                 {
                     return openingEnemy != null && openingEnemy.gameObject.activeInHierarchy ? 1 : 0; // 처치 후 실제 표시
                 }
@@ -41,7 +55,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public void CopyActivePositions(List<Vector3> positions) // 레이더에 현재 웨이브의 실제 적 위치 전달
         {
             positions.Clear(); // 이전 웨이브의 표시 제거
-            if (WaveNumber == 1) // 초기 전투의 실제 표적
+            if (HasOpeningTarget) // 시험 전투의 실제 표적
             {
                 if (openingEnemy != null && openingEnemy.gameObject.activeInHierarchy) // 처치 전에만 표시
                 {
@@ -61,7 +75,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Awake() // 첫 웨이브의 배치 기억
         {
-            if (openingEnemy != null) // 편집 가능한 시작 표적
+            if (IsStage) // 실전 씬의 준비 상태
+            {
+                WaveNumber = 0; // 첫 출현 전까지 웨이브 미시작
+            }
+            else if (openingEnemy != null) // 편집 가능한 시작 표적
             {
                 openingPosition = openingEnemy.transform.position; // 초기 등장 위치
                 openingRotation = openingEnemy.transform.rotation; // 초기 회전
@@ -70,10 +88,14 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // 연습 시나리오의 입력 확인
         {
-            Keyboard keyboard = Keyboard.current; // 현재 입력 장치
-            if (Time.timeScale == 0f) // 카드 선택 중 전투 명령 동결
+            if (IsStage) // 실전 스테이지의 자동 진행
             {
-                return; // 웨이브를 시작하지 않는 시간
+                UpdateStage(); // 실전 기록과 출현 일정 갱신
+                return; // 실전에서 연습 웨이브 키 제외
+            }
+            if (Time.timeScale == 0f) // 카드 선택 중 연습 진행 동결
+            {
+                return; // 연습 웨이브를 시작하지 않는 시간
             }
             if (pilot.IsDefeated) // 출격 실패면 전투 시간 중단
             {
@@ -81,6 +103,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 중단 상태의 시험 시작 차단
             }
             ElapsedSeconds += Time.deltaTime; // 출격 경과 시간 누적
+            Keyboard keyboard = Keyboard.current; // 현재 입력 장치
             if (keyboard != null && bindings.Pressed(keyboard, FlightAction.Wave)) // 설정한 시험 웨이브 시작
             {
                 StartTrial(); // 실제 출현 위치와 체력 복구
@@ -89,6 +112,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void StartTrial() // 실제 마물 출현 동작
         {
+            if (IsStage) // 실전 일정에 수동 출현 제외
+            {
+                return; // 씬에 등록된 자동 출현 유지
+            }
             StopTrial(); // 이전 마물의 상태 정리
             WaveNumber++; // 새로운 시험 웨이브 번호
             if (openingEnemy != null) // 시작 표적이 연결된 씬
@@ -105,13 +132,70 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void RestartTrial() // 시험 출격을 다시 시작할 때
         {
             StopTrial(); // 이전 웨이브 정리
-            WaveNumber = 1; // 첫 웨이브
+            WaveNumber = IsStage ? 0 : 1; // 실전 준비 또는 시험 첫 웨이브
             ElapsedSeconds = 0f; // 첫 타이머
+            TotalSeconds = 0f; // 전체 소요 시간 초기화
+            stopped = false; // 새 출격의 자동 진행 재개
+            IsStageComplete = false; // 이전 항로의 완료 상태 초기화
             if (openingEnemy != null) // 저장된 시작 표적
             {
                 openingEnemy.gameObject.SetActive(false); // 기존 적 체력 초기화 준비
-                openingEnemy.transform.SetPositionAndRotation(openingPosition, openingRotation); // 시작 위치와 방향
-                openingEnemy.gameObject.SetActive(true); // 새 출격의 첫 적 복귀
+                if (!IsStage) // 시험 씬의 첫 표적 복원
+                {
+                    openingEnemy.transform.SetPositionAndRotation(openingPosition, openingRotation); // 시작 위치와 방향
+                    openingEnemy.gameObject.SetActive(true); // 새 연습의 첫 적 복귀
+                }
+            }
+        }
+
+        internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
+        {
+            if (!IsStage || stopped) // 연습 씬 또는 이미 종료된 출격
+            {
+                return; // 기존 상태 유지
+            }
+            stopped = true; // 이번 출격의 시간 고정
+            StopTrial(); // 남아 있는 적 비활성화
+            pool.ReturnAll(); // 이미 발사된 적탄 회수
+        }
+
+        private void UpdateStage() // 시간과 전투 배치의 순차 진행
+        {
+            if (pilot.IsDefeated) // 체력이 모두 소진된 경우
+            {
+                StopStage(); // 실패 위치에서 시간과 적탄 정리
+            }
+            if (stopped) // 출격이 종료된 경우
+            {
+                return; // 최종 시간을 보존
+            }
+            TotalSeconds += Time.unscaledDeltaTime; // 정지와 카드 선택을 포함한 시간
+            if (Time.timeScale == 0f) // 메뉴와 보상 선택 중
+            {
+                return; // 전투 시간과 자동 출현은 정지
+            }
+            ElapsedSeconds += Time.deltaTime; // 실제 전투 진행 시간
+            if (ActiveEnemyCount > 0) // 앞 웨이브의 적이 남아 있는 경우
+            {
+                return; // 진행 중인 적을 중복 출현시키지 않음
+            }
+            if (WaveNumber < stageWaves.Length) // 전장의 예정된 다음 적 배치
+            {
+                StageWave next = stageWaves[WaveNumber]; // 현재 번호에 이어지는 웨이브
+                if (ElapsedSeconds >= next.startsAt) // 편집한 출현 시간 이후
+                {
+                    WaveNumber++; // HUD의 새 출현 번호
+                    foreach (FlightEnemyRoute enemy in next.enemies) // 해당 웨이브의 준비된 적
+                    {
+                        enemy.Begin(pool, pilot.transform); // 실제 월드 위치에서 등장
+                    }
+                }
+                return; // 추가 웨이브를 같은 프레임에 시작하지 않음
+            }
+            if (ElapsedSeconds >= stageEndTime) // 일반 전투와 회수 구간 종료
+            {
+                IsStageComplete = true; // 시험 항로 완료 표시
+                StopStage(); // 두 시계와 잔류 적탄 정리
             }
         }
 

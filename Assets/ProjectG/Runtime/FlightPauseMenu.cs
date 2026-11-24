@@ -234,6 +234,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Abandon() // 끝난 출격을 다시 재생할 수 없도록 표시
         {
+            encounter.StopStage(); // 실전 포기 시 두 시간의 최종값 고정
             abandon = true; // 복귀 차단
             continueButton.interactable = false; // 기존 출격 계속하기 비활성
             abandonButton.interactable = false; // 중복 중단 방지

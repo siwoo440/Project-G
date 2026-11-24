@@ -11,6 +11,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
     public sealed class FirstFlightPlayTests // 실제 입력과 추적 카메라 시험
     {
         private const string ScenePath = "Assets/Scenes/FlightPrototype.unity"; // 검증 대상 씬 경로
+        private const string OuterIslandsPath = "Assets/Scenes/OuterIslandsStage.unity"; // Windows 출격용 하늘섬 외곽 항로
         private Keyboard keyboard; // 테스트 전용 가상 키보드
         private Mouse mouse; // 테스트 전용 가상 마우스
         private float previousCaptureStep; // 원래 프레임 시험 시간
@@ -1306,6 +1307,121 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(newer.gameObject.activeSelf, Is.False); // 남은 획득 숫자 종료
         }
 
+        [UnityTest] // 배포 시작 씬의 자동 출현과 종료
+        public IEnumerator OuterIslandsStartsAndFinishesScheduledWaves() // 수동 키 없이 진행하는 외곽 항로
+        {
+            yield return LoadOuterIslands(); // 등록된 배포 시작 씬
+            Transform pilot = FindPilot(); // 실제 비행체와 점수 지급 기준
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 출현 시간에 영향을 주는 자동 처치 제외
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 피격 판정 대상
+            vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 100f }); // 웨이브 진행을 보기 위한 시험 보호 시간
+            Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 씬의 웨이브 실행기
+            Assert.That(Metric(encounter, "WaveNumber"), Is.Zero); // 첫 출현 전 준비 구간
+            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.Zero); // 안전한 준비 공간
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Y)); // 시험 씬 전용 웨이브 키 입력
+            yield return WaitFrames(4); // 실전에서 일정이 바뀌는지 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 시험 키 해제
+            Assert.That(Metric(encounter, "WaveNumber"), Is.Zero); // 시험 키 때문에 실전 일정이 바뀌지 않음
+            Time.captureDeltaTime = 0.1f; // 80초짜리 일정의 재현 가능한 시험 속도
+            yield return AdvanceStageTo(encounter, 3.2f); // 준비 구간의 첫 일반 적 시각
+            Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(1)); // 약한 적 한 마리의 자동 출현
+            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.EqualTo(1)); // 첫 배치의 실제 적 수
+            yield return AdvanceStageTo(encounter, 20.3f); // 첫 일반 전투 시작 시각
+            Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(2)); // 임의 입력 없이 다음 웨이브
+            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.EqualTo(2)); // 조준형과 확산형 동시 출현
+            Assert.That(HudText(LocateCombatHud().transform.Find("WaveReadout/Wave")), Is.EqualTo("Wave : 2")); // 기존 HUD와 실제 일정 연동
+            yield return AdvanceStageTo(encounter, 80f); // 첫 전투와 회수 구간의 종료 시각
+            yield return WaitFrames(3); // 출격 종료 상태가 UI에 반영되는 시간
+            Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(5)); // 구성한 모든 웨이브 진행
+            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.Zero); // 항로 완료 시 남은 일반 적 없음
+            Assert.That((bool)encounter.GetType().GetProperty("IsStageComplete").GetValue(encounter), Is.True); // 항로 완료 상태
+            float end = StageTime(encounter, "TotalSeconds"); // 끝난 결과에 보관한 전체 소요 시간
+            yield return WaitFrames(8); // 완료 뒤 시간 증가 여부
+            Assert.That(StageTime(encounter, "TotalSeconds"), Is.EqualTo(end)); // 결과가 확정된 뒤 시계 정지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 실제 새 출격 키
+            yield return WaitFrames(4); // 준비 구간으로 복귀
+            Assert.That(Metric(encounter, "WaveNumber"), Is.Zero); // 이전 웨이브와 종료 상태 초기화
+            Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.LessThan(1f)); // 새 전투 시계 시작
+        }
+
+        [UnityTest] // 일시정지와 레벨업 선택에서 두 시간 기록 분리
+        public IEnumerator OuterIslandsCountsPauseAndCardTimeOnlyInTotal() // 실전 시계 두 개의 실제 동작
+        {
+            yield return LoadOuterIslands(); // 저장된 새 항로
+            Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 실전의 출격 기록
+            Transform hud = LocateCombatHud().transform; // 기존 HUD와 새 전체 시간 줄
+            Assert.That(hud.Find("WaveReadout/Total"), Is.Not.Null); // 별도 전체 소요 시간 표시
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 일시정지 입력
+            yield return WaitFrames(3); // 정지 상태 확정
+            float active = StageTime(encounter, "ElapsedSeconds"); // 정지 시점의 전투 진행 시간
+            float total = StageTime(encounter, "TotalSeconds"); // 정지 시점의 전체 소요 시간
+            yield return new WaitForSecondsRealtime(0.12f); // 전투 시간을 쓰지 않는 대기
+            Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.EqualTo(active)); // 일시정지 중 전투 시계 보존
+            Assert.That(StageTime(encounter, "TotalSeconds"), Is.GreaterThan(total + 0.06f)); // 전체 소요에 정지 포함
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // ESC 키 해제
+            yield return WaitFrames(2); // 입력 정리
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 계속하기 동작
+            yield return WaitFrames(5); // 전투 시계 재개
+            Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.GreaterThan(active)); // 정지 해제 뒤 전투 시간 재개
+            Component experience = GameObject.Find("ExperienceDrops").GetComponent("FlightExperience"); // 경험치 드롭의 실제 레벨업 경로
+            experience.GetType().GetMethod("Grant", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(experience, new object[] { 10 }); // 선택 창이 열리는 경험치 지급
+            yield return WaitFrames(4); // 실제 보상 선택 화면과 시간 동결
+            Assert.That(hud.Find("LevelUpChoices").gameObject.activeInHierarchy, Is.True); // 레벨업 선택 화면 활성
+            active = StageTime(encounter, "ElapsedSeconds"); // 카드 선택 시작 때의 전투 시간
+            total = StageTime(encounter, "TotalSeconds"); // 카드 선택 시작 때의 전체 시간
+            yield return new WaitForSecondsRealtime(0.12f); // 카드 고르는 동안의 실제 시간
+            Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.EqualTo(active)); // 카드 선택 중 전투 시계 보존
+            Assert.That(StageTime(encounter, "TotalSeconds"), Is.GreaterThan(total + 0.06f)); // 전체 소요에 선택 시간 포함
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Digit1)); // 실제 첫 번째 카드 선택
+            yield return WaitFrames(5); // 카드 선택 뒤 시간 재개
+            Assert.That(Time.timeScale, Is.GreaterThan(0f)); // 다음 시험과 실제 전투의 정지 해제
+        }
+
+        [UnityTest] // 편집 가능한 지형 구역과 깊이 연출
+        public IEnumerator OuterIslandsUsesSceneVolumeAndMovesCloudLayers() // 실제 경계와 시차 움직임
+        {
+            yield return LoadOuterIslands(); // 씬에 저장된 배치
+            GameObject zone = GameObject.Find("FlightVolume"); // 편집 가능한 전투 구역
+            Assert.That(zone, Is.Not.Null); // 전투 구역 오브젝트 존재
+            BoxCollider boundary = zone.GetComponent<BoxCollider>(); // 구역의 실제 위치와 크기
+            Assert.That(boundary.isTrigger, Is.True); // 비행 경계는 충돌 표면과 분리
+            Assert.That(GameObject.Find("SpawnPoints").transform.childCount, Is.EqualTo(3)); // 조준·확산·돌진의 편집 지점 그룹
+            Transform pilot = FindPilot(); // 실제 비행 조작체
+            pilot.position = new Vector3(boundary.bounds.max.x - 0.2f, 24f, -5f); // 충돌 지형 바깥의 우측 경계
+            Transform near = GameObject.Find("CloudLayers").transform.Find("NearClouds"); // 가까운 구름층
+            Transform far = GameObject.Find("CloudLayers").transform.Find("FarClouds"); // 먼 구름층
+            Vector3 nearStart = near.position; // 가까운 층의 시작 위치
+            Vector3 farStart = far.position; // 먼 층의 시작 위치
+            SetKeys(Key.D); // 경계 바깥쪽으로 실제 비행
+            yield return WaitFrames(45); // 비행 체적과 구름 이동 관찰
+            SetKeys(); // 이동 해제
+            Assert.That(pilot.position.x, Is.EqualTo(boundary.bounds.max.x).Within(0.01f)); // 씬 경계를 넘지 않는 이동
+            Assert.That(Vector3.Distance(near.position, nearStart), Is.GreaterThan(Vector3.Distance(far.position, farStart))); // 가까운 구름층의 뚜렷한 움직임
+            Assert.That(Vector3.Distance(far.position, farStart), Is.GreaterThan(0.01f)); // 먼 구름층의 완만한 이동
+        }
+
+        private static IEnumerator LoadOuterIslands() // 정상 배포 순서로 새 항로 읽기
+        {
+            int buildIndex = SceneUtility.GetBuildIndexByScenePath(OuterIslandsPath); // 정식 항로의 빌드 등록
+            Assert.That(buildIndex, Is.EqualTo(0), "하늘섬 외곽 스테이지가 Windows 첫 씬"); // 실제 게임 시작점
+            yield return SceneManager.LoadSceneAsync(buildIndex); // 기존 조작과 HUD 진입 경로
+            yield return null; // 씬의 첫 프레임 초기화
+        }
+
+        private static float StageTime(Component encounter, string time) // 출격에서 기록한 시계 읽기
+        {
+            return (float)encounter.GetType().GetProperty(time).GetValue(encounter); // 현재 출격의 전투 또는 전체 시간
+        }
+
+        private static IEnumerator AdvanceStageTo(Component encounter, float seconds) // 특정 타임라인 시각까지 대기
+        {
+            for (int frame = 0; frame < 1200 && StageTime(encounter, "ElapsedSeconds") < seconds; frame++) // 정지 상태에서 무한 대기 방지
+            {
+                yield return null; // 실제 웨이브 갱신 프레임
+            }
+            Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.GreaterThanOrEqualTo(seconds)); // 실제 타임라인 진행
+        }
+
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         {
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용
@@ -1322,7 +1438,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
         private static IEnumerator LoadFlight() // 빌드에 등록된 실제 씬 확인
         {
             int buildIndex = SceneUtility.GetBuildIndexByScenePath(ScenePath); // 씬의 배포 순서
-            Assert.That(buildIndex, Is.EqualTo(0), "첫 비행 씬의 Windows 시작 씬 등록"); // 새 프로젝트의 시작 씬 확인
+            Assert.That(buildIndex, Is.GreaterThanOrEqualTo(0), "비행 시험 씬 빌드 등록"); // 시험 씬의 유효한 진입점
             yield return SceneManager.LoadSceneAsync(buildIndex); // 등록된 씬을 정상 경로로 열기
             yield return null; // 카메라 초기화와 프레임 대기
         }

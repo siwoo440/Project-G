@@ -15,6 +15,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightBindings bindings; // 실제 탄막 연습 키 설정
         [SerializeField] private FlightEnhancements enhancements; // 이번 출격의 드롭과 장착 보조 장비
         [SerializeField] private FlightScoreHud score; // 이번 출격의 점수와 획득 숫자
+        [SerializeField] private bool allowPractice = true; // 시험 씬의 적탄 연습 입력 허용
         private FlightThreatPattern pattern; // 현재 선택한 입체 탄막
         private float phase; // 순차적으로 바뀌는 나선 각도
         [SerializeField, FormerlySerializedAs("status")] private Text failureNotice; // 출격에 실패했을 때만 표시
@@ -33,7 +34,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Update() // 훈련 키와 적탄 처리
         {
             Keyboard keyboard = Keyboard.current; // 현재 키보드
-            if (Time.timeScale == 0f) // 레벨업 카드 선택 중 유지
+            if (!allowPractice || Time.timeScale == 0f) // 정식 항로와 레벨업 선택 중 연습 입력 제외
             {
                 return; // 연습 패턴과 발사 중지
             }

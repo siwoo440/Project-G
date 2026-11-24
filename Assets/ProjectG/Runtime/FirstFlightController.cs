@@ -13,6 +13,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float mouseSensitivity = 0.18f; // 마우스 픽셀당 회전 각도
         [SerializeField] private FlightBindings bindings; // 설정에 표시된 실제 비행 키
         [SerializeField] private Bounds flightBounds = new Bounds(new Vector3(0f, 14f, 26f), new Vector3(92f, 46f, 122f)); // 월드 축 기준 비행 체적
+        [SerializeField] private BoxCollider flightVolume; // 실전 씬에 배치한 축 정렬 전투 구역
         [SerializeField] private LayerMask environmentLayer = 1 << 8; // 비행 지형 충돌 대상
         private FlightPilotVitals vitals; // 현재 비행체의 생존 상태
         private Vector3 velocity; // 관성이 포함된 월드 속도
@@ -130,7 +131,8 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             Vector3 candidate = transform.position + step; // 지형 접촉 이후의 이동 목표
-            Vector3 bounded = flightBounds.ClosestPoint(candidate); // 비행 체적 안의 안전한 위치
+            Bounds activeBounds = flightVolume != null ? flightVolume.bounds : flightBounds; // 씬 전투 구역 또는 기존 시험 체적
+            Vector3 bounded = activeBounds.ClosestPoint(candidate); // 비행 체적 안의 안전한 위치
             if (bounded.x != candidate.x) // 좌우 경계 접촉
             {
                 velocity.x = 0f; // 좌우 경계의 관성 제거

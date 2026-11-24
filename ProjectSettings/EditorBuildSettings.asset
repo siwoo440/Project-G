@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/OuterIslandsStage.unity
+    guid: a35976d2f9521ce4dbb80aefb5a77aa4
+  - enabled: 1
     path: Assets/Scenes/FlightPrototype.unity
     guid: b7b441eaaffe9a04c9b55763d4b407ef
   - enabled: 1

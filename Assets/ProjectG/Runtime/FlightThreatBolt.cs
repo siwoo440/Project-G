@@ -18,6 +18,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool nearCandidate; // 현재까지 근접 구간 진입 여부
         private bool grazeAwarded; // 상대 기체에 대한 중복 그레이즈 방지
 
+        internal float Radius => radius; // 적탄 소거의 실제 반경
+
         internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed) // 실제 발사된 적탄 초기화
         {
             owner = pool; // 해당 탄을 관리하는 풀 참조

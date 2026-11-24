@@ -78,6 +78,25 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             return count; // 실제 소거 결과
         }
+
+        public void ClearAlongBeam(Vector3 start, Vector3 direction, float length, float radius) // 광선의 지형 앞 범위만 소거
+        {
+            foreach (FlightThreatBolt bolt in all) // 재사용 중인 모든 적탄 검사
+            {
+                if (!bolt.gameObject.activeSelf) // 이미 회수된 적탄 제외
+                {
+                    continue; // 활성 적탄만 범위 확인
+                }
+                Vector3 offset = bolt.transform.position - start; // 총구에서 적탄까지의 위치
+                float distance = Vector3.Dot(offset, direction); // 광선 축 위의 투영 거리
+                float combinedRadius = radius + bolt.Radius; // 광선과 탄환의 실제 접촉 범위
+                if (distance >= 0f && distance <= length && (offset - direction * distance).sqrMagnitude <= combinedRadius * combinedRadius) // 막힘 앞 원통과 접촉
+                {
+                    Return(bolt); // 광선에 닿은 탄만 풀에 회수
+                }
+            }
+        }
+
         private FlightThreatBolt CreateBolt() // 테스트 프리팹의 객체 생성
         {
             FlightThreatBolt bolt = Instantiate(template, transform); // Hierarchy의 풀 아래 배치

@@ -650,6 +650,141 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(target.activeSelf, Is.False); // 시험 체력 80의 마물 피해
             Assert.That(HudText(hud.Find("Ultimate/Label")), Is.EqualTo("ULT 0 / 100")); // 에너지 100 소비
         }
+        [UnityTest] // 시험 조작에서 두 캐릭터의 전환
+        public IEnumerator RianSwitchesSkillArtAndWeakPointIndicator() // F2로 리안 선택 후 원복
+        {
+            yield return LoadFlight(); // 실제 씬과 저장된 아트 로드
+            Transform hud = LocateCombatHud().transform; // 현재 HUD
+            Transform slot = hud.Find("SkillSlots/Q"); // Q 전용 아이콘
+            var art = slot.Find("Art").GetComponent<UnityEngine.UI.RawImage>(); // 현재 적용된 실제 그림
+            var ariaArt = art.texture; // 원복할 아리아 원본 아이콘
+            yield return SelectRian(); // 사용자가 누르는 실제 키
+            Assert.That(art.texture, Is.Not.SameAs(ariaArt)); // 리안 Q 그림
+            Assert.That(HudText(hud.Find("RapidBonus/Label")), Is.EqualTo("RIAN  WEAK +50%")); // 리안 패시브 안내
+            yield return SelectRian(); // 두 번째 입력으로 아리아 복구
+            Assert.That(art.texture, Is.SameAs(ariaArt)); // 원래 그림과 속사 복귀
+        }
+
+        [UnityTest] // 집중 사격의 몸통과 약점 비교
+        public IEnumerator RianFocusedBoltSeparatesExposedWeakPointFromBody() // 높이 차이가 20·30 피해로 반영
+        {
+            yield return LoadFlight(); // 실제 출격 경로
+            yield return SelectRian(); // 저격 캐릭터 전환
+            Transform pilot = FindPilot(); // 같은 비행체 기반
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 자동·스킬 발사체
+            ((Behaviour)weapon).enabled = false; // 측정 중 자동탄으로 인한 추가 피해 차단
+            yield return WaitFrames(150); // 전환 이전에 발사된 탄의 최대 사거리 경과
+            GameObject.Find("NearPracticeTarget").SetActive(false); // 앞의 기본 연습 표적 제거
+            GameObject.Find("HighPracticeTarget")?.SetActive(false); // 고고도 표적 간섭 차단
+            GameObject target = GameObject.Find("GlassfinEnemy"); // 프리팹이 저장된 시험 마물
+            Transform marker = target.transform.Find("WeakPoint"); // 프리팹의 편집 가능한 약점
+            Assert.That(marker, Is.Not.Null); // 별도 3D 약점
+            Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f)); // 화면의 실제 중앙
+            PlaceSniperTarget(target, ray.GetPoint(19f), 80); // 몸통만 중앙에 두고 체력 복원
+            Physics.SyncTransforms(); // 이동한 콜라이더 등록
+            InvokeFocusedCast(weapon); // 실제 집중 마법탄 생성
+            yield return WaitFrames(48); // 월드 탄환이 표적에 도달
+            Component life = target.GetComponent("FlightEnemy"); // 피해 적용
+            Assert.That(Metric(life, "Health"), Is.EqualTo(60)); // 기본 집중 피해 20
+            target.transform.position += ray.GetPoint(19f) - marker.position; // 같은 조준선에 노출된 약점 배치
+            Physics.SyncTransforms(); // 약점 위치 즉시 반영
+            InvokeFocusedCast(weapon); // 같은 집중탄으로 두 번째 측정
+            yield return WaitFrames(48); // 새 명중 확인
+            Assert.That(Metric(life, "Health"), Is.EqualTo(30)); // 약점 피해 30
+        }
+
+        [UnityTest] // 리안 전용 Q와 R의 실제 공간 범위
+        public IEnumerator RianSkillsPierceTargetsButBeamStopsAtTerrain() // 관통 피해와 지형 뒤 탄막 보존
+        {
+            yield return LoadFlight(); // 실제 마물과 적탄 풀 로드
+            yield return SelectRian(); // 리안 전투 설정
+            Transform pilot = FindPilot(); // 기체의 실제 판정 중심
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 스킬 피해만 격리
+            yield return WaitFrames(150); // 앞선 발사의 잔류 탄환 만료
+            GameObject.Find("NearPracticeTarget").SetActive(false); // 기본 연습 표적 제거
+            Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f)); // 실제 발사 방향 기준
+            GameObject front = PlaceSniperTarget(GameObject.Find("GlassfinEnemy"), ray.GetPoint(16f), 400); // 첫 번째 중첩 관통 대상
+            Transform muzzle = GameObject.Find("SpellMuzzle").transform; // 실제 발사 위치
+            Physics.SyncTransforms(); // 선두 표적의 새 위치
+            Assert.That(Physics.Raycast(ray, out RaycastHit impact, 85f, 1 << 9), Is.True); // 첫 표적 표면의 조준 접촉
+            Vector3 direction = (impact.point - muzzle.position).normalized; // 총구에서 선두 표적 표면으로의 방향
+            GameObject rear = PlaceSniperTarget(Object.Instantiate(front), impact.point + direction * 9f, 400); // 실제 직선 궤적 위의 두 번째 표적
+            Physics.SyncTransforms(); // 관통 접촉 상태 준비
+
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 실제 관통 사격 키
+            yield return WaitFrames(54); // 두 콜라이더를 통과할 시간
+            Assert.That(Metric(front.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(300)); // 선두 적 한 번 피해
+            Assert.That(Metric(rear.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(300)); // 뒤 적 한 번 피해
+            Assert.That(HudText(LocateCombatHud().transform.Find("SkillSlots/Q/Cooldown")), Is.EqualTo("10")); // 시험 쿨타임
+
+            for (int index = 0; index < 10; index++) // 실제 회피로 에너지 100 충전
+            {
+                EmitThreat(pilot.position + Vector3.right * 0.65f + Vector3.forward * 12f, Vector3.back, 1500f); // 짧은 근접 회피 궤적
+            }
+
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // Q 해제
+            yield return WaitFrames(6); // 그레이즈 자원 정산
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube); // 광선 중간의 실제 지형
+            wall.layer = 8; // 지형 충돌 레이어
+            wall.transform.position = ray.GetPoint(20f); // 두 표적 사이
+            wall.transform.localScale = new Vector3(6f, 6f, 1f); // 광선과 벽의 접촉 면적
+            Vector3 beamPoint = impact.point - direction; // 벽 앞쪽의 실제 광선 경로
+            EmitThreat(beamPoint, direction, 0.001f); // 광선 안 적탄
+            EmitThreat(beamPoint + Vector3.right * 4f, direction, 0.001f); // 광선 바깥 적탄
+            EmitThreat(impact.point + direction * 10f, direction, 0.001f); // 벽 뒤 적탄
+            Physics.SyncTransforms(); // 벽의 충돌 등록
+
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 실제 광선 필살기 키
+            yield return WaitFrames(5); // 즉시 광선 피해와 적탄 회수
+            Assert.That(Metric(front.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(80)); // 지형 앞 피해 220
+            Assert.That(Metric(rear.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(300)); // 지형 뒤 남은 체력
+            Assert.That(Metric(GetThreatPool(), "ActiveCount"), Is.EqualTo(2)); // 광선 안의 앞쪽 탄만 소거
+            Assert.That(HudText(LocateCombatHud().transform.Find("Ultimate/Label")), Is.EqualTo("ULT 0 / 100")); // 필살기 에너지 100 소비
+        }
+
+        [UnityTest] // 공용 보호막의 1회 피해 방어
+        public IEnumerator RianGuardBlocksOnlyTheFirstThreat() // 같은 보호막에 연속 두 번 접촉
+        {
+            yield return LoadFlight(); // 보호막과 실제 피격 판정이 연결된 씬
+            yield return SelectRian(); // 저격형 보호막 설정
+            Transform pilot = FindPilot(); // 적탄 피격의 현재 중심
+            Transform hud = LocateCombatHud().transform; // 남은 재사용 시간 표시
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.E)); // 리안 E 발동
+            yield return WaitFrames(4); // 보호막 자원과 효과 반영
+            Assert.That(HudText(hud.Find("SkillSlots/E/Cooldown")), Is.EqualTo("12")); // 기획서의 12초 재사용 시간
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 방어할 첫 적탄
+            yield return WaitFrames(4); // 첫 접촉 완료
+            Assert.That(Metric(FlightVitals(pilot), "Health"), Is.EqualTo(100)); // 첫 피해 차단
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 계속 접근하는 두 번째 적탄
+            yield return WaitFrames(4); // 두 번째 접촉 완료
+            Assert.That(Metric(FlightVitals(pilot), "Health"), Is.EqualTo(80)); // 이미 사용한 보호막에는 추가 방어 없음
+        }
+
+        private IEnumerator SelectRian() // 프로필 전환 입력 한 번
+        {
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2)); // 시험 캐릭터 전환 키
+            yield return WaitFrames(3); // 프로필과 HUD 적용
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 누름 해제
+            yield return WaitFrames(3); // 다음 입력 대기
+        }
+
+        private static void InvokeFocusedCast(Component weapon) // 집중 사격의 동일 충돌 경로
+        {
+            var cast = weapon.GetType().GetMethod("CastSpread"); // 실제 발사 API
+            Assert.That(cast.Invoke(weapon, new object[] { true, 1, 0f, true }), Is.True); // 집중 자동탄 하나 발사
+        }
+
+        private static GameObject PlaceSniperTarget(GameObject target, Vector3 position, int health) // 체력과 조준 좌표 설정
+        {
+            target.SetActive(false); // 부활 시 체력 재설정
+            target.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, 180f, 0f)); // 노출 방향과 위치 적용
+            Component life = target.GetComponent("FlightEnemy"); // 실제 마물 체력
+            life.GetType().GetField("maxHealth", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(life, health); // 피해 차이를 확인할 체력
+            target.SetActive(true); // 시험 대상 활성화
+            return target; // 실제 월드 오브젝트
+        }
+
+
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         {
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

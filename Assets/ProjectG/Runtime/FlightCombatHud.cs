@@ -68,9 +68,15 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Meter mana = new Meter(); // 파란 마력 게이지
         [SerializeField] private Meter ultimate = new Meter(); // 보라 필살기 에너지
         [SerializeField] private Meter experience = new Meter(); // 노란 경험치 게이지
-        [SerializeField] private SkillSlot[] slots; // J·K·L 순서의 제작 슬롯
+        [SerializeField] private SkillSlot[] slots; // Q·E·R 순서의 제작 슬롯
         [SerializeField] private FlightRapidFire rapid; // 현재 캐릭터의 누적 화력 상태
         [SerializeField] private Text rapidLabel; // 게이지 아래의 보너스
+        [SerializeField] private Texture sniperSkillArt; // 리안 Q·R 시험 아이콘 두 칸
+        private Texture ariaSkillArt; // 아리아의 원래 Q 스킬 그림
+        private Texture ariaUltimateArt; // 아리아의 원래 R 스킬 그림
+        private Rect ariaSkillUv; // 아리아 Q의 아틀라스 영역
+        private Rect ariaUltimateUv; // 아리아 R의 아틀라스 영역
+        private bool isSniper; // 현재 표시하는 리안의 전투 설정
         private const int MaxResource = 100; // 초기 시험 자원의 최대값
         private int manaPoints = MaxResource; // 시작 시 마력
         private int ultimatePoints; // 시작 시 필살기 에너지
@@ -84,6 +90,23 @@ namespace ProjectG // 프로젝트 게임 영역
             mana.Initialize(); // 마력 크기
             ultimate.Initialize(); // 필살기 에너지 크기
             experience.Initialize(); // 경험치 크기
+            ariaSkillArt = slots[0].art.texture; // 기존 Q 아이콘의 원본 저장
+            ariaUltimateArt = slots[2].art.texture; // 기존 R 아이콘의 원본 저장
+            ariaSkillUv = slots[0].art.uvRect; // 기존 Q 아틀라스 좌표
+            ariaUltimateUv = slots[2].art.uvRect; // 기존 R 아틀라스 좌표
+        }
+
+        public void SetSniper(bool active) // 시험 캐릭터와 Q·R 아이콘 전환
+        {
+            isSniper = active; // 패시브 표시 내용 전환
+            if (sniperSkillArt == null) // 아이콘이 아직 연결되지 않은 씬
+            {
+                return; // 기존 아이콘 유지
+            }
+            slots[0].art.texture = active ? sniperSkillArt : ariaSkillArt; // 리안 Q 또는 아리아 Q
+            slots[0].art.uvRect = active ? new Rect(0f, 0f, 0.5f, 1f) : ariaSkillUv; // 왼쪽 아이콘만 표시
+            slots[2].art.texture = active ? sniperSkillArt : ariaUltimateArt; // 리안 R 또는 아리아 R
+            slots[2].art.uvRect = active ? new Rect(0.5f, 0f, 0.5f, 1f) : ariaUltimateUv; // 오른쪽 아이콘만 표시
         }
 
         public void SetResources(int currentMana, int currentUltimate) // 전투에서 변경된 자원 상태 전달
@@ -118,7 +141,11 @@ namespace ProjectG // 프로젝트 게임 영역
             mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
-            if (rapid != null) // 아리아의 누적 값을 사용하는 슬롯
+            if (isSniper) // 리안의 약점 피해 안내
+            {
+                rapidLabel.text = "RIAN  WEAK +50%"; // HUD 안에 들어가는 리안 약점 보너스
+            }
+            else if (rapid != null) // 아리아의 누적 값을 사용하는 슬롯
             {
                 rapidLabel.text = $"RAPID +{Mathf.FloorToInt(rapid.BonusPercent + 0.003f)}%{(rapid.IsDecaying ? "   DECAY" : "")}"; // 감소하는 연속 적중 정보
             }

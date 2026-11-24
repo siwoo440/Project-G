@@ -10,6 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float grazeRadius = 0.90f; // 구형 근접 회피 반경
         [SerializeField, Min(0f)] private float immuneSeconds = 1f; // 피격 후 시험 무적 시간
         private float immuneUntil; // 다음 피격 가능 시각
+        private float guardUntil; // 한 발만 막는 리안 보호막의 종료 시점
 
         public int Health { get; private set; } // 현재 출격 체력
         public int MaxHealth => maxHealth; // 표시용 최대 체력
@@ -26,11 +27,17 @@ namespace ProjectG // 프로젝트 게임 영역
             Health = maxHealth; // 최대 체력 복구
             Grazes = 0; // 근접 회피 초기화
             immuneUntil = 0f; // 이전 무적 종료
+            guardUntil = 0f; // 이전 보호막 제거
         }
 
         public void GrantProtection(float seconds) // E와 보호 카드의 시험 효과
         {
             immuneUntil = Mathf.Max(immuneUntil, Time.time + seconds); // 기존 보호 시간 보존
+        }
+
+        public void GrantSingleHitGuard(float seconds) // 제한 시간 동안 피해 한 번 방지
+        {
+            guardUntil = Time.time + seconds; // 리안 보호막의 유효 종료 시점
         }
         internal bool ResolveThreat(Vector3 start, Vector3 end, float projectileRadius, int damage, ref bool nearCandidate, ref bool grazeAwarded) // 탄환 이동 전체와 기체 상대 경로 판정
         {
@@ -48,8 +55,15 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 if (Time.time >= immuneUntil) // 피격 후 무적 구간 확인
                 {
-                    Health = Mathf.Max(0, Health - damage); // 체력 하한 적용
-                    immuneUntil = Time.time + immuneSeconds; // 다음 피격 보호
+                    if (Time.time < guardUntil) // 보호막이 막을 첫 피해
+                    {
+                        guardUntil = 0f; // 보호막 즉시 소모
+                    }
+                    else // 보호막 없이 피격
+                    {
+                        Health = Mathf.Max(0, Health - damage); // 체력 하한 적용
+                        immuneUntil = Time.time + immuneSeconds; // 다음 피격 보호
+                    }
                 }
                 return true; // 충돌한 탄은 그레이즈 대상에서 제외
             }

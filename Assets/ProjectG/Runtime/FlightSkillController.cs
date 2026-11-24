@@ -11,7 +11,10 @@ namespace ProjectG // 프로젝트 게임 영역
         Nova, // 넓은 다발 마법탄
         Shade, // 다섯 갈래 어둠 마법
         RapidCycle, // 아리아 집중 포화
-        Meteor // 아리아 유성 탄막
+        Meteor, // 아리아 유성 탄막
+        PiercingShot, // 리안 관통 사격
+        SniperBeam, // 리안 천공 관측선
+        SingleHitGuard // 리안의 1회 피해 방어
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -32,6 +35,11 @@ namespace ProjectG // 프로젝트 게임 영역
         private void LateUpdate() // 자원 회복과 키 입력 확인
         {
             Keyboard keyboard = Keyboard.current; // 실제 입력 장치
+            if (keyboard != null && keyboard.f2Key.wasPressedThisFrame) // 시험 캐릭터 전환
+            {
+                weapon.TogglePilot(); // 기존 자원을 유지한 전투 설정 변경
+                hud.SetSniper(weapon.IsRian); // 전용 아이콘과 패시브 전환
+            }
             if (keyboard != null && keyboard.backspaceKey.wasPressedThisFrame) // 출격 재시작 입력
             {
                 mana = 100f; // 새 출격의 마력
@@ -51,17 +59,17 @@ namespace ProjectG // 프로젝트 게임 영역
                 recordedGrazes = vitals.Grazes; // 중복 에너지 지급 방지
                 if (keyboard != null) // 실제 키 입력 확인
                 {
-                    if (keyboard.qKey.wasPressedThisFrame) // Q 세 발 마법 입력
+                    if (keyboard.qKey.wasPressedThisFrame) // Q 고유기 입력
                     {
-                        TrySkill(0, FlightMagicEffect.RapidCycle, 25, 8f, false, 3f); // Q 집중 포화 발동
+                        TrySkill(0, weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle, 25, weapon.IsRian ? 10f : 8f, false, weapon.IsRian ? 0f : 3f); // 캐릭터의 관통 사격 또는 집중 포화
                     }
                     if (keyboard.eKey.wasPressedThisFrame) // E 보호막 입력
                     {
-                        TrySkill(1, FlightMagicEffect.Ward, 30, 6f, false); // E 보호막 발동 시도
+                        TrySkill(1, weapon.IsRian ? FlightMagicEffect.SingleHitGuard : FlightMagicEffect.Ward, 30, weapon.IsRian ? 12f : 6f, false); // 리안의 1회 보호 또는 아리아의 시간 보호
                     }
                     if (keyboard.rKey.wasPressedThisFrame) // R 필살기 입력
                     {
-                        TrySkill(2, FlightMagicEffect.Meteor, 100, 12f, true); // R 유성 탄막 발동
+                        TrySkill(2, weapon.IsRian ? FlightMagicEffect.SniperBeam : FlightMagicEffect.Meteor, 100, 12f, true); // 천공 관측선 또는 유성 탄막
                     }
                 }
             }
@@ -116,6 +124,13 @@ namespace ProjectG // 프로젝트 게임 영역
                 case FlightMagicEffect.RapidCycle: // 아리아의 집중 포화
                     weapon.BeginRapidFire(); // 자동 기본·집중탄 간격 30% 감소
                     return true; // 가속 발동
+                case FlightMagicEffect.PiercingShot: // 리안의 관통 사격
+                    return weapon.CastPiercingShot(); // 발사 성공 후 마력 소비
+                case FlightMagicEffect.SniperBeam: // 리안의 천공 관측선
+                    return weapon.CastSniperBeam(threatPool); // 광선 적중과 경로의 적탄 소거
+                case FlightMagicEffect.SingleHitGuard: // 리안의 공용 보호막 시험값
+                    vitals.GrantSingleHitGuard(1f); // 첫 피해 또는 1초에 만료되는 보호막
+                    return true; // 보호 발생 성공
                 case FlightMagicEffect.Meteor: // 아리아의 유성 탄막
                     threatPool.ClearInView(Camera.main); // 화면 안 적탄만 소거
                     foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 씬의 살아 있는 일반 적

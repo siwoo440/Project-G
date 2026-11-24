@@ -13,6 +13,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FlightPilotVitals vitals; // 이번 탄환이 겨누는 비행체
         private Vector3 previousPilot; // 이전 프레임의 판정 중심
         private float speed; // 초당 이동 거리
+        private int impactDamage; // 현재 이 탄환의 실제 피해량
         private float remaining; // 사용 중 남은 월드 거리
         private float secondsLeft; // 사용 중 남은 프레임 시간
         private bool nearCandidate; // 현재까지 근접 구간 진입 여부
@@ -20,7 +21,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal float Radius => radius; // 적탄 소거의 실제 반경
 
-        internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed) // 실제 발사된 적탄 초기화
+        internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed, int shotDamage) // 실제 발사된 적탄 초기화
         {
             owner = pool; // 해당 탄을 관리하는 풀 참조
             vitals = target; // 현재 씬 비행체 참조
@@ -30,6 +31,7 @@ namespace ProjectG // 프로젝트 게임 영역
             grazeAwarded = false; // 재사용 탄의 새 그레이즈 가능 상태
             previousPilot = vitals.transform.position; // 탄환 출발 때 기체 좌표
             speed = travelSpeed; // 발사 시 지정한 시험 속도
+            impactDamage = shotDamage > 0 ? shotDamage : damage; // 새 발사의 지정 피해 또는 원본 피해
         }
 
         private void LateUpdate() // 이동하는 탄환과 기체의 상대 궤적 검사
@@ -53,7 +55,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 currentPilot = vitals.transform.position; // 움직인 기체의 현재 좌표
             float portion = Time.deltaTime > 0f ? travel / (speed * Time.deltaTime) : 0f; // 이번 프레임에서 실제로 움직인 시간 비율
             Vector3 pilotAtEnd = Vector3.Lerp(previousPilot, currentPilot, portion); // 탄환이 지형에 도달한 때의 기체 위치
-            bool hit = vitals.ResolveThreat(start - previousPilot, end - pilotAtEnd, radius, damage, ref nearCandidate, ref grazeAwarded); // 체력과 그레이즈 판정
+            bool hit = vitals.ResolveThreat(start - previousPilot, end - pilotAtEnd, radius, impactDamage, ref nearCandidate, ref grazeAwarded); // 체력과 그레이즈 판정
             if (hit || terrain || remaining <= step || secondsLeft <= duration) // 접촉이나 거리·시간 만료 처리
             {
                 owner.Return(this); // 종료된 탄을 풀로 돌려보냄

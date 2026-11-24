@@ -29,6 +29,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightUpgradeChoices upgrades; // 출격 카드의 Q 재사용과 E 교체
         [SerializeField] private FlightBindings bindings; // 설정에서 편집하는 세 스킬 키
         [SerializeField] private FlightEnhancements enhancements; // 근접 충전에 적용할 아이템 보너스
+        [SerializeField] private FlightEnemy[] defeatRewards = System.Array.Empty<FlightEnemy>(); // 실전 스테이지의 처치 에너지 지급 대상
         private readonly float[] readyAt = new float[3]; // Q·E·R 사용 가능 시각
         private float mana = 100f; // 이번 출격의 실제 마력
         private float ultimate; // 소수 단위로 누적하는 필살기 에너지
@@ -36,6 +37,40 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
         public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
+
+        private void OnEnable() // 실제 스테이지의 처치 에너지 연결
+        {
+            foreach (FlightEnemy enemy in defeatRewards) // 씬에 연결한 적과 보스
+            {
+                enemy.Defeated += RewardDefeat; // 실제 처치에서만 에너지 지급
+            }
+        }
+
+        private void OnDisable() // 씬 변경 전 처치 알림 정리
+        {
+            foreach (FlightEnemy enemy in defeatRewards) // 등록했던 에너지 출처
+            {
+                if (enemy != null) // 먼저 사라진 씬 객체 제외
+                {
+                    enemy.Defeated -= RewardDefeat; // 다음 출격에 중복 등록 방지
+                }
+            }
+        }
+
+        private void RewardDefeat(FlightEnemy enemy) // 적 타입에 맞는 에너지 한 번 지급
+        {
+            if (vitals.IsDefeated) // 이미 실패한 출격의 잔류탄 제외
+            {
+                return; // 출격 실패 시 에너지 보존
+            }
+            int amount = enemy.LootTier switch // 일반·중간·최종 보상의 배타적 선택
+            {
+                FlightLootTier.MidBoss => 10, // 중간 보스의 기획 시험값
+                FlightLootTier.FinalBoss => 20, // 이후 최종 보스의 기획 시험값
+                _ => 2 // 일반 적의 기획 시험값
+            };
+            AddUltimate(amount); // 실제 필살기 자원과 게이지 갱신
+        }
 
         public void AddUltimate(int amount) // 레벨업 대체 보상의 필살기 에너지
         {

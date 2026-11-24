@@ -27,10 +27,10 @@ Windows 빌드는 `Assets/Scenes/OuterIslandsStage.unity`에서 시작합니다.
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
 
-![프로젝트 G 3D 16일차 하늘섬 외곽 전투와 두 타이머](docs/screenshots/3d-day-16-flight.png)
+![프로젝트 G 3D 17일차 중간 보스와 하늘섬 전투](docs/screenshots/3d-day-17-flight.png)
 
-Windows 시험 빌드에서 자동으로 시작한 두 번째 웨이브의 1920×1080 화면입니다. 상단 중앙의 큰 숫자는 전투 진행 시간입니다. `전체`는 정지 메뉴와 레벨업 선택 시간을 포함합니다. 오른쪽 위 레이더는 살아 있는 적의 방향과 거리를 보여 줍니다. 왼쪽 위에는 출격 점수와 최근 획득 숫자를 표시합니다.
+Windows 시험 빌드의 중간 보스 전투 화면입니다. 보스는 직선 연사와 부채탄을 교대하며, 각 공격이 끝나면 가슴의 약점이 1초간 나타납니다. 격파하고 4초 뒤 돌진형이 포함된 일반 전투가 시작됩니다. 상단 중앙의 큰 숫자는 전투 시간이며 `전체`는 정지 메뉴와 레벨업 선택을 포함합니다. 하늘섬 아래를 내려다보면 구름 너머로 바다와 해안이 보입니다.
 
-[1024×576 하늘섬 외곽 전투](docs/screenshots/3d-day-16-hud-1024.png) · [획득 점수 연출](docs/screenshots/3d-day-15-flight.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png) · [소리와 감도](docs/screenshots/3d-day-14-settings.png) · [강화 아이템](docs/screenshots/3d-day-14-enhancement.png)
+[아래로 본 바다와 해안](docs/screenshots/3d-day-17-surface.png) · [1024×576 중간 보스전](docs/screenshots/3d-day-17-hud-1024.png) · [일반 웨이브](docs/screenshots/3d-day-16-flight.png) · [획득 점수 연출](docs/screenshots/3d-day-15-flight.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png)
 
-[1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md) · [15일차 기록](docs/development/3d-day-15.md) · [16일차 기록](docs/development/3d-day-16.md)
+[1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md) · [15일차 기록](docs/development/3d-day-15.md) · [16일차 기록](docs/development/3d-day-16.md) · [17일차 기록](docs/development/3d-day-17.md)

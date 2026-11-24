@@ -57,10 +57,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 탄환 계속 진행
             }
 
-            Component target = FindTarget(hit.collider, out bool weakPoint); // 표적과 약점 구분
+            Component target = FindTarget(hit.collider, out FlightWeakPoint weakPoint); // 표적과 약점 구분
             if (target != null) // 피해를 받을 물체인지 확인
             {
-                ApplyDamage(target, effectiveDamage, weakPoint ? weakRatio : 0f); // 출격 캐릭터의 선택적 약점 보너스
+                ApplyDamage(target, effectiveDamage, weakPoint, weakRatio); // 약점과 캐릭터 보너스 반영
                 rapid?.RecordHit(); // 아리아 기본·집중탄의 실제 명중
             }
             return true; // 첫 접촉으로 탄환 종료
@@ -78,7 +78,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance)); // 지형 너머의 적을 맞히지 않는 처리 순서
             foreach (RaycastHit hit in hits) // 첫 접촉부터 순서대로 확인
             {
-                Component target = FindTarget(hit.collider, out bool weakPoint); // 몸통과 약점에 공통된 피해 대상
+                Component target = FindTarget(hit.collider, out FlightWeakPoint weakPoint); // 몸통과 약점에 공통된 피해 대상
                 if (target == null) // 지형이나 다른 충돌 물체
                 {
                     travel = hit.distance; // 실제 차단 지점
@@ -86,7 +86,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 if (targets.Add(target)) // 같은 적의 몸통·약점 중 첫 명중만 처리
                 {
-                    ApplyDamage(target, damage, weakPoint ? weakBonus : 0f); // 첫 접촉 부위에 따른 피해
+                    ApplyDamage(target, damage, weakPoint, weakBonus); // 첫 접촉 부위에 따른 피해
                     rapid?.RecordHit(); // 가로지른 고유 대상의 유효 적중
                     if (targets.Count >= maximumHits) // 해당 탄의 관통 한계
                     {
@@ -98,13 +98,13 @@ namespace ProjectG // 프로젝트 게임 영역
             return false; // 지나간 구간에 지형 없음
         }
 
-        private static Component FindTarget(Collider collider, out bool weakPoint) // 충돌체에서 피해 대상 확인
+        private static Component FindTarget(Collider collider, out FlightWeakPoint weakPoint) // 충돌체에서 피해 대상 확인
         {
-            weakPoint = collider.TryGetComponent<FlightWeakPoint>(out var marker) && marker.Enemy != null; // 유효한 약점 판정 여부
-            if (weakPoint) // 별도 콜라이더가 연결된 마물
+            if (collider.TryGetComponent(out weakPoint) && weakPoint.Enemy != null) // 실제 피해 대상과 연결된 약점
             {
-                return marker.Enemy; // 몸통과 같은 피해 대상
+                return weakPoint.Enemy; // 몸통과 같은 피해 대상
             }
+            weakPoint = null; // 일반 충돌에서 약점 보너스 제거
             if (collider.TryGetComponent<FlightEnemy>(out var enemy)) // 마물 몸통
             {
                 return enemy; // 일반 피해 대상
@@ -112,9 +112,10 @@ namespace ProjectG // 프로젝트 게임 영역
             return collider.GetComponent<FlightPracticeTarget>(); // 연습 표적 또는 지형
         }
 
-        private static void ApplyDamage(Component target, int baseDamage, float weakBonus) // 몸통과 약점의 피해량
+        private static void ApplyDamage(Component target, int baseDamage, FlightWeakPoint weakPoint, float characterBonus) // 몸통과 약점의 피해량
         {
-            int amount = Mathf.RoundToInt(baseDamage * (1f + weakBonus)); // 리안의 현재 약점 보너스
+            float bonus = weakPoint == null ? 0f : Mathf.Max(weakPoint.MinimumDamageBonus, characterBonus); // 보스 공통 보너스와 캐릭터 보너스 중 큰 값
+            int amount = Mathf.RoundToInt(baseDamage * (1f + bonus)); // 실제 판정에 반영할 피해량
             if (target is FlightEnemy enemy) // 일반 마물
             {
                 enemy.ReceiveHit(amount); // 실제 체력 갱신

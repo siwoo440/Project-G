@@ -12,7 +12,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
     public static class FlightThreatPatterns // 적과 연습에서 공유하는 발사 방향
     {
-        public static int Fire(FlightThreatPool pool, FlightThreatPattern pattern, Vector3 position, Vector3 direction, float phase) // 지정 패턴의 실제 발사
+        public static int Fire(FlightThreatPool pool, FlightThreatPattern pattern, Vector3 position, Vector3 direction, float phase, int damage = 0) // 지정 패턴과 개별 피해의 실제 발사
         {
             if (direction.sqrMagnitude < 0.0001f) // 영벡터에 대한 방향 검사
             {
@@ -32,7 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
             for (int index = 0; index < count; index++) // 기본 배열 순서대로 발사
             {
                 Vector3 local = PatternDirection(pattern, index, count, phase); // 해당 배열의 로컬 방향
-                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f)) // 상한을 확인한 실제 발사
+                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f, damage)) // 상한과 피해를 적용한 실제 발사
                 {
                     break; // 상한에 닿으면 남은 발사 중단
                 }

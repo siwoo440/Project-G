@@ -1308,7 +1308,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
         }
 
         [UnityTest] // 배포 시작 씬의 자동 출현과 종료
-        public IEnumerator OuterIslandsStartsAndFinishesScheduledWaves() // 수동 키 없이 진행하는 외곽 항로
+        public IEnumerator OuterIslandsStartsScheduledWavesBeforeMidBoss() // 수동 키 없이 이어지는 첫 일반 전투
         {
             yield return LoadOuterIslands(); // 등록된 배포 시작 씬
             Transform pilot = FindPilot(); // 실제 비행체와 점수 지급 기준
@@ -1330,18 +1330,110 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(2)); // 임의 입력 없이 다음 웨이브
             Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.EqualTo(2)); // 조준형과 확산형 동시 출현
             Assert.That(HudText(LocateCombatHud().transform.Find("WaveReadout/Wave")), Is.EqualTo("Wave : 2")); // 기존 HUD와 실제 일정 연동
-            yield return AdvanceStageTo(encounter, 80f); // 첫 전투와 회수 구간의 종료 시각
-            yield return WaitFrames(3); // 출격 종료 상태가 UI에 반영되는 시간
-            Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(5)); // 구성한 모든 웨이브 진행
-            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.Zero); // 항로 완료 시 남은 일반 적 없음
-            Assert.That((bool)encounter.GetType().GetProperty("IsStageComplete").GetValue(encounter), Is.True); // 항로 완료 상태
-            float end = StageTime(encounter, "TotalSeconds"); // 끝난 결과에 보관한 전체 소요 시간
-            yield return WaitFrames(8); // 완료 뒤 시간 증가 여부
-            Assert.That(StageTime(encounter, "TotalSeconds"), Is.EqualTo(end)); // 결과가 확정된 뒤 시계 정지
+            yield return AdvanceStageTo(encounter, 79f); // 첫 전투와 회수 구간의 끝
+            Assert.That(Metric(encounter, "WaveNumber"), Is.EqualTo(5)); // 보스 전에 진행하는 다섯 배치
+            Assert.That(Metric(encounter, "ActiveEnemyCount"), Is.Zero); // 안전한 드롭 회수 구간
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 실제 새 출격 키
             yield return WaitFrames(4); // 준비 구간으로 복귀
             Assert.That(Metric(encounter, "WaveNumber"), Is.Zero); // 이전 웨이브와 종료 상태 초기화
             Assert.That(StageTime(encounter, "ElapsedSeconds"), Is.LessThan(1f)); // 새 전투 시계 시작
+        }
+
+        [UnityTest] // 중간 보스와 후속 일반 전투의 진행
+        public IEnumerator OuterIslandsMidBossRewardsOnceAndStartsNextWaves() // 실제 등장·격파·보상·돌진형 전환
+        {
+            yield return LoadOuterIslands(); // 등록된 배포 경로
+            Transform encounter = GameObject.Find("EnemyEncounter").transform; // 실전의 웨이브 부모
+            Transform boss = encounter.Find("MidBoss"); // 씬에 배치한 실제 중간 보스
+            Assert.That(boss, Is.Not.Null, "중간 보스 오브젝트"); // 보스 씬 연결
+            Transform pilot = FindPilot(); // 보스의 공격 대상
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 임의 처치 차단
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 출격 체력과 적탄 판정
+            vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 210f }); // 항로 진행을 위한 시험 보호
+            Component timeline = encounter.GetComponent("FlightEnemyEncounter"); // 실제 출격 시간표
+            Time.captureDeltaTime = 0.1f; // 긴 항로를 재현하는 프레임 간격
+            yield return AdvanceStageTo(timeline, 79f); // 회수 구간이 끝나기 전
+            Assert.That(boss.gameObject.activeSelf, Is.False); // 보스 조기 출현 차단
+            yield return AdvanceStageTo(timeline, 81.2f); // 예정된 중간 보스 등장
+            Assert.That(boss.gameObject.activeSelf, Is.True); // 첫 전투 뒤 실제 보스 활성
+            Component life = boss.GetComponent("FlightEnemy"); // 보스의 실제 체력과 보상
+            Assert.That(Metric(life, "Health"), Is.EqualTo(600)); // 기획서의 초기 체력
+            Assert.That(HudText(LocateCombatHud().transform.Find("WaveReadout/Wave")), Is.EqualTo("중간 보스")); // 기존 웨이브 HUD의 보스 상태
+            yield return AdvanceStageTo(timeline, 119f); // 시험 목표 시각을 넘긴 전투
+            Assert.That(boss.gameObject.activeSelf, Is.True); // 보스가 시간만으로 사라지지 않음
+            Assert.That(Metric(timeline, "WaveNumber"), Is.EqualTo(6)); // 보스 생존 중 다음 웨이브 금지
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 필살기 에너지 보상
+            Component loot = GameObject.Find("EnhancementDrops").GetComponent("FlightEnhancements"); // 보스의 강화 아이템
+            Transform experience = GameObject.Find("ExperienceDrops").transform; // 경험치 드롭의 씬 계층
+            int oldUltimate = Metric(skills, "Ultimate"); // 처치 직전 에너지
+            Assert.That(Metric(life, "ExperienceReward"), Is.EqualTo(30)); // 보스의 시험 경험치
+            float defeat = StageTime(timeline, "ElapsedSeconds"); // 실제로 격파한 시각
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 600 }); // 실제 보스 처치
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 600 }); // 중복된 처치 입력
+            yield return WaitFrames(2); // 보스 탄막과 전환 상태 처리
+            Assert.That(Metric(loot, "ActiveCount"), Is.EqualTo(1)); // 유효 후보가 있는 보스의 확정 드롭
+            Assert.That(experience.childCount, Is.EqualTo(1)); // 보스 경험치 한 덩어리
+            Assert.That(experience.GetChild(0).gameObject.activeSelf, Is.True); // 실제 획득할 수 있는 경험치 조각
+            Assert.That(Metric(skills, "Ultimate"), Is.EqualTo(oldUltimate + 10)); // 일반 처치 에너지와 중복 없는 보상
+            Assert.That(Metric(GetThreatPool(), "ActiveCount"), Is.Zero); // 보스 잔류 탄막 회수
+            yield return AdvanceStageTo(timeline, defeat + 3.5f); // 보상을 회수할 여유
+            Assert.That(Metric(timeline, "WaveNumber"), Is.EqualTo(6)); // 즉시 새 적 등장 차단
+            yield return AdvanceStageTo(timeline, defeat + 4.5f); // 실제 격파 기준의 새 배치
+            Assert.That(Metric(timeline, "WaveNumber"), Is.EqualTo(7)); // 중간 보스 뒤 일반 전투 시작
+            Assert.That(encounter.Find("DiverEnemy").gameObject.activeSelf, Is.True); // 돌진형이 후속 전투에 합류
+            yield return AdvanceStageTo(timeline, defeat + 65f); // 두 번째 일반 전투와 회수 구간 종료
+            yield return WaitFrames(2); // 최종 보스 진입 전 상태 반영
+            Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.True); // 17일차 항로 완료
+        }
+
+        [UnityTest] // 보스의 교대 패턴과 공격 후 약점
+        public IEnumerator OuterIslandsMidBossAlternatesAndOpensARealWeakPoint() // 패턴 간 회피 공간과 약점 피해
+        {
+            yield return LoadOuterIslands(); // 배포 항로
+            Transform encounter = GameObject.Find("EnemyEncounter").transform; // 보스와 웨이브 실행기
+            Transform boss = encounter.Find("MidBoss"); // 실제 보스 참조
+            Assert.That(boss, Is.Not.Null, "중간 보스 오브젝트"); // 씬 보스 연결
+            Transform pilot = FindPilot(); // 실제 피격 대상
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 약점 시험에 사용하는 실제 마법탄
+            ((Behaviour)weapon).enabled = false; // 임의 자동 사격 차단
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 초기 항로를 통과할 플레이어
+            vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 100f }); // 시험 항로 중의 생존 유지
+            Component timeline = encounter.GetComponent("FlightEnemyEncounter"); // 실제 보스 출현 시각
+            Time.captureDeltaTime = 0.1f; // 출현 직전까지 진행
+            yield return AdvanceStageTo(timeline, 80.2f); // 보스가 진입하는 중
+            Transform weak = boss.Find("WeakPoint"); // 표시와 콜라이더를 공유하는 약점
+            Assert.That(weak, Is.Not.Null); // 편집 가능한 보스 약점
+            Assert.That(weak.gameObject.activeSelf, Is.False); // 입장 및 공격 중 약점 닫힘
+            vitals.GetType().GetMethod("ResetRun").Invoke(vitals, null); // 이전 웨이브의 시험 보호 제거
+            pilot.position = new Vector3(0f, 9.07f, 20f); // 첫 직선 연사의 경로 위 기체 위치
+            Component pattern = boss.GetComponent("FlightMidBoss"); // 보스의 실제 공격 실행
+            yield return AdvanceStageTo(timeline, 82.45f); // 직선 연사 뒤 첫 약점 노출
+            Assert.That(Metric(pattern, "AimedBursts"), Is.EqualTo(4)); // 한 방향 네 발 연사
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(90)); // 실제 보스 탄막 한 발의 피해 10
+            Assert.That(weak.gameObject.activeInHierarchy, Is.True); // 연사 종료 뒤 약점 표시 및 판정
+            Component life = boss.GetComponent("FlightEnemy"); // 약점에 연결된 실제 보스 체력
+            Component template = (Component)weapon.GetType().GetField("standardBolt", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(weapon); // 전투에 쓰는 마법탄 프리팹
+            Physics.SyncTransforms(); // 활성화된 약점 콜라이더 등록
+            Vector3 heading = (weak.position - pilot.position).normalized; // 보이는 쪽에서 약점으로 조준
+            Component shot = Object.Instantiate(template, weak.position - heading * 3f, Quaternion.LookRotation(heading)); // 실제 마법탄을 약점 방향으로 발사
+            shot.GetType().GetMethod("Begin").Invoke(shot, new object[] { (LayerMask)(1 << 9), 12f, null, 0f, 0, 1f, 1f, 0, 20 }); // 기준 피해 20의 비관통 마법탄
+            yield return WaitFrames(3); // 실제 약점 피격 처리
+            Assert.That(Metric(life, "Health"), Is.EqualTo(570)); // 약점의 시험 보너스 +50%
+            yield return AdvanceStageTo(timeline, 83.6f); // 노출 1초 뒤 다음 패턴 준비
+            Assert.That(weak.gameObject.activeSelf, Is.False); // 공격 전 약점 판정 종료
+            yield return AdvanceStageTo(timeline, 84.4f); // 부채꼴 연속 발사 확인
+            Assert.That(Metric(pattern, "FanBursts"), Is.EqualTo(2)); // 실제 부채꼴 2회
+            Transform pool = GetThreatPool().transform; // 실제 활성 적탄의 방향
+            int active = 0; // 적탄 방향 표본 수
+            foreach (Transform bolt in pool) // 현재 풀에 있는 항로 적탄
+            {
+                if (bolt.gameObject.activeSelf) // 발사 중인 탄만 사용
+                {
+                    Assert.That(Mathf.Abs(bolt.forward.y), Is.LessThan(0.12f)); // 상하 회피 공간을 남기는 고도 제한
+                    active++; // 회피 각도에 사용한 실제 발사체 수
+                }
+            }
+            Assert.That(active, Is.GreaterThanOrEqualTo(7)); // 넓게 펼쳐진 실제 부채꼴 탄환
         }
 
         [UnityTest] // 일시정지와 레벨업 선택에서 두 시간 기록 분리
@@ -1385,7 +1477,11 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(zone, Is.Not.Null); // 전투 구역 오브젝트 존재
             BoxCollider boundary = zone.GetComponent<BoxCollider>(); // 구역의 실제 위치와 크기
             Assert.That(boundary.isTrigger, Is.True); // 비행 경계는 충돌 표면과 분리
-            Assert.That(GameObject.Find("SpawnPoints").transform.childCount, Is.EqualTo(3)); // 조준·확산·돌진의 편집 지점 그룹
+            Transform routes = GameObject.Find("SpawnPoints").transform; // 실전의 편집 지점 그룹
+            Assert.That(routes.Find("AimedEnemy") && routes.Find("FanEnemy") && routes.Find("DiverEnemy"), Is.True); // 기존 세 적의 출현 경로
+            Assert.That(routes.Find("MidBossRoute/Combat"), Is.Not.Null); // 보스 공격 위치의 편집점
+            Assert.That(RenderSettings.skybox.HasProperty("_SurfaceMap"), Is.True, "낮은 고도의 바다와 해안 투영"); // 새 하늘과 지표 머티리얼
+            Assert.That(RenderSettings.skybox.GetTexture("_SurfaceMap"), Is.Not.Null); // 생성한 지표 이미지 연결
             Transform pilot = FindPilot(); // 실제 비행 조작체
             pilot.position = new Vector3(boundary.bounds.max.x - 0.2f, 24f, -5f); // 충돌 지형 바깥의 우측 경계
             Transform near = GameObject.Find("CloudLayers").transform.Find("NearClouds"); // 가까운 구름층

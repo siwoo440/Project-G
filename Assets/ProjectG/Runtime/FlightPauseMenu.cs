@@ -35,7 +35,6 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Text muteLabel; // 소리 상태
         [SerializeField] private Text volumeLabel; // 마스터 음량의 숫자
         [SerializeField] private Text sensitivityLabel; // 마우스 감도의 숫자
-        [SerializeField] private Text controlHint; // 전투 중 짧은 입력 도움말
         [SerializeField] private FlightBindings bindings; // 표시와 실제 조작의 공통 설정
         [SerializeField] private FirstFlightController pilot; // 마우스 입력 설정
         [SerializeField] private FlightThreatPractice run; // 출격과 경험치 초기화
@@ -292,7 +291,6 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             hud.SetSkillKeys(Bound(FlightAction.Special), Bound(FlightAction.Common), Bound(FlightAction.Ultimate)); // 전투 스킬 슬롯의 새 키
             keyboardArt.Show(bindings); // 실제 키보드 그림에서 재배치한 키 강조
-            controlHint.text = $"{Bound(FlightAction.Forward)}·{Bound(FlightAction.Left)}·{Bound(FlightAction.Back)}·{Bound(FlightAction.Right)} 이동   {Bound(FlightAction.Rise)} / {Bound(FlightAction.Descend)} 고도   {Bound(FlightAction.Focus)} 집중\n휠 둘러보기   좌·우 클릭 카드   {Bound(FlightAction.Wave)} 웨이브   {Bound(FlightAction.Pilot)} 전환   ESC 정지"; // 전투 중 짧은 도움말의 변경 적용
         }
 
         private void ToggleMute() // 실제 소리의 켜기와 끄기

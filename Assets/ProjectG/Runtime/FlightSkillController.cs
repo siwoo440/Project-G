@@ -28,13 +28,14 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightCombatHud hud; // 제작 게이지와 쿨타임 표시
         [SerializeField] private FlightUpgradeChoices upgrades; // 출격 카드의 Q 재사용과 E 교체
         [SerializeField] private FlightBindings bindings; // 설정에서 편집하는 세 스킬 키
+        [SerializeField] private FlightEnhancements enhancements; // 근접 충전에 적용할 아이템 보너스
         private readonly float[] readyAt = new float[3]; // Q·E·R 사용 가능 시각
         private float mana = 100f; // 이번 출격의 실제 마력
-        private int ultimate; // 필살기 에너지
+        private float ultimate; // 소수 단위로 누적하는 필살기 에너지
         private int recordedGrazes; // 마지막으로 자원에 반영한 스침 수
 
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
-        public int Ultimate => ultimate; // 유효한 충전 대체 보상 검사
+        public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
 
         public void AddUltimate(int amount) // 레벨업 대체 보상의 필살기 에너지
         {
@@ -57,7 +58,8 @@ namespace ProjectG // 프로젝트 게임 영역
             if (pilot.CanFly) // 실패 전 자원과 스킬만 갱신
             {
                 mana = Mathf.Min(100f, mana + Time.deltaTime * 6f); // 시험 초당 마력 회복
-                ultimate = Mathf.Min(100, ultimate + (vitals.Grazes - recordedGrazes) * 10); // 그레이즈당 필살기 에너지
+                float charge = enhancements != null ? enhancements.GrazeScale : 1f; // 근접 충전의 실제 배율
+                ultimate = Mathf.Min(100f, ultimate + (vitals.Grazes - recordedGrazes) * 10f * charge); // 소수도 보존하는 그레이즈 보상
                 recordedGrazes = vitals.Grazes; // 중복 에너지 지급 방지
                 if (keyboard != null) // 실제 키 입력 확인
                 {
@@ -167,7 +169,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void ShowResources() // 현재 소비한 자원을 전투 HUD에 연결
         {
-            hud.SetResources(Mana, ultimate); // 마력과 필살기 에너지 별도 표시
+            hud.SetResources(Mana, Ultimate); // 마력과 필살기 에너지 별도 표시
         }
     }
 }

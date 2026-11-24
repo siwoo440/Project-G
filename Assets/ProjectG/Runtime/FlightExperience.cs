@@ -64,15 +64,16 @@ namespace ProjectG // 프로젝트 게임 영역
             ShowProgress(); // 기존 LV·XP 게이지 초기화
         }
 
-        private void Spawn(Vector3 position, int reward) // 마물의 처치 좌표로 3D 조각 생성
+        private void Spawn(FlightEnemy enemy) // 마물의 처치 좌표로 3D 조각 생성
         {
+            int reward = enemy.ExperienceReward; // 실제 처치 경험치
             if (reward <= 0 || pilot.IsDefeated) // 경험치가 없거나 출격 실패한 상태
             {
                 return; // 지급할 수 없는 처치
             }
 
             Transform view = idle.Count > 0 ? idle.Pop() : Instantiate(shardPrefab, transform); // 이미 회수한 모델 우선
-            view.SetPositionAndRotation(position, Quaternion.identity); // 처치 공간과 기준 회전
+            view.SetPositionAndRotation(enemy.transform.position, Quaternion.identity); // 처치 공간과 기준 회전
             view.gameObject.SetActive(true); // 현재 공중 조각 표시
             active.Add(new Drop { view = view, reward = reward, spawnedFrame = Time.frameCount, timeLeft = lifetime }); // 조각의 보상과 만료 시작
         }
@@ -91,11 +92,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 Vector3 start = drop.view.position; // 조각의 이전 월드 좌표
                 bool justSpawned = drop.spawnedFrame == Time.frameCount; // 같은 프레임의 과거 경로 제외
                 float duration = justSpawned ? 0f : Mathf.Min(frameTime, drop.timeLeft); // 수명 중 유효한 이동
-                Vector3 end = Fall(start, duration); // 지형을 넘지 않는 아래 방향 위치
+                Vector3 end = Fall(start, duration, fallSpeed, terrain); // 지형을 넘지 않는 아래 방향 위치
                 float fraction = frameTime > 0f ? duration / frameTime : 1f; // 만료 시점까지 이동한 비율
                 Vector3 pilotStart = justSpawned ? currentPilot : previousPilot; // 조각이 없었던 이전 부분 제외
                 Vector3 pilotEnd = Vector3.Lerp(pilotStart, currentPilot, fraction); // 조각과 공통으로 존재한 시점
-                if (!pilot.IsDefeated && Intersects(pilotStart - start, pilotEnd - end)) // 빠른 비행에서 놓치지 않는 획득
+                float reach = pickupRadius * (upgrades != null ? upgrades.PickupScale : 1f); // 자석에 따라 늘어난 회수 반경
+                if (!pilot.IsDefeated && WithinSweep(pilotStart - start, pilotEnd - end, reach)) // 빠른 비행에서 놓치지 않는 획득
                 {
                     Recycle(index); // 같은 조각의 중복 획득 방지
                     Grant(drop.reward); // 실제 획득의 임시 경험치
@@ -119,23 +121,52 @@ namespace ProjectG // 프로젝트 게임 영역
             previousPilot = currentPilot; // 다음 프레임의 상대 위치 저장
         }
 
-        private Vector3 Fall(Vector3 start, float duration) // 자연 낙하와 바닥의 충돌 검사
+        internal static Vector3 Fall(Vector3 start, float duration, float speed, LayerMask ground) // 경험치와 아이템의 바닥 충돌
         {
-            float travel = fallSpeed * duration; // 최대 아래 이동 거리
-            if (travel > 0f && Physics.Raycast(start, Vector3.down, out RaycastHit surface, travel + GroundClearance, terrain, QueryTriggerInteraction.Ignore)) // 지형 표면의 정지 높이
+            float travel = speed * duration; // 최대 아래 이동 거리
+            if (travel > 0f && Physics.Raycast(start, Vector3.down, out RaycastHit surface, travel + GroundClearance, ground, QueryTriggerInteraction.Ignore)) // 지형 표면의 정지 높이
             {
                 travel = Mathf.Min(travel, Mathf.Max(0f, surface.distance - GroundClearance)); // 표면에서 살짝 떠서 정지
             }
             return start + Vector3.down * travel; // 세계 아래 방향으로만 이동
         }
 
-        private bool Intersects(Vector3 start, Vector3 end) // 상대 이동 선분의 최근접점
+        internal static bool WithinSweep(Vector3 start, Vector3 end, float reach) // 상대 이동 선분의 최근접점
         {
             Vector3 travel = end - start; // 기체와 조각의 상대 변화량
             float length = travel.sqrMagnitude; // 나누기에 사용할 제곱 거리
             float fraction = length > 0f ? Mathf.Clamp01(-Vector3.Dot(start, travel) / length) : 0f; // 선분 내부의 가장 가까운 시점
-            float reach = pickupRadius * (upgrades != null ? upgrades.PickupScale : 1f); // 자석에 따라 늘어난 회수 반경
             return (start + travel * fraction).sqrMagnitude <= reach * reach; // 유효 구간의 실제 접촉
+        }
+
+        internal bool HasDropWithin(Vector3 center, float radius) // 회수 자석의 유효 후보
+        {
+            foreach (Drop drop in active) // 아직 만료되지 않은 경험치
+            {
+                if ((drop.view.position - center).sqrMagnitude <= radius * radius) // 실제 회수 반경
+                {
+                    return true; // 회수할 경험치 존재
+                }
+            }
+            return false; // 무의미한 회수 자석 제외
+        }
+
+        internal void CollectWithin(Vector3 center, float radius) // 하나의 자석에서 경험치 합산
+        {
+            long reward = 0; // 한 번에 회수할 경험치 합계
+            for (int index = active.Count - 1; index >= 0; index--) // 회수 중 조각 중복 방지
+            {
+                Drop drop = active[index]; // 현 위치의 경험치 조각
+                if ((drop.view.position - center).sqrMagnitude <= radius * radius) // 등급별 유효 반경
+                {
+                    reward += drop.reward; // 각 조각의 가치를 한 번만 포함
+                    Recycle(index); // HUD와 선택 전에 실제 조각 회수
+                }
+            }
+            if (reward > 0) // 유효 회수에서만 레벨 반영
+            {
+                Grant((int)System.Math.Min(reward, int.MaxValue)); // 여러 레벨 선택도 한 번에 예약
+            }
         }
 
         private void Grant(int reward) // 초과 경험치를 다음 전투 레벨에 이월

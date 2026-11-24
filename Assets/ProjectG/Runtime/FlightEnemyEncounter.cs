@@ -1,3 +1,4 @@
+using System.Collections.Generic; // 레이더에 전달할 활성 적 좌표
 using UnityEngine; // 일반 마물 시험 씬
 using UnityEngine.InputSystem; // 전투 시험 시작 키
 
@@ -34,6 +35,27 @@ namespace ProjectG // 프로젝트 게임 영역
                     }
                 }
                 return count; // 표시가 참조할 실제 값
+            }
+        }
+
+        public void CopyActivePositions(List<Vector3> positions) // 레이더에 현재 웨이브의 실제 적 위치 전달
+        {
+            positions.Clear(); // 이전 웨이브의 표시 제거
+            if (WaveNumber == 1) // 초기 전투의 실제 표적
+            {
+                if (openingEnemy != null && openingEnemy.gameObject.activeInHierarchy) // 처치 전에만 표시
+                {
+                    positions.Add(openingEnemy.transform.position); // 시작 표적의 현재 월드 좌표
+                }
+                return; // 초기에는 경로 마물 없음
+            }
+
+            foreach (FlightEnemyRoute route in routes) // 현재 웨이브의 이동 중인 적
+            {
+                if (route.gameObject.activeInHierarchy) // 처치·이탈 전의 실제 적
+                {
+                    positions.Add(route.transform.position); // 레이더와 같은 프레임의 위치
+                }
             }
         }
 

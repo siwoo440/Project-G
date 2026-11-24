@@ -122,6 +122,17 @@ namespace ProjectG // 프로젝트 게임 영역
             return true; // 관통 사격 성공
         }
 
+        public void CastAssist(Vector3 origin, Vector3 target, int damage) // 공격 드론의 실제 보조 탄환
+        {
+            Vector3 route = target - origin; // 드론이 겨누는 적 방향
+            if (route.sqrMagnitude <= 0.001f) // 너무 가까워 방향을 정할 수 없는 경우
+            {
+                return; // 무효 탄 생성 방지
+            }
+            FlightSpellBolt bolt = Instantiate(standardBolt, origin, Quaternion.LookRotation(route)); // 실제 이동하는 기존 마법탄
+            bolt.Begin(aimLayers, 35f, null, 0f, assistDamage: damage); // 보조 슬롯의 독립 피해
+        }
+
         public bool CastSniperBeam(FlightThreatPool pool) // 리안 R 천공 관측선
         {
             Ray aim = AttackRay(); // 실제 시점이 향하는 경로

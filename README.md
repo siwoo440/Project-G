@@ -6,7 +6,7 @@
 ---
 ## 3D 비행 시험
 
-Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play를 누릅니다. 이 씬은 Windows 빌드의 첫 씬이기도 합니다. 카메라, 시험 비행체, 기본 빗자루, 하늘섬, 입력 안내는 Hierarchy에서 편집할 수 있습니다. 모델과 비행 속도는 시험용입니다.
+Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play를 누릅니다. 이 씬은 Windows 빌드의 첫 씬이기도 합니다. 카메라와 비행체, 하늘섬, 전투 HUD와 정지 메뉴는 Hierarchy에서 편집할 수 있습니다. 모델과 비행 속도는 시험용입니다.
 
 | 입력 | 동작 |
 |---|---|
@@ -27,10 +27,10 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
 
-![프로젝트 G 3D 13일차 상단 중앙 타이머와 시험 웨이브](docs/screenshots/3d-day-13-flight.png)
+![프로젝트 G 3D 14일차 상단 중앙 타이머와 오른쪽 위 원형 전투 레이더](docs/screenshots/3d-day-14-flight.png)
 
-Windows 시험 빌드에서 Wave 2에 진입한 뒤 남은 마물이 두 마리인 1920×1080 화면입니다. ESC로 일시정지하면 오른쪽의 조작 안내와 설정을 오갈 수 있습니다. 표는 기본 키를 보여주며, 설정에서 바꾼 키는 실제 조작·키보드 강조·스킬 UI에 함께 반영됩니다. 일반·집중 비행 최고 속도는 초당 12·6 유닛입니다. [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md)
+Windows 시험 빌드의 1920×1080 전투 화면입니다. 상단 중앙에서 경과 시간, Wave 번호와 남은 적 수를 확인합니다. 오른쪽 위 레이더는 카메라가 바라보는 방향을 기준으로 살아 있는 적의 방향과 거리를 표시합니다. ESC를 누르면 정지 시점의 전투 정보와 조작 안내가 열립니다. 설정에서 변경한 키는 실제 입력과 키보드 강조, 스킬 슬롯에 함께 반영됩니다.
 
-[1100×620 Windows 게임 화면](docs/screenshots/3d-day-13-hud-1100.png)
+[1024×576 Windows 전투 HUD](docs/screenshots/3d-day-14-hud-1024.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png) · [소리와 감도](docs/screenshots/3d-day-14-settings.png) · [강화 아이템](docs/screenshots/3d-day-14-enhancement.png)
 
-[정지와 평면 키보드](docs/screenshots/3d-day-13-pause.png) · [키 변경](docs/screenshots/3d-day-13-key-settings.png) · [소리와 감도](docs/screenshots/3d-day-13-audio-settings.png) · [레벨업 카드](docs/screenshots/3d-day-13-level-up.png)
+[1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md)

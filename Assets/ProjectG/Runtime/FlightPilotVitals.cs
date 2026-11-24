@@ -9,15 +9,19 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float hitRadius = 0.38f; // 구형 기체 피격 반경
         [SerializeField, Min(0.01f)] private float grazeRadius = 0.90f; // 구형 근접 회피 반경
         [SerializeField, Min(0f)] private float immuneSeconds = 1f; // 피격 후 시험 무적 시간
+        [SerializeField] private FlightUpgradeChoices upgrades; // 장착한 보호 장치
         private float immuneUntil; // 다음 피격 가능 시각
         private float guardUntil; // 한 발만 막는 리안 보호막의 종료 시점
         private float slotProtectionUntil; // 교체할 수 있는 E 시간 보호막의 종료 시점
         private int capacityBonus; // 선택한 이번 출격의 최대 체력
+        private bool deviceShield; // 피격 후 장치가 한 번 막을 수 있는 상태
+        private float deviceReadyAt; // 장치 방어막의 다음 충전
 
         public int Health { get; private set; } // 현재 출격 체력
         public int MaxHealth => maxHealth + capacityBonus; // 임시 성장까지 포함한 최대 체력
         public int Grazes { get; private set; } // 유효한 근접 회피 수
         public bool IsDefeated => Health <= 0; // 비행 실패 상태
+        public int ItemShield { get; private set; } // 아이템의 남은 방어 횟수
 
         private void Awake() // 씬 시작 때 체력 초기화
         {
@@ -32,6 +36,14 @@ namespace ProjectG // 프로젝트 게임 영역
             immuneUntil = 0f; // 이전 무적 종료
             guardUntil = 0f; // 이전 보호막 제거
             slotProtectionUntil = 0f; // 이전 공용 스킬 보호 삭제
+            ItemShield = 0; // 이전 아이템의 차단 횟수 제거
+            deviceShield = false; // 이전 출격의 장치 보호막 제거
+            deviceReadyAt = 0f; // 장치 충전 초기화
+        }
+
+        public void AddItemShield(int charges) // 기존보다 큰 아이템 보호막만 적용
+        {
+            ItemShield = Mathf.Max(ItemShield, charges); // 방어 횟수를 합산하지 않음
         }
 
         public void Heal(int amount) // 출격 강화의 즉시 체력 회복
@@ -85,10 +97,23 @@ namespace ProjectG // 프로젝트 게임 영역
                     {
                         guardUntil = 0f; // 보호막 즉시 소모
                     }
+                    else if (ItemShield > 0) // 시간제 스킬 보호 뒤의 아이템 보호막
+                    {
+                        ItemShield--; // 실제 피격 하나를 소모
+                    }
+                    else if (deviceShield && upgrades != null && upgrades.HasProtectionDevice) // 카드 장치에서 남은 보호
+                    {
+                        deviceShield = false; // 피격 하나를 막음
+                    }
                     else // 보호막 없이 피격
                     {
                         Health = Mathf.Max(0, Health - damage); // 체력 하한 적용
                         immuneUntil = Time.time + immuneSeconds; // 다음 피격 보호
+                        if (!IsDefeated && upgrades != null && upgrades.HasProtectionDevice && Time.time >= deviceReadyAt) // 실제 피격 이후의 장치 충전
+                        {
+                            deviceShield = true; // 다음 유효 피격을 막을 보호막
+                            deviceReadyAt = Time.time + 30f; // 기획의 장치 재충전
+                        }
                     }
                 }
                 return true; // 충돌한 탄은 그레이즈 대상에서 제외

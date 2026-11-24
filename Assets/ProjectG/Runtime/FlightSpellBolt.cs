@@ -18,14 +18,14 @@ namespace ProjectG // 프로젝트 게임 영역
         private float remaining; // 탄환의 남은 진행 거리
         private LayerMask collisionLayers; // 지형과 표적의 구분
 
-        public void Begin(LayerMask hitLayers, float range, FlightRapidFire source, float weakBonus, int piercingDamage = 0, float damageScale = 1f, float widthScale = 1f, int extraPierces = 0) // 피해와 관통 초기화
+        public void Begin(LayerMask hitLayers, float range, FlightRapidFire source, float weakBonus, int piercingDamage = 0, float damageScale = 1f, float widthScale = 1f, int extraPierces = 0, int assistDamage = 0) // 피해와 관통 초기화
         {
             collisionLayers = hitLayers; // 현재 전장의 충돌 대상
             remaining = range; // 발사 후 최대 진행 거리
             rapid = source; // 카드와 스킬의 적중 제외
             weakRatio = weakBonus; // 공격마다 확정한 약점 배율
             castRadius = radius * widthScale; // 실제 강화 후 투사체 판정 폭
-            int baseDamage = piercingDamage > 0 ? piercingDamage : damage; // 고유탄 또는 기본 프리팹 피해
+            int baseDamage = piercingDamage > 0 ? piercingDamage : (assistDamage > 0 ? assistDamage : damage); // 고유탄·보조탄·기본 피해
             float stacked = baseDamage * damageScale; // 강화 효과를 먼저 적용한 피해
             effectiveDamage = rapid != null ? rapid.ScaleDamage(stacked) : Mathf.RoundToInt(stacked); // 속사는 별도 반영
             maxHits = piercingDamage > 0 ? int.MaxValue : 1 + extraPierces; // 고유 관통과 일반탄 관통의 상한

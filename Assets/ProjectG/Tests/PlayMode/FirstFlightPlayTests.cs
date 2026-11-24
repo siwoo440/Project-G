@@ -966,11 +966,25 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(4); // 정지 프레임
             Assert.That(pause.gameObject.activeSelf, Is.True); // 메뉴 표시
             Assert.That(Time.timeScale, Is.Zero); // 전투 시간 정지
+            Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Timer")), Is.EqualTo(HudText(hud.Find("WaveReadout/Timer")))); // 정지 순간의 실제 시간
+            Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Wave")), Is.EqualTo("Wave : 1")); // 현재 웨이브 번호
+            Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Remaining")), Is.EqualTo(": 1")); // 첫 마물 수
             Assert.That(((RectTransform)pause.Find("Controls")).rect.width, Is.EqualTo(1124f).Within(0.01f)); // 안내선의 오른쪽 패널 너비
             Assert.That(((RectTransform)pause.Find("Controls")).rect.height, Is.EqualTo(820f).Within(0.01f)); // 안내선의 오른쪽 패널 높이
             Assert.That(((RectTransform)pause.Find("MenuButtons")).anchoredPosition.x, Is.EqualTo(-590f).Within(0.01f)); // 파란 왼쪽 버튼 열 위치
             Assert.That(((RectTransform)pause.Find("MenuButtons/Continue")).rect.width, Is.EqualTo(280f).Within(0.01f)); // 크게 이동한 첫 번째 버튼
+            Assert.That(pause.Find("Controls/PanelArt").GetComponent<UnityEngine.UI.RawImage>().texture.name, Is.EqualTo("PausePanelArt")); // 새로 제작한 패널 배경
+            var buttons = new[] { "Continue", "Restart", "Settings", "Abandon" }; // 화면에 배치한 순서
+            for (int index = 1; index < buttons.Length; index++) // 버튼 사이 세 간격
+            {
+                var before = (RectTransform)pause.Find("MenuButtons/" + buttons[index - 1]); // 위쪽 버튼
+                var after = (RectTransform)pause.Find("MenuButtons/" + buttons[index]); // 아래쪽 버튼
+                Assert.That(before.anchoredPosition.y - after.anchoredPosition.y, Is.EqualTo(107f).Within(0.01f)); // 일정한 간격
+                Assert.That(after.GetComponent<UnityEngine.UI.RawImage>().texture.name, Is.EqualTo("PauseButtonArt")); // 새로 제작한 버튼 배경
+            }
             Assert.That(pause.Find("Controls/Keyboard").GetComponent<UnityEngine.UI.RawImage>().texture.name, Is.EqualTo("PauseKeyboard")); // 실제 벡터 키 배치
+            Assert.That(pause.Find("Controls/Keyboard").GetComponent<UnityEngine.UI.RawImage>().texture.width, Is.EqualTo(1824)); // 원본 평면 키보드의 두 배 렌더 해상도
+            Assert.That(pause.Find("Controls/Forward/Action").GetComponent<UnityEngine.UI.Text>().fontStyle, Is.EqualTo(FontStyle.Normal)); // 작은 글자의 실제 글꼴 획
             Vector3 position = pilot.position; // 멈춘 동안의 출발 좌표
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.Y)); // 멈춘 전투에 비행과 웨이브 시도
             yield return WaitFrames(15); // 미입력 상태 확인
@@ -1049,6 +1063,180 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.G)); // 설정한 키로 스킬 발동
             yield return WaitFrames(3); // 발사 속도 보너스 반영
             Assert.That(weapon.GetType().GetProperty("FireIntervalScale").GetValue(weapon), Is.EqualTo(0.7f)); // 새 키로 전투 기능 작동
+        }
+
+        [UnityTest] // 중간·최종 보스의 실제 처치 드롭 규칙
+        public IEnumerator EnhancementDropFollowsBossRulesAndCollectsWithoutPause() // 확정 드롭과 비행 획득
+        {
+            yield return LoadFlight(); // 제작한 3D 조사 씬
+            GameObject drops = GameObject.Find("EnhancementDrops"); // 강화 아이템 풀
+            Assert.That(drops, Is.Not.Null); // 실제 출격에서 사용하는 드롭 오브젝트
+            Component loot = drops.GetComponent("FlightEnhancements"); // 실제 드롭과 적용
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 중간·최종 보스로 설정할 시험 표적
+            Component life = enemy.GetComponent("FlightEnemy"); // 처치와 보상 종류
+            life.GetType().GetField("experienceReward", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(life, 0); // 강화 아이템만 독립 확인
+            var tier = life.GetType().GetField("lootTier", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 씬에서 편집하는 보상 종류
+            tier.SetValue(life, System.Enum.Parse(tier.FieldType, "FinalBoss")); // 최종 보스는 지급하지 않음
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 실제 처치
+            Assert.That(Metric(loot, "ActiveCount"), Is.Zero); // 최종 보스에서 강화 아이템 없음
+            enemy.SetActive(true); // 새 체력의 시험 표적
+            enemy.transform.position += Vector3.up * 2f; // 경험치와 분리된 공중 위치
+            tier.SetValue(life, System.Enum.Parse(tier.FieldType, "MidBoss")); // 중간 보스는 유효 아이템 확정
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 기존 실제 처리 경로
+            Assert.That(Metric(loot, "ActiveCount"), Is.EqualTo(1)); // 처치 시 확정 한 개
+            Transform item = drops.transform.GetChild(0); // 실제 드롭의 월드 위치
+            float height = item.position.y; // 출현 고도
+            yield return WaitFrames(62); // 다른 아이템과 같은 속도로 하강
+            Assert.That(height - item.position.y, Is.InRange(0.45f, 0.56f)); // 낙하 정상
+            Transform pilot = FindPilot(); // 마물 처치 전 위치
+            Vector3 approach = (pilot.position - item.position).normalized; // 조각을 지나치지 않고 같은 쪽에서 접근
+            pilot.position = item.position + approach * 1.3f; // 수집 반경보다 먼 위치
+            yield return WaitFrames(3); // 실제 획득 사거리 판정
+            Assert.That(item.gameObject.activeSelf, Is.True); // 반경 0.65 밖에 있는 드롭
+            pilot.position = item.position; // 실제 획득 범위
+            yield return WaitFrames(3); // 회수 상태 확인
+            Assert.That(item.gameObject.activeSelf, Is.False); // 즉시 획득하고 풀로 복귀
+            Assert.That((string)loot.GetType().GetProperty("LastPickup").GetValue(loot), Is.Not.Empty); // 실제로 획득한 효과와 등급
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 강화 아이템은 별도 선택 없이 획득
+            enemy.SetActive(true); // 같은 보스의 다른 시험 처치
+            enemy.transform.position = pilot.position + Vector3.up * 9f + Vector3.forward * 8f; // 수집하지 않을 두 번째 드롭
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 강화 아이템을 한 번 더 드롭
+            Assert.That(item.gameObject.activeSelf, Is.True); // 회수한 월드 오브젝트 재사용
+            yield return WaitFrames(1140); // 드롭이 아직 만료되지 않는 19초
+            Assert.That(item.gameObject.activeSelf, Is.True); // 유지 시간 20초 전
+            yield return WaitFrames(68); // 20초를 지난 값
+            Assert.That(item.gameObject.activeSelf, Is.False); // 만료되어 풀로 반환
+        }
+
+        [UnityTest] // 사격의 카드·아이템 공통 상한 및 보호막 순서
+        public IEnumerator EnhancementRanksShareCardLimitsAndTimedShieldTakesPriority() // 화력·관통 상한과 보호막 갱신
+        {
+            yield return LoadFlight(); // 실제 강화 시스템 로드
+            Component loot = GameObject.Find("EnhancementDrops")?.GetComponent("FlightEnhancements"); // 실제 아이템 효과
+            Assert.That(loot, Is.Not.Null); // 씬에 연결한 강화
+            Component upgrades = LocateCombatHud().GetComponent("FlightUpgradeChoices"); // 기존 카드의 공유 화력
+            int[] cards = (int[])upgrades.GetType().GetField("ranks", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(upgrades); // 시험 최대 카드 랭크
+            cards[0] = 3; // 화력 카드 +30%
+            Assert.That(ApplyEnhancement(loot, "Damage", 5), Is.True); // 화력 장비 +18%
+            Assert.That(ApplyEnhancement(loot, "Damage", 5), Is.True); // 나머지 12%만 추가
+            Assert.That((float)upgrades.GetType().GetMethod("DamageScale").Invoke(upgrades, new object[] { false }), Is.EqualTo(1.60f).Within(0.001f)); // 공통 피해 +60%
+            Assert.That(ApplyEnhancement(loot, "Damage", 1), Is.False); // 상한 뒤 추가 아이템 제외
+            cards[2] = 2; // 추가 관통 +2 기준
+            Assert.That(ApplyEnhancement(loot, "Pierce", 5), Is.True); // 아이템은 남은 1만 추가
+            Assert.That(Metric(upgrades, "AutoPierce"), Is.EqualTo(3)); // 공통 관통 상한 +3
+            Assert.That(ApplyEnhancement(loot, "Shield", 3), Is.True); // 아이템 보호막 3회
+            Assert.That(ApplyEnhancement(loot, "Shield", 2), Is.False); // 더 낮은 방어는 합산하지 않음
+            Transform pilot = FindPilot(); // 실제 접촉 시험
+            Component vitals = FlightVitals(pilot); // 현재 방어막과 체력
+            vitals.GetType().GetMethod("GrantSlotProtection").Invoke(vitals, new object[] { 0.2f }); // 시간제 보호막 먼저 활성
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 보호막 동시 활성 시 접촉
+            yield return WaitFrames(5); // 시간제 보호만 반영
+            Assert.That(Metric(vitals, "ItemShield"), Is.EqualTo(3)); // 아이템 보호 횟수 유지
+            yield return WaitFrames(15); // 시간제 보호 종료
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 아이템 보호만 남은 접촉
+            yield return WaitFrames(4); // 방어막 자원 반영
+            Assert.That(Metric(vitals, "ItemShield"), Is.EqualTo(2)); // 아이템 보호가 한 번 소모
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(100)); // 체력은 유지
+        }
+
+        private static bool ApplyEnhancement(Component loot, string kind, int grade) // 실제 획득 효과 경로를 직접 시험
+        {
+            var method = loot.GetType().GetMethod("TryApply", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 실제 효과 적용
+            var type = method.GetParameters()[0].ParameterType; // 현재 아이템 종류
+            return (bool)method.Invoke(loot, new[] { System.Enum.Parse(type, kind), (object)grade }); // 정해진 등급을 획득하는 검증
+        }
+
+        [UnityTest] // 두 보조 슬롯과 피격 보호 장치
+        public IEnumerator EnhancementCardsEquipDroneBladesAndProtectionDevice() // 실제 추가 피해와 보호
+        {
+            yield return LoadFlight(); // 저장된 보조 장비와 각 공격
+            Transform pilot = FindPilot(); // 실제 하이러키에 붙은 장비 대상
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 보조 공격만 독립 확인
+            yield return WaitFrames(140); // 캐릭터 기본탄의 이전 발사 정리
+            GameObject.Find("NearPracticeTarget").SetActive(false); // 드론에서 적까지 사선 확보
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 실제 공격 대상
+            Component life = enemy.GetComponent("FlightEnemy"); // 이동한 마물의 실제 체력
+            enemy.transform.position = pilot.position + Vector3.forward * 2.2f; // 칼날과 드론 사정거리
+            Physics.SyncTransforms(); // 이동한 마물의 콜라이더 반영
+            Component upgrades = LocateCombatHud().GetComponent("FlightUpgradeChoices"); // 보조 카드의 적용 경로
+            ApplyGearCard(upgrades, "Drone"); // 첫 보조 슬롯
+            ApplyGearCard(upgrades, "Blade"); // 두 번째 보조 슬롯
+            ApplyGearCard(upgrades, "ProtectionDevice"); // 패시브 슬롯
+            yield return WaitFrames(33); // 칼날 접촉과 보조 탄환 도달
+            Assert.That(pilot.Find("AttackDrone").gameObject.activeSelf, Is.True); // 프로펠러 드론 활성화
+            Assert.That(pilot.Find("OrbitBlades").gameObject.activeSelf, Is.True); // 실제 회전 칼날 표시
+            Assert.That(Metric(life, "Health"), Is.EqualTo(66)); // 첫 칼날 8과 드론 탄 6
+            Component vitals = FlightVitals(pilot); // 보조 보호 장치와 피해
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 장치가 충전될 첫 피해
+            yield return WaitFrames(4); // 최초 피격 및 장치 충전
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 첫 피해 발생
+            yield return WaitFrames(63); // 피격 후 공통 무적 시간이 지난 뒤
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 장치가 막을 새 탄
+            yield return WaitFrames(4); // 실제 보호 장치 소모
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 다음 피해 한 번 방어
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 새 출격에서 보조 슬롯 초기화
+            yield return WaitFrames(4); // 이전 시제품 장비 제거
+            Assert.That(pilot.Find("AttackDrone").gameObject.activeSelf, Is.False); // 드론 장착 초기화
+            Assert.That(pilot.Find("OrbitBlades").gameObject.activeSelf, Is.False); // 칼날 장착 초기화
+        }
+
+        private static void ApplyGearCard(Component upgrades, string name) // 보조 카드의 실제 적용 경로
+        {
+            var method = upgrades.GetType().GetMethod("Apply", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 카드 결과 적용 메서드
+            var reward = System.Enum.Parse(method.GetParameters()[0].ParameterType, name); // 지정한 장비 카드
+            method.Invoke(upgrades, new[] { reward }); // 실제 선택과 같은 장착
+        }
+
+        [UnityTest] // 우상단 레이더와 전투 조작 설명 패널 제거
+        public IEnumerator RadarTracksEnemyBearingWithoutGameplayGuide() // 실제 적 좌표의 방향·거리·제거
+        {
+            yield return LoadFlight(); // 저장된 새 레이더가 있는 시작 씬
+            Assert.That(GameObject.Find("FlightControls"), Is.Null); // 전투 중 조작 설명 제거
+            Assert.That(GameObject.Find("ControlBackplate"), Is.Null); // 전투용 옛 배경도 제거
+            Transform hud = LocateCombatHud().transform; // 화면 위치 확인
+            var radar = (RectTransform)hud.Find("EnemyRadar"); // 별도 우상단 레이더
+            Assert.That(radar, Is.Not.Null); // 씬의 원형 레이더
+            Assert.That(radar.anchorMin, Is.EqualTo(Vector2.one)); // 오른쪽 위 실제 고정
+            Assert.That(hud.Find("WaveReadout"), Is.Not.Null); // 원래 상단 중앙 타이머 유지
+            Transform pilot = FindPilot(); // 적 위치를 측정하는 기준
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 표적 이동의 중복 처치 방지
+            Transform enemy = GameObject.Find("GlassfinEnemy").transform; // 첫 활성 표적
+            Vector3 forward = Vector3.ProjectOnPlane(Camera.main.transform.forward, Vector3.up).normalized; // 실제 카메라의 수평 방향
+            Vector3 right = Vector3.Cross(Vector3.up, forward); // 현재 미리보기 오른쪽
+            enemy.position = pilot.position + right * 12f + forward * 5f; // 오른쪽 12·앞 5의 실제 거리 13
+            yield return WaitFrames(2); // 이동한 적 위치 반영
+            var contact = (RectTransform)radar.Find("Contact0"); // 해당 적의 실제 UI 위치
+            Assert.That(contact.gameObject.activeSelf, Is.True); // 활성 표적 표시
+            Assert.That(contact.anchoredPosition.x, Is.GreaterThan(0f)); // 오른쪽 점 위치
+            Assert.That(contact.anchoredPosition.y, Is.GreaterThan(0f)); // 정면보다 살짝 오른쪽 앞
+            Assert.That(HudText(contact.Find("Distance")), Is.EqualTo("13 m")); // 월드 위치를 이용한 직선 거리
+            enemy.position = pilot.position - right * 12f - forward * 5f; // 반대편 왼쪽 뒤
+            yield return WaitFrames(2); // 현재 위치 갱신
+            Assert.That(contact.anchoredPosition.x, Is.LessThan(0f)); // 왼쪽으로 이동한 적
+            Assert.That(contact.anchoredPosition.y, Is.LessThan(0f)); // 뒤쪽도 원에 표시
+            enemy.gameObject.SetActive(false); // 이탈하거나 사라진 표적
+            yield return WaitFrames(2); // 현재 표적 수 동기화
+            Assert.That(contact.gameObject.activeSelf, Is.False); // 제거한 적의 레이더 점 삭제
+
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Y)); // 시험 웨이브의 경로 마물 소환
+            yield return WaitFrames(3); // 웨이브 진입
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 시험 키 해제
+            Transform encounter = GameObject.Find("EnemyEncounter").transform; // 씬의 경로 마물 그룹
+            Transform aimed = encounter.Find("AimedEnemy"); // 첫 거리 마커의 실제 마물
+            Transform fan = encounter.Find("FanEnemy"); // 둘째 거리 마커의 실제 마물
+            ((Behaviour)aimed.GetComponent("FlightEnemyRoute")).enabled = false; // 고정 위치를 이용한 겹침 확인
+            ((Behaviour)fan.GetComponent("FlightEnemyRoute")).enabled = false; // 고정 위치를 이용한 거리 비교
+            encounter.Find("DiverEnemy").gameObject.SetActive(false); // 겹침 검증에 필요한 적만 유지
+            aimed.position = pilot.position + forward * 25f; // 표시상 가까운 위치의 먼 적
+            fan.position = pilot.position + forward * 24f + right; // 표시와 글자가 겹치는 가까운 적
+            yield return WaitFrames(2); // 글자 표시 우선순위 갱신
+            Transform secondContact = radar.Find("Contact1"); // 두 번째 표시 슬롯
+            Assert.That(contact.gameObject.activeSelf && secondContact.gameObject.activeSelf, Is.True); // 두 마커 모두 유지
+            Assert.That(((Behaviour)contact.Find("Distance").GetComponent("Text")).enabled, Is.False); // 겹치는 먼 거리 숫자만 숨김
+            Assert.That(((Behaviour)secondContact.Find("Distance").GetComponent("Text")).enabled, Is.True); // 가까운 거리 우선 표시
+            aimed.position = pilot.position - right * 35f; // 글자가 겹치지 않는 위치
+            yield return WaitFrames(2); // 거리 표시 복원
+            Assert.That(((Behaviour)contact.Find("Distance").GetComponent("Text")).enabled, Is.True); // 적마다 읽을 수 있는 경우 함께 표시
         }
 
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영

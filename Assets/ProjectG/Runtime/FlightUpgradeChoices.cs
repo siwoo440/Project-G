@@ -10,7 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree // 단계 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice // 단계와 보조 슬롯 구분
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -46,6 +46,9 @@ namespace ProjectG // 프로젝트 게임 영역
             new Card(Reward.Magnet, "자석", "경험치 획득 반경 +20%", 3, 0, 0, 2), // 자석
             new Card(Reward.Lens, "집속 렌즈", "집중탄 피해 +10%\n집중탄 폭 -10%", 3, 0, 1, 3), // 집속 렌즈
             new Card(Reward.Heal, "응급 회복", "체력 20 회복", 0, 0, 0, 2), // 응급 회복
+            new Card(Reward.Drone, "공격 드론", "보조 슬롯\n매초 피해 6·9·12의 자동탄", 3, 0, 1, 0), // 프로펠러 공격 드론
+            new Card(Reward.Blade, "회전 칼날", "보조 슬롯\n매초 주변 적 피해 8·12·16", 3, 0, 1, 3), // 기체 주위 근접 피해
+            new Card(Reward.ProtectionDevice, "보호 장치", "패시브 슬롯\n피격 후 다음 피해 1회 방어\n재충전 30초", 1, 0, 1, 1), // 피격 뒤 장치 보호 충전
             new Card(Reward.SlowDecay, "추격 사격 1", "연속 적중 보너스\n감소 1초 지연", 1, 1, 1, 0), // 추격 사격 1
             new Card(Reward.Wide, "확산 포화 1", "아리아의 기본탄 폭 +20%", 1, 1, 2, 0), // 확산 포화 1
             new Card(Reward.Weak, "약점 사냥 1", "리안의 약점 피해\n보너스 +65%로 증가", 1, 2, 1, 4), // 약점 사냥 1
@@ -66,6 +69,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightPilotVitals vitals; // 유효한 회복과 슬롯 해제
         [SerializeField] private FlightSkillController skills; // 교체할 E와 즉시 에너지
         [SerializeField] private FlightCombatHud hud; // E 교체 아이콘의 기존 슬롯
+        [SerializeField] private FlightEnhancements enhancements; // 드롭 아이템의 카드 공통 상한
         [SerializeField] private GameObject panel; // 씬에 배치한 모달
         [SerializeField] private Text heading; // 현재 레벨 선택 번호
         [SerializeField] private FlightUpgradeCardView[] cards; // 씬에서 편집할 프리팹 슬롯
@@ -82,22 +86,42 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool paused; // 이 화면이 현재 정지를 관리하는 상태
         private int firstLevel; // 화면 제목에 표시하는 레벨 번호
 
-        public float CadenceScale => 1f - 0.08f * Rank(Reward.Cadence); // 한 단계당 연사 간격 감소
-        public float CooldownScale => 1f - 0.10f * Rank(Reward.Cycle); // 한 단계당 Q 쿨타임 감소
+        public float CadenceScale => 1f - Total(FlightEnhancementKind.Cadence, FlightEnhancements.CadenceLimit); // 카드·아이템 공통 연사
+        public float CooldownScale => 1f - Total(FlightEnhancementKind.Cycle, FlightEnhancements.CooldownLimit); // 카드·아이템 공통 재사용
         public float PickupScale => 1f + 0.20f * Rank(Reward.Magnet); // 자석의 획득 반경
         public float WeakRatio => Rank(Reward.Weak) > 0 ? 0.65f : 0.5f; // 리안의 약점 첫 노드
         public float RapidHold => Rank(Reward.SlowDecay) > 0 ? 3f : 2f; // 아리아의 누적 유지
         public bool HasFan => Rank(Reward.Fan) > 0; // E 교체 효과
-        public int AutoPierce => Rank(Reward.Pierce) + (weapon.IsRian ? Rank(Reward.SniperPierce) : 0); // 일반 관통과 리안 관통 합계
+        public int AutoPierce => (int)Total(FlightEnhancementKind.Pierce, FlightEnhancements.PierceLimit); // 최대 3명의 추가 관통
+        public int DroneRank => Rank(Reward.Drone); // 장착한 보조 드론 슬롯
+        public int BladeRank => Rank(Reward.Blade); // 장착한 두 번째 보조 슬롯
+        public bool HasProtectionDevice => Rank(Reward.ProtectionDevice) > 0; // 패시브 보호 장치 슬롯
+
+        internal float ItemSharedCardBonus(FlightEnhancementKind kind) // 드롭의 공통 상한에서 이미 사용한 카드 수치
+        {
+            return kind switch // 실제로 아이템과 같은 수치를 높이는 카드
+            {
+                FlightEnhancementKind.Damage => Rank(Reward.Damage) * 0.10f, // 기본 화력 카드
+                FlightEnhancementKind.Cadence => Rank(Reward.Cadence) * 0.08f, // 연사 카드
+                FlightEnhancementKind.Pierce => Rank(Reward.Pierce) + (weapon.IsRian ? Rank(Reward.SniperPierce) : 0), // 일반·리안 관통
+                FlightEnhancementKind.Cycle => Rank(Reward.Cycle) * 0.10f, // Q 재사용
+                _ => 0f // 독립적인 다른 아이템
+            };
+        }
+
+        private float Total(FlightEnhancementKind kind, float ceiling) // 카드와 아이템의 실제 합산
+        {
+            return Mathf.Min(ceiling, ItemSharedCardBonus(kind) + (enhancements != null ? enhancements.Stored(kind) : 0f)); // 같은 상한을 한 번 적용
+        }
 
         public float DamageScale(bool focused) // 공용·집중 피해의 합산 상한
         {
-            float extra = Rank(Reward.Damage) * 0.10f; // 공용 피해 합산
+            float extra = Total(FlightEnhancementKind.Damage, FlightEnhancements.DamageLimit); // 공용 피해와 아이템 합산
             if (focused) // 집중탄 전용 증폭 적용
             {
                 extra += Rank(Reward.Focus) * 0.08f + Rank(Reward.Lens) * 0.10f; // 집중 조율과 집속 렌즈
             }
-            return 1f + Mathf.Min(0.8f, extra); // 80% 공통 시험 상한
+            return 1f + Mathf.Min(FlightEnhancements.DamageLimit, extra); // 모든 카드·아이템 합산 +60%
         }
 
         public float WidthScale(bool focused) // 공격 폭의 증감
@@ -165,7 +189,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 bool family = card.pilot == 0 || card.pilot == profile; // 현재 캐릭터로 유효
                 bool room = card.cap > 0 ? Rank(card.reward) < card.cap : vitals.Health < vitals.MaxHealth; // 최대 단계 또는 회복 제한
-                if (family && room) // 실제 효과가 있는 카드만 추첨
+                if (family && room && HasRoom(card.reward)) // 실제 효과가 있는 카드만 추첨
                 {
                     candidates.Add(card); // 현재 추첨에 포함
                 }
@@ -198,6 +222,19 @@ namespace ProjectG // 프로젝트 게임 영역
                 string description = item.cap > 1 ? $"{item.text}\n단계 {Rank(item.reward) + 1}/{item.cap}" : item.text; // 명확한 효과와 누적 상한
                 cards[index].Set(icons[item.art], item.title, description, index + 1); // 카드의 레이아웃에 값 적용
             }
+        }
+
+        private bool HasRoom(Reward reward) // 공통 상한에 걸려 효과가 없는 후보 제외
+        {
+            return reward switch // 같은 능력의 저장 결과 검사
+            {
+                Reward.Damage => DamageScale(false) < 1.5999f, // 기본 화력에 여유
+                Reward.Focus => DamageScale(true) < 1.5999f, // 집중탄에 여유
+                Reward.Cadence => CadenceScale > 0.6001f, // 발사 간격에 여유
+                Reward.Cycle => CooldownScale > 0.6001f, // 고유기 쿨타임에 여유
+                Reward.Pierce or Reward.SniperPierce => AutoPierce < FlightEnhancements.PierceLimit, // 추가 관통에 여유
+                _ => true // 다른 종류의 독립 효과
+            };
         }
 
         private int PickCandidate() // 해당하는 등급의 75·20·5 가중치

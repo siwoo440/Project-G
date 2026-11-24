@@ -1,5 +1,6 @@
 using UnityEngine; // 실제 시험 씬과 비행 위치
 using UnityEngine.InputSystem; // 적탄 연습 키 입력
+using UnityEngine.Serialization; // 기존 실패 안내 참조 유지
 using UnityEngine.UI; // 제작 안내판 내부의 체력 글자
 
 namespace ProjectG // 프로젝트 게임 영역
@@ -12,9 +13,10 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightExperience experience; // 이번 출격의 레벨과 드롭
         [SerializeField] private FlightUpgradeChoices upgrades; // 출격별 카드 선택 초기화
         [SerializeField] private FlightBindings bindings; // 실제 탄막 연습 키 설정
+        [SerializeField] private FlightEnhancements enhancements; // 이번 출격의 드롭과 장착 보조 장비
         private FlightThreatPattern pattern; // 현재 선택한 입체 탄막
         private float phase; // 순차적으로 바뀌는 나선 각도
-        [SerializeField] private Text status; // 기존 제작 안내판의 체력 문구
+        [SerializeField, FormerlySerializedAs("status")] private Text failureNotice; // 출격에 실패했을 때만 표시
         private Vector3 spawnPoint; // 씬에 배치한 출격 위치
         private Quaternion spawnRotation; // 씬에 배치한 최초 진행 방향
         private float nextTrial; // 다음 연습 적탄 발사 시각
@@ -54,17 +56,9 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
-        private void LateUpdate() // 상태 글자의 현재 출격 표시
+        private void LateUpdate() // 진행 중 설명 패널 없이 출격 실패만 표시
         {
-            string patternName = pattern switch // 연습 탄막의 한국어 이름
-            {
-                FlightThreatPattern.Fan => "부채꼴", // 여러 갈래로 퍼지는 연습
-                FlightThreatPattern.Ring => "고리", // 고리 탄막 연습
-                FlightThreatPattern.Spiral => "나선", // 회전하는 연습
-                _ => "조준" // 기본 조준 탄막
-            };
-            string toggle = FlightBindings.Label(bindings.GetKey(FlightAction.Trial)); // 설정과 일치하는 탄막 토글 키
-            status.text = vitals.IsDefeated ? "출격 실패   ·   BKSP 재출격" : $"그레이즈 {vitals.Grazes}   {toggle} {patternName} {(active ? "켜짐" : "꺼짐")}   1–4 패턴   BKSP 재출격"; // 출격 상태와 연습 조작
+            failureNotice.enabled = vitals.IsDefeated; // 실제 실패 상태에서만 한 줄 표시
         }
 
         public void EmitTrial(Vector3 position, Vector3 direction, float speed) // 직접 편집한 시험 탄으로 판정 재현
@@ -112,6 +106,7 @@ namespace ProjectG // 프로젝트 게임 영역
             pilot.ResetFlightPose(spawnPoint, spawnRotation); // 출격 위치와 카메라 시점 복구
             experience?.ResetRun(); // 이전 출격의 레벨과 조각 초기화
             upgrades?.ResetRun(); // 이전 출격의 선택 효과 제거
+            enhancements?.ResetRun(); // 이전 출격의 강화 아이템과 장비 제거
         }
     }
 }

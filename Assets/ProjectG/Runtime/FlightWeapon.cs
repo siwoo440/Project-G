@@ -20,7 +20,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 실제 비행 화면 기준 사격 처리
         { // 처리 시작
-            bool canAim = pilot.HasPointerControl && pilot.IsAimView; // 자유 시점과 커서 해제 중 조준 제외
+            bool canAim = pilot.CanFly && pilot.HasPointerControl && pilot.IsAimView; // 자유 시점과 커서 해제 중 조준 제외
             reticle.enabled = canAim; // 실제로 발사할 수 있는 시점 표시
             Mouse mouse = Mouse.current; // 현재 마우스 장치
             if (!canAim || mouse == null || !mouse.leftButton.isPressed || Time.time < nextShot) // 입력과 발사 간격 확인

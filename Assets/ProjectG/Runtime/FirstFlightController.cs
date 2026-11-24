@@ -13,17 +13,33 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float mouseSensitivity = 0.18f; // 마우스 픽셀당 회전 각도
         [SerializeField] private Bounds flightBounds = new Bounds(new Vector3(0f, 14f, 26f), new Vector3(92f, 46f, 122f)); // 월드 축 기준 비행 체적
         [SerializeField] private LayerMask environmentLayer = 1 << 8; // 비행 지형 충돌 대상
+        private FlightPilotVitals vitals; // 현재 비행체의 생존 상태
         private Vector3 velocity; // 관성이 포함된 월드 속도
         private float pitch; // 기본 시점의 상하 각도
         private float orbitYaw; // 둘러보기의 좌우 각도
         private float orbitPitch; // 둘러보기의 상하 각도
 
+        public bool CanFly => vitals == null || !vitals.IsDefeated; // 출격 조작 가능 상태
         public bool IsFocusHeld { get; private set; } // 현재 집중 비행 입력
         public bool IsFreeLooking { get; private set; } // 현재 독립 시점 입력
         public bool IsAimView => !IsFreeLooking && Mathf.Abs(orbitYaw) < 0.1f && Mathf.Abs(orbitPitch) < 0.1f; // 기본 조준 각도로 완전히 복귀한 상태
         public bool HasPointerControl => Application.isBatchMode || Cursor.lockState == CursorLockMode.Locked; // 마우스 제어 상태
         public Quaternion ViewRotation => transform.rotation * Quaternion.Euler(Mathf.Clamp(pitch + orbitPitch, -65f, 65f), orbitYaw, 0f); // 기본 시점과 둘러보기 합성
 
+        private void Awake() // 선택적 비행 체력 참조
+        { // 참조 시작
+            TryGetComponent(out vitals); // 현재 씬의 기체 상태
+        } // 참조 종료
+
+        public void ResetFlightPose(Vector3 position, Quaternion rotation) // 출격 재시작의 초기 비행 자세
+        { // 자세 초기화 시작
+            velocity = Vector3.zero; // 이전 출격 관성 제거
+            pitch = 0f; // 기본 시점 각도 복원
+            orbitYaw = 0f; // 독립 좌우 시점 초기화
+            orbitPitch = 0f; // 독립 상하 시점 초기화
+            IsFreeLooking = false; // 출격 시작 시 둘러보기 초기 상태
+            transform.SetPositionAndRotation(position, rotation); // 시작 위치와 회전 복귀
+        } // 자세 초기화 종료
         private void OnEnable() // 시험 씬 입력 시작
         { // 입력 시작
             if (!Application.isBatchMode && Application.isFocused) // 실제 게임에 포커스가 있는 상태
@@ -42,6 +58,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // 매 프레임 비행 조작 갱신
         { // 처리 시작
+            if (!CanFly) // 체력 소진 상태
+            { // 비행 중단 시작
+                velocity = Vector3.zero; // 실패 이후의 잔류 관성 차단
+                return; // 재시작 전 이동과 선회 차단
+            } // 비행 중단 종료
             Keyboard keyboard = Keyboard.current; // 현재 키보드
             Mouse mouse = Mouse.current; // 현재 마우스
             UpdateLook(keyboard, mouse, Time.deltaTime); // 선회와 독립 시점 적용

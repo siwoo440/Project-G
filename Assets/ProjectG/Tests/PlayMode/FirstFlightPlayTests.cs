@@ -228,6 +228,85 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(tracker, Is.Not.Null); // 피해 상태 컴포넌트 확인
             return (int)tracker.GetType().GetProperty(property).GetValue(tracker); // 표적의 실제 시험값
         } // 상태 확인 종료
+        [UnityTest] // 프레임을 건너는 탄환과 피격 후 무적
+        public IEnumerator FastThreatHitsOnceAndInvulnerabilityExpires() // 고속 적탄 관통 누락 확인
+        { // 피격 시험 시작
+            yield return LoadFlight(); // 실제 전투 시험 씬
+            Transform pilot = FindPilot(); // 판정 대상의 실제 위치
+            Component vitals = FlightVitals(pilot); // 체력과 판정 상태
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 한 프레임에 기체를 통과하는 적탄
+            yield return WaitFrames(3); // 투사체 판정 대기
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 고속 적탄에 실제 피해
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 무적 구간의 두 번째 적탄
+            yield return WaitFrames(3); // 두 번째 접촉 처리
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 기존 체력 유지
+            Assert.That(Metric(vitals, "Grazes"), Is.Zero); // 스친 탄과 직접 접촉 구분
+            yield return WaitFrames(65); // 1초 피격 무적 종료
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 무적 종료 뒤 다시 접촉
+            yield return WaitFrames(3); // 마지막 피격 처리
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(60)); // 무적 해제 후 피해
+        } // 피격 시험 종료
+
+        [UnityTest] // 스친 탄과 피격하는 탄의 분리
+        public IEnumerator NearMissAwardsOneGrazeButEventualHitDoesNot() // 그레이즈 중복 및 유효 범위 검증
+        { // 그레이즈 시험 시작
+            yield return LoadFlight(); // 실제 전투 시험 씬
+            Transform pilot = FindPilot(); // 현재 아리아 곡면 기준
+            Component vitals = FlightVitals(pilot); // 그레이즈 횟수
+            EmitThreat(pilot.position + Vector3.right * 0.65f + Vector3.forward * 12f, Vector3.back, 1500f); // 피격 반경보다 바깥의 근접탄
+            yield return WaitFrames(6); // 완전히 스칠 때까지 진행
+            Assert.That(Metric(vitals, "Grazes"), Is.EqualTo(1)); // 같은 탄의 그레이즈 1회
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(100)); // 근접 회피 중 체력 유지
+            EmitThreat(pilot.position + Vector3.right * 1.4f + Vector3.forward * 12f, Vector3.back, 1500f); // 근접 반경 밖의 먼 탄
+            EmitThreat(pilot.position + Vector3.forward * 1.1f, Vector3.back, 27f); // 그레이즈 구간에 들어간 뒤 몸통을 맞히는 느린 탄
+            yield return WaitFrames(8); // 스침 후보와 실제 명중 처리
+            Assert.That(Metric(vitals, "Grazes"), Is.EqualTo(1)); // 나중에 맞은 탄의 후보 취소
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 느린 직접 피격 확인
+        } // 그레이즈 시험 종료
+
+        [UnityTest] // 출격 실패와 키보드 재시작
+        public IEnumerator DefeatStopsFlightAndRestartRestoresVitals() // 체력 소진과 재시작 검증
+        { // 출격 실패 시험 시작
+            yield return LoadFlight(); // 실제 전투 시험 씬
+            Transform pilot = FindPilot(); // 이동 여부를 확인할 비행체
+            Component vitals = FlightVitals(pilot); // 초기 체력 상태
+            for (int hit = 0; hit < 5; hit++) // 시험 체력 100 소진
+            { // 피격 반복 시작
+                EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 하나의 고속 적탄 발사
+                yield return WaitFrames(65); // 각각에 대한 무적 종료 대기
+            } // 피격 반복 종료
+            Assert.That(Metric(vitals, "Health"), Is.Zero); // 시험 출격 실패
+            Vector3 defeated = pilot.position; // 실패 상태의 기체 좌표
+            SetKeys(Key.W); // 실패 뒤 이동 시도
+            yield return WaitFrames(9); // 조작 반영 대기
+            Assert.That(pilot.position, Is.EqualTo(defeated)); // 실패 중 움직임 차단
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 다음 게임 입력 프레임의 재시작 키 누름
+            yield return WaitFrames(5); // 출격 상태 및 HUD 재설정
+            SetKeys(); // 재시작 입력 해제
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(100)); // 체력 완전 복구
+            Assert.That(Metric(vitals, "Grazes"), Is.Zero); // 이전 출격 그레이즈 제거
+        } // 출격 실패 시험 종료
+
+        private static Component FlightVitals(Transform pilot) // 씬에 등록된 체력 데이터 찾기
+        { // 상태 탐색 시작
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 비행체가 소유한 체력 컴포넌트
+            Assert.That(vitals, Is.Not.Null); // 실제 씬 연결 확인
+            return vitals; // 테스트의 체력 상태
+        } // 상태 탐색 종료
+
+        private static int Metric(Component component, string property) // 체력과 그레이즈의 실제 수치
+        { // 수치 시작
+            return (int)component.GetType().GetProperty(property).GetValue(component); // 테스트가 읽는 실행 수치
+        } // 수치 종료
+
+        private static void EmitThreat(Vector3 position, Vector3 direction, float speed) // 씬의 연습용 적탄 프리팹 호출
+        { // 발사 시작
+            GameObject scene = GameObject.Find("ThreatPractice"); // 편집 가능한 적탄 연습 루트
+            Assert.That(scene, Is.Not.Null); // 실제 씬에서 연습 코스 존재 여부
+            Component course = scene.GetComponent("FlightThreatPractice"); // 적탄 시나리오 컴포넌트
+            Assert.That(course, Is.Not.Null); // 씬의 적탄 설정 참조
+            course.GetType().GetMethod("EmitTrial").Invoke(course, new object[] { position, direction, speed }); // 실제 적탄 발사 로직 사용
+        } // 발사 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

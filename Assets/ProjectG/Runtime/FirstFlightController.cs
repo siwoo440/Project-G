@@ -20,6 +20,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public bool IsFocusHeld { get; private set; } // 현재 집중 비행 입력
         public bool IsFreeLooking { get; private set; } // 현재 독립 시점 입력
+        public bool IsAimView => !IsFreeLooking && Mathf.Abs(orbitYaw) < 0.1f && Mathf.Abs(orbitPitch) < 0.1f; // 기본 조준 각도로 완전히 복귀한 상태
         public bool HasPointerControl => Application.isBatchMode || Cursor.lockState == CursorLockMode.Locked; // 마우스 제어 상태
         public Quaternion ViewRotation => transform.rotation * Quaternion.Euler(Mathf.Clamp(pitch + orbitPitch, -65f, 65f), orbitYaw, 0f); // 기본 시점과 둘러보기 합성
 

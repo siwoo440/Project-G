@@ -178,6 +178,56 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(Vector3.Distance(pilot.position, camera.position), Is.EqualTo(normal).Within(0.1f)); // 이전 카메라 거리 복원
         } // 시나리오 종료
 
+        [UnityTest] // 시험 씬의 일반탄 도달
+        public IEnumerator StandardShotHitsCenterTargetFromOffsetMuzzle() // 화면 중앙 표적과 총구 시차 검증
+        { // 사격 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            Camera camera = Camera.main; // 실제 조준 카메라
+            GameObject target = GameObject.Find("NearPracticeTarget"); // 낮고 가까운 시험 표적
+            Assert.That(target, Is.Not.Null); // 씬의 표적 배치
+            Vector3 viewport = camera.WorldToViewportPoint(target.transform.position); // 조준점과 표적의 화면 좌표
+            Assert.That(viewport.x, Is.EqualTo(0.5f).Within(0.02f)); // 화면 중앙 표적의 가로 거리
+            Assert.That(viewport.y, Is.EqualTo(0.5f).Within(0.02f)); // 화면 중앙 표적의 세로 거리
+            yield return FireOne(); // 가상 좌클릭으로 기본탄 발사
+            yield return WaitFrames(86); // 원거리 마법탄 도착
+            Assert.That(ReadTargetMetric(target, "HitCount"), Is.EqualTo(1)); // 기본탄 한 발 명중
+            Assert.That(ReadTargetMetric(target, "LastDamage"), Is.EqualTo(8)); // 일반탄 시험 피해
+        } // 사격 시험 종료
+
+        [UnityTest] // 높이와 거리가 다른 표적의 집중탄
+        public IEnumerator FocusedShotHitsElevatedTargetAfterMouseTurn() // 마우스 선회 후 원거리 조준
+        { // 시나리오 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            GameObject high = GameObject.Find("HighPracticeTarget"); // 측면 고고도 표적
+            GameObject near = GameObject.Find("NearPracticeTarget"); // 첫 조준 위치의 표적
+            Assert.That(high, Is.Not.Null); // 선택 가능한 고고도 표적
+            Assert.That(high.transform.position.y, Is.GreaterThan(near.transform.position.y + 2f)); // 고도 차이 확인
+            Assert.That(Vector3.Distance(Camera.main.transform.position, high.transform.position), Is.GreaterThan(Vector3.Distance(Camera.main.transform.position, near.transform.position))); // 거리 차이 확인
+            InputSystem.QueueStateEvent(mouse, new MouseState { delta = new Vector2(100f, 77.7778f) }); // 표적의 좌우·상하 시점을 가상 입력
+            yield return WaitFrames(20); // 카메라 추적과 위치 안정
+            SetKeys(Key.LeftShift); // 집중 마법탄 선택
+            yield return FireOne(); // 가상 좌클릭 발사
+            SetKeys(); // 집중 입력 해제
+            yield return WaitFrames(90); // 고고도 표적까지 진행
+            Assert.That(ReadTargetMetric(high, "HitCount"), Is.EqualTo(1)); // 고고도 표적 명중
+            Assert.That(ReadTargetMetric(high, "LastDamage"), Is.EqualTo(20)); // 집중탄 시험 피해
+            Assert.That(ReadTargetMetric(near, "HitCount"), Is.Zero); // 조준 방향 전환 확인
+        } // 시나리오 종료
+
+        private IEnumerator FireOne() // 실제 입력을 한 번 전달
+        { // 클릭 시작
+            InputSystem.QueueStateEvent(mouse, new MouseState { buttons = 1 }); // 좌클릭
+            yield return WaitFrames(3); // 한 발이 나갈 프레임
+            InputSystem.QueueStateEvent(mouse, new MouseState()); // 좌클릭 해제
+            yield return null; // 마지막 입력 처리
+        } // 클릭 종료
+
+        private static int ReadTargetMetric(GameObject target, string property) // 실제 표적의 피해 확인
+        { // 상태 확인 시작
+            Component tracker = target.GetComponent("FlightPracticeTarget"); // 시험 표적 스크립트
+            Assert.That(tracker, Is.Not.Null); // 피해 상태 컴포넌트 확인
+            return (int)tracker.GetType().GetProperty(property).GetValue(tracker); // 표적의 실제 시험값
+        } // 상태 확인 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

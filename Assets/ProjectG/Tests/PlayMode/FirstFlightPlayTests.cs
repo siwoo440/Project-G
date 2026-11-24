@@ -565,6 +565,11 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(((RectTransform)cards.Find("RightNext")).rect.height, Is.EqualTo(151.2f).Within(0.01f)); // 미리보기 높이 70%
             RectTransform skillBounds = skills.GetComponent<RectTransform>(); // 스킬 전체 크기
             Assert.That(skillBounds.position.y - skillBounds.rect.height * skillBounds.lossyScale.y * 0.02f, Is.GreaterThan(cardBounds.position.y + cardBounds.rect.height * cardBounds.lossyScale.y)); // 스킬로 카드를 가리지 않음
+            Vector3[] corners = new Vector3[4]; // 화면의 실제 사각형 모서리
+            ((RectTransform)skills.Find("R")).GetWorldCorners(corners); // 맨 오른쪽 스킬의 경계
+            float skillRight = corners[3].x; // R 슬롯의 실제 오른쪽 끝
+            ((RectTransform)cards.Find("RightNext")).GetWorldCorners(corners); // 오른쪽 다음 카드 바깥 경계
+            Assert.That(skillRight, Is.EqualTo(corners[3].x).Within(0.5f)); // 서로 같은 오른쪽 끝
             Assert.That(cards.Find("LeftNext").position.x, Is.LessThan(cards.Find("LeftActive").position.x)); // 왼쪽 바깥 미리보기
             Assert.That(cards.Find("RightNext").position.x, Is.GreaterThan(cards.Find("RightActive").position.x)); // 오른쪽 바깥 미리보기
             Assert.That(((RectTransform)cards.Find("LeftNext")).rect.width, Is.LessThan(((RectTransform)cards.Find("LeftActive")).rect.width)); // 작은 다음 카드 너비
@@ -660,7 +665,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             var ariaArt = art.texture; // 원복할 아리아 원본 아이콘
             yield return SelectRian(); // 사용자가 누르는 실제 키
             Assert.That(art.texture, Is.Not.SameAs(ariaArt)); // 리안 Q 그림
-            Assert.That(HudText(hud.Find("RapidBonus/Label")), Is.EqualTo("RIAN  WEAK +50%")); // 리안 패시브 안내
+            Assert.That(HudText(hud.Find("RapidBonus/Label")), Is.EqualTo("리안  약점 +50%")); // 리안 패시브 안내
             yield return SelectRian(); // 두 번째 입력으로 아리아 복구
             Assert.That(art.texture, Is.SameAs(ariaArt)); // 원래 그림과 속사 복귀
         }
@@ -836,6 +841,214 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 같은 마물의 정상 재등장 후 처치
             Assert.That(drops.transform.childCount, Is.EqualTo(1)); // 추가 생성 없이 기존 조각 재사용
             Assert.That(first.gameObject.activeSelf, Is.True); // 반환된 조각이 다시 보임
+        }
+
+        [UnityTest] // 씬 상단 웨이브 표시와 실제 적 수
+        public IEnumerator WaveHudCountsActiveEnemiesAndResetsElapsedTime() // 출격 시각과 웨이브 전환
+        {
+            yield return LoadFlight(); // 실제 시작 씬
+            ((Behaviour)FindPilot().GetComponent("FlightWeapon")).enabled = false; // 표시 점검 중 임의 처치 방지
+            Transform header = LocateCombatHud().transform.Find("WaveReadout"); // 편집 가능한 상단 중앙 HUD
+            Assert.That(header, Is.Not.Null); // 씬에서 편집할 제목 그룹
+            var layout = (RectTransform)header; // 그룹의 화면 기준 위치
+            Assert.That(layout.anchorMin, Is.EqualTo(new Vector2(0.5f, 1f))); // 화면 위쪽 가운데 고정
+            Assert.That(layout.rect.width, Is.EqualTo(206.4f).Within(0.01f)); // 상단 전체의 가로 80%
+            Assert.That(layout.rect.height, Is.EqualTo(76.8f).Within(0.01f)); // 상단 전체의 세로 80%
+            Transform timer = header.Find("Timer"); // 큰 전투 시간
+            Transform wave = header.Find("Wave"); // 시간 아래의 웨이브 번호
+            Transform enemies = header.Find("Remaining"); // 아이콘 옆에 남은 적
+            Assert.That(timer.GetComponent<UnityEngine.UI.Text>().fontSize, Is.GreaterThan(wave.GetComponent<UnityEngine.UI.Text>().fontSize)); // 타이머가 더 큰 글자
+            Assert.That(timer.GetComponent<UnityEngine.UI.Text>().fontSize, Is.EqualTo(34)); // 43에서 80%로 바뀐 숫자
+            Assert.That(wave.GetComponent<UnityEngine.UI.Text>().fontSize, Is.EqualTo(18)); // 22에서 80%로 바뀐 번호
+            Assert.That(header.Find("MonsterIcon").GetComponent<UnityEngine.UI.RawImage>().texture, Is.Not.Null); // 원형 몬스터 그림
+            Assert.That(HudText(wave), Is.EqualTo("Wave : 1")); // 첫 웨이브 번호
+            Assert.That(HudText(enemies), Is.EqualTo(": 1")); // 첫 시험 적 한 마리
+            yield return WaitFrames(64); // 1초 경과
+            Assert.That(HudText(timer), Is.EqualTo("00:01")); // 정상적인 분·초 표기
+
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Y)); // 실제 시험 웨이브 시작
+            yield return WaitFrames(3); // 웨이브와 적 수 적용
+            Assert.That(HudText(wave), Is.EqualTo("Wave : 2")); // 다음 시험 웨이브
+            Assert.That(HudText(enemies), Is.EqualTo(": 3")); // 세 경로 마물
+            Component life = GameObject.Find("AimedEnemy").GetComponent("FlightEnemy"); // 이번 웨이브의 실제 적
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 한 마리 처치
+            yield return WaitFrames(3); // 처치 상태 반영
+            Assert.That(HudText(enemies), Is.EqualTo(": 2")); // 실제로 남은 활성 마물
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 다시 출격
+            yield return WaitFrames(4); // 초기 웨이브와 시간 적용
+            Assert.That(HudText(timer), Is.EqualTo("00:00")); // 새 전투 시간
+            Assert.That(HudText(wave), Is.EqualTo("Wave : 1")); // 첫 웨이브 복귀
+            Assert.That(HudText(enemies), Is.EqualTo(": 1")); // 시작 표적 복귀
+        }
+
+        [UnityTest] // 연속 레벨업과 안전한 복귀
+        public IEnumerator LevelUpChoicesPauseCombatAndPresentEveryEarnedLevel() // 선택 중 웨이브·조작 정지
+        {
+            yield return LoadFlight(); // XP와 카드 창이 부착된 실제 씬
+            Transform pilot = FindPilot(); // 현재 비행체
+            Transform canvas = LocateCombatHud().transform; // 전투와 보상 레이아웃
+            Transform modal = canvas.Find("LevelUpChoices"); // 편집할 수 있는 실제 선택 창
+            Assert.That(modal, Is.Not.Null); // 씬 편집된 카드 창
+            Assert.That(modal.gameObject.activeSelf, Is.False); // 전투 시작 때 숨김
+            GrantChoiceExperience(35); // 레벨 2와 3의 선택 둘 다 예약
+            Assert.That(Time.timeScale, Is.Zero); // 실제 일시정지
+            Assert.That(HudText(modal.Find("Heading")), Does.StartWith("레벨 2")); // 첫 번째 카드 차례
+            string one = HudText(modal.Find("Choice1/Title")); // 세 선택지의 실제 이름
+            string two = HudText(modal.Find("Choice2/Title")); // 중복 검증용 후보
+            string three = HudText(modal.Find("Choice3/Title")); // 마지막 선택지
+            Assert.That(new[] { one, two, three }, Is.Unique); // 동일 강화의 중복 등장 금지
+            Vector3 start = pilot.position; // 선택 창을 띄울 때의 시작 위치
+            string timer = HudText(canvas.Find("WaveReadout/Timer")); // 현재 출격 경과 시간
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.Y, Key.F2)); // 모달 중 전투 조작 시도
+            yield return WaitFrames(65); // 시간과 위치 유지 시험
+            Assert.That(pilot.position, Is.EqualTo(start)); // 실제 비행 움직임 없음
+            Assert.That(HudText(canvas.Find("WaveReadout/Wave")), Is.EqualTo("Wave : 1")); // Y가 새 웨이브를 만들지 않음
+            Assert.That(HudText(canvas.Find("WaveReadout/Timer")), Is.EqualTo(timer)); // 일시정지 시간 제외
+            modal.Find("Choice1").GetComponent<UnityEngine.UI.Button>().onClick.Invoke(); // 마우스 버튼과 같은 선택 연결
+            yield return WaitFrames(3); // 첫 번째 선택 적용
+            Assert.That(HudText(modal.Find("Heading")), Does.StartWith("레벨 3")); // 남은 레벨업을 한 장씩 선택
+            Assert.That(Time.timeScale, Is.Zero); // 두 번째 선택 전에는 아직 정지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Digit2)); // 실제 키보드 두 번째 카드
+            yield return WaitFrames(4); // 게임 상태 복원
+            Assert.That(modal.gameObject.activeSelf, Is.False); // 선택 창 종료
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 실제 전투 시간 복귀
+        }
+
+        [UnityTest] // 최대 단계와 후보 부족, E 교체 확인
+        public IEnumerator LevelUpChoicesReplaceGuardAndFillMissingCandidates() // 대체 세 장과 원래 효과 해제
+        {
+            yield return LoadFlight(); // 실제 업그레이드 씬
+            Transform canvas = LocateCombatHud().transform; // 보상 카드와 E 아이콘
+            var upgrades = canvas.GetComponent("FlightUpgradeChoices"); // 출격 중 임시 성장
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance; // 후보 시험용 필드
+            int[] ranks = (int[])upgrades.GetType().GetField("ranks", flags).GetValue(upgrades); // 포화에 도달한 시험 상태
+            for (int index = 0; index < ranks.Length; index++) // 모든 강화 후보 한도 설정
+            {
+                ranks[index] = 3; // 일반·희귀·영웅의 상한 도달
+            }
+            ranks[5] = 0; // 교체할 E 산탄만 유효
+            Transform pilot = FindPilot(); // 실제 보호막 적용 대상
+            var vitals = FlightVitals(pilot); // 피격 후 남은 체력
+            vitals.GetType().GetMethod("GrantSlotProtection").Invoke(vitals, new object[] { 1.4f }); // 활성화된 아리아 E 보호
+            GrantChoiceExperience(10); // 첫 레벨업
+            Transform modal = canvas.Find("LevelUpChoices"); // 실제 선택 UI
+            Assert.That(HudText(modal.Find("Choice1/Title")), Is.EqualTo("산탄 스킬")); // 유효한 교체 카드
+            Assert.That(HudText(modal.Find("Choice2/Title")), Is.EqualTo("필살기 충전")); // 대체 충전 후보
+            Assert.That(HudText(modal.Find("Choice3/Title")), Is.EqualTo("체력 증가 1")); // 효과가 다른 최대 체력 후보
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Digit1)); // E 교체 선택
+            yield return WaitFrames(4); // 이전 E 해제와 아이콘 변경
+            Assert.That((bool)upgrades.GetType().GetProperty("HasFan").GetValue(upgrades), Is.True); // 새 공용 스킬 적용
+            Assert.That(canvas.Find("SkillSlots/E/Art").GetComponent<UnityEngine.UI.RawImage>().texture.name, Is.EqualTo("CardElementFire")); // 현재 슬롯에 맞는 그림
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 예전 E 보호가 남았는지 확인
+            yield return WaitFrames(4); // 실제 피격 처리
+            Assert.That(Metric(vitals, "Health"), Is.EqualTo(80)); // 이전 보호막이 새 슬롯에 남지 않음
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 새 출격
+            yield return WaitFrames(4); // 성장 초기화
+            Assert.That((bool)upgrades.GetType().GetProperty("HasFan").GetValue(upgrades), Is.False); // 이전 E 교체 제거
+        }
+
+        private static void GrantChoiceExperience(int amount) // 후보 상태만 검사하기 위한 경험치 지급
+        {
+            Component experience = GameObject.Find("ExperienceDrops").GetComponent("FlightExperience"); // 기존 출격 성장
+            experience.GetType().GetMethod("Grant", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(experience, new object[] { amount }); // 레벨업 이벤트를 발생시키는 정상 처리
+        }
+
+        [UnityTest] // ESC 정지 UI와 출격 제어
+        public IEnumerator EscapePauseMenuSwitchesPanelsAndRestartsAfterAbandon() // 정지·설정·재출격
+        {
+            yield return LoadFlight(); // 실제 시작 씬의 정지 화면
+            Transform hud = LocateCombatHud().transform; // 전투 화면과 입력 메뉴
+            Transform pause = hud.Find("PauseMenu"); // 편집 가능한 정지 메뉴
+            Assert.That(pause, Is.Not.Null); // 실제 씬의 정지 메뉴
+            Assert.That(pause.gameObject.activeSelf, Is.False); // 출격 중에 숨겨진 메뉴
+            Transform pilot = FindPilot(); // 전투 멈춤을 비교할 비행체
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 ESC
+            yield return WaitFrames(4); // 정지 프레임
+            Assert.That(pause.gameObject.activeSelf, Is.True); // 메뉴 표시
+            Assert.That(Time.timeScale, Is.Zero); // 전투 시간 정지
+            Assert.That(((RectTransform)pause.Find("Controls")).rect.width, Is.EqualTo(1124f).Within(0.01f)); // 안내선의 오른쪽 패널 너비
+            Assert.That(((RectTransform)pause.Find("Controls")).rect.height, Is.EqualTo(820f).Within(0.01f)); // 안내선의 오른쪽 패널 높이
+            Assert.That(((RectTransform)pause.Find("MenuButtons")).anchoredPosition.x, Is.EqualTo(-590f).Within(0.01f)); // 파란 왼쪽 버튼 열 위치
+            Assert.That(((RectTransform)pause.Find("MenuButtons/Continue")).rect.width, Is.EqualTo(280f).Within(0.01f)); // 크게 이동한 첫 번째 버튼
+            Assert.That(pause.Find("Controls/Keyboard").GetComponent<UnityEngine.UI.RawImage>().texture.name, Is.EqualTo("PauseKeyboard")); // 실제 벡터 키 배치
+            Vector3 position = pilot.position; // 멈춘 동안의 출발 좌표
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.Y)); // 멈춘 전투에 비행과 웨이브 시도
+            yield return WaitFrames(15); // 미입력 상태 확인
+            Assert.That(pilot.position, Is.EqualTo(position)); // 비행 중지
+            ClickPauseButton(pause, "MenuButtons/Settings"); // 왼쪽 설정 버튼의 실제 이벤트
+            Assert.That(pause.Find("Settings").gameObject.activeSelf, Is.True); // 오른쪽 설정 열림
+            Assert.That(pause.Find("Controls").gameObject.activeSelf, Is.False); // 오른쪽 조작 패널 교체
+            ClickPauseButton(pause, "Settings/AudioTab"); // 사운드 및 마우스 감도 탭
+            var volume = pause.Find("Settings/AudioSettings/Volume").GetComponent<UnityEngine.UI.Slider>(); // 전체 음량 제어
+            volume.value = 0.65f; // 설정에서 조절한 값
+            Assert.That(AudioListener.volume, Is.EqualTo(0.65f).Within(0.01f)); // 실제 전역 소리 변화
+            ClickPauseButton(pause, "Settings/AudioSettings/Mute"); // 음소거 켜기
+            Assert.That(AudioListener.volume, Is.Zero); // 실제 전체 소리 끄기
+            ClickPauseButton(pause, "Settings/AudioSettings/Mute"); // 음소거 해제
+            volume.value = 1f; // 다음 테스트에 영향 없는 음량 복원
+            var sensitivity = pause.Find("Settings/AudioSettings/Sensitivity").GetComponent<UnityEngine.UI.Slider>(); // 시점 회전 감도
+            sensitivity.value = 150f; // 변경한 설정값
+            Component controller = pilot.GetComponent("FirstFlightController"); // 실제 비행 시점
+            var scale = controller.GetType().GetField("sensitivityScale", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 마우스 선회 배율
+            Assert.That(scale.GetValue(controller), Is.EqualTo(1.5f)); // 실제 감도 값 적용
+            sensitivity.value = 100f; // 다음 테스트에 영향 없는 감도 복원
+            ClickPauseButton(pause, "MenuButtons/Continue"); // 계속하기 입력
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 누른 전투 키 해제
+            yield return WaitFrames(4); // 재생 상태 복구
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 다시 진행
+            Assert.That(pause.gameObject.activeSelf, Is.False); // 메뉴 닫힘
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 다시 정지
+            yield return WaitFrames(4); // 새 메뉴 표시
+            ClickPauseButton(pause, "MenuButtons/Abandon"); // 왼쪽 포기 선택
+            ClickPauseButton(pause, "Confirm/Accept"); // 실제 포기 확정
+            Assert.That(pause.Find("MenuButtons/Continue").GetComponent<UnityEngine.UI.Button>().interactable, Is.False); // 포기 뒤 계속하기 금지
+            ClickPauseButton(pause, "MenuButtons/Restart"); // 새 시험 출격
+            yield return WaitFrames(4); // 초기 화면 복귀
+            Assert.That(pause.gameObject.activeSelf, Is.False); // 새 출격 화면
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 새 웨이브 실제 재생
+            Assert.That(HudText(hud.Find("WaveReadout/Wave")), Is.EqualTo("Wave : 1")); // 첫 웨이브 초기화
+            Assert.That(HudText(hud.Find("Experience/Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 경험치와 레벨 초기화
+        }
+
+        private static void ClickPauseButton(Transform panel, string path) // 실제 정지 메뉴의 버튼
+        {
+            panel.Find(path).GetComponent<UnityEngine.UI.Button>().onClick.Invoke(); // 연결된 클릭 이벤트 실행
+        }
+
+        [UnityTest] // 설정의 키 변경이 각 화면과 실제 스킬에 반영
+        public IEnumerator PauseKeyRebindUpdatesKeycapsAndActualSkillInput() // Q에서 G로 변경하고 원복
+        {
+            yield return LoadFlight(); // 실제 배포 시작 씬
+            Transform pilot = FindPilot(); // 실제 자동 무기와 스킬 상태
+            Transform hud = LocateCombatHud().transform; // 전투 스킬의 키 이미지
+            Transform pause = hud.Find("PauseMenu"); // ESC로 여는 실제 설정 창
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 설정을 열기 전 정지
+            yield return WaitFrames(3); // 메뉴 표시
+            ClickPauseButton(pause, "MenuButtons/Settings"); // 현재 환경 설정
+            ClickPauseButton(pause, "Settings/KeySettings/Special/Key"); // 고유기의 기존 키캡 선택
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W)); // 이미 사용 중인 키
+            yield return WaitFrames(3); // 중복 키 판정
+            Assert.That(HudText(pause.Find("Settings/KeySettings/Special/Key/Label")), Is.EqualTo("Q")); // 이전 Q 유지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.G)); // 비어 있는 새 키 선택
+            yield return WaitFrames(3); // 키와 화면 다시 적용
+            Assert.That(HudText(pause.Find("Settings/KeySettings/Special/Key/Label")), Is.EqualTo("G")); // 설정 키 이미지
+            Assert.That(HudText(hud.Find("SkillSlots/Q/Key")), Is.EqualTo("G")); // 전투 HUD 이미지
+            ClickPauseButton(pause, "Settings/Guide"); // 조작 안내로 이동
+            Assert.That(HudText(pause.Find("Controls/Special/Keycap/Label")), Is.EqualTo("G")); // 설명 옆 키캡 갱신
+            Component art = pause.Find("Controls/KeyboardHighlights").GetComponent("FlightKeyboardHighlights"); // 평면 그림의 실제 색 표시
+            var marked = art.GetType().GetMethod("ContainsBinding"); // 설정 변화에 대응하는 강조 위치
+            Assert.That(marked.Invoke(art, new object[] { Key.G }), Is.True); // 새 G 강조
+            Assert.That(marked.Invoke(art, new object[] { Key.Q }), Is.False); // 기존 Q 강조 해제
+            ClickPauseButton(pause, "MenuButtons/Continue"); // 이어서 전투
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 설정 입력 해제
+            yield return WaitFrames(4); // 실제 전투 시간
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 아리아 고유 효과
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 변경 전 키는 미발동
+            yield return WaitFrames(3); // 실제 스킬 입력 경과
+            Assert.That(weapon.GetType().GetProperty("FireIntervalScale").GetValue(weapon), Is.EqualTo(1f)); // 이전 키 동작 없음
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.G)); // 설정한 키로 스킬 발동
+            yield return WaitFrames(3); // 발사 속도 보너스 반영
+            Assert.That(weapon.GetType().GetProperty("FireIntervalScale").GetValue(weapon), Is.EqualTo(0.7f)); // 새 키로 전투 기능 작동
         }
 
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영

@@ -17,6 +17,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private LayerMask aimLayers = (1 << 8) | (1 << 9); // 비행 지형과 조준 표적
         [SerializeField, Min(1f)] private float aimRange = 85f; // 화면 중심의 최대 조준 거리
         [SerializeField] private LineRenderer sniperBeam; // 씬에서 조정하는 천공 관측선
+        [SerializeField] private FlightUpgradeChoices upgrades; // 이번 출격의 자동탄 강화
         private static readonly Color WeakPointColor = new Color(1f, 0.76f, 0.25f); // 약점 조준점의 금색
         private const float BeamRadius = 0.55f; // 광선 판정 반경
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
@@ -25,6 +26,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float beamUntil; // 광선 표시 종료 시각
         private float rapidUntil; // Q 효과의 종료 시각
         private float nextShot; // 다음 자동 연사 가능 시각
+        private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
         public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
         public bool IsRian { get; private set; } // 현재 시험 조종사
@@ -60,6 +62,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 조준 방향으로 자동 사격
         {
+            if (Time.timeScale == 0f) // 카드 선택 동안 발사 금지
+            {
+                return; // 조준과 자동탄 모두 정지
+            }
             reticle.enabled = pilot.CanFly && pilot.HasPointerControl && pilot.IsAimView; // 실제 조준점 표시 여부
             if (sniperBeam != null && sniperBeam.enabled && Time.time >= beamUntil) // 짧은 광선 시각 효과 종료
             {
@@ -88,7 +94,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 interval = pilot.IsFocusHeld ? 0.48f : 0.30f; // 리안의 집중·기본 발사 간격
             }
-            nextShot = Time.time + interval * FireIntervalScale; // 다음 자동 발사 시각
+            nextShot = Time.time + interval * FireIntervalScale * (upgrades != null ? upgrades.CadenceScale : 1f); // 전투 카드의 발사 간격 보너스
         }
 
         public bool CastSpread(bool focused, int count, float spread, bool isAutomatic = false) // 스킬·카드의 마법탄 배열
@@ -112,7 +118,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             FlightSpellBolt bolt = Instantiate(focusedBolt, muzzle.position, Quaternion.LookRotation(travel)); // 빠른 집중탄 외형 재사용
-            bolt.Begin(aimLayers, aimRange, null, true, 100); // 피해 100의 한 발 관통탄
+            bolt.Begin(aimLayers, aimRange, null, WeakRatio, 100); // 피해 100의 한 발 관통탄
             return true; // 관통 사격 성공
         }
 
@@ -127,7 +133,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 start = muzzle.position; // 광선 시작점
             Vector3 direction = travel.normalized; // 정규화한 조준 방향
             var hitTargets = new HashSet<Component>(); // 한 번만 피해를 받을 표적 집합
-            FlightSpellBolt.ApplyPiercingPath(start, BeamRadius, direction, aimRange, aimLayers, hitTargets, 220, out float length); // 표적마다 피해 220과 지형 차단
+            FlightSpellBolt.ApplyPiercingPath(start, BeamRadius, direction, aimRange, aimLayers, hitTargets, 220, WeakRatio, int.MaxValue, null, out float length); // 표적마다 피해 220과 지형 차단
             pool.ClearAlongBeam(start, direction, length, BeamRadius); // 벽 앞 광선에 닿은 적탄 회수
             if (sniperBeam != null) // 씬의 편집 가능한 광선 참조
             {
@@ -159,6 +165,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void FireSpread(Vector3 travel, bool focused, int count, float spread, bool isAutomatic) // 마법탄 배열 생성
         {
+            bool grown = isAutomatic && upgrades != null; // 강화는 기본·집중 자동탄에만 적용
+            float damage = grown ? upgrades.DamageScale(focused) : 1f; // 상대 피해
+            float width = grown ? upgrades.WidthScale(focused) : 1f; // 기본 또는 집중탄의 충돌 폭
+            int pierce = grown ? upgrades.AutoPierce : 0; // 추가 관통 가능한 대상
             Quaternion basis = Quaternion.LookRotation(travel); // 해당 발사의 중심 방향
             for (int index = 0; index < count; index++) // 실제 마법탄 생성
             {
@@ -166,7 +176,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 float pitch = count >= 5 ? (index % 2 == 0 ? -3f : 3f) : 0f; // 넓은 마법탄의 입체 고도
                 Quaternion direction = basis * Quaternion.Euler(pitch, yaw, 0f); // 화면 중앙 방향에서 분산
                 FlightSpellBolt bolt = Instantiate(focused ? focusedBolt : standardBolt, muzzle.position, direction); // 기존 마법탄 프리팹 재사용
-                bolt.Begin(aimLayers, aimRange, isAutomatic && !IsRian ? rapid : null, IsRian); // 발사 당시 캐릭터의 적중 효과
+                bolt.Begin(aimLayers, aimRange, isAutomatic && !IsRian ? rapid : null, WeakRatio, 0, damage, width, pierce); // 발사 때 확정한 피해와 폭
             }
         }
     }

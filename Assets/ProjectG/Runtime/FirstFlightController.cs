@@ -11,6 +11,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float braking = 26f; // 초당 제동량
         [SerializeField, Range(0.01f, 1f)] private float focusSpeed = 0.5f; // 집중 비행 속도 비율
         [SerializeField, Min(0.01f)] private float mouseSensitivity = 0.18f; // 마우스 픽셀당 회전 각도
+        [SerializeField] private FlightBindings bindings; // 설정에 표시된 실제 비행 키
         [SerializeField] private Bounds flightBounds = new Bounds(new Vector3(0f, 14f, 26f), new Vector3(92f, 46f, 122f)); // 월드 축 기준 비행 체적
         [SerializeField] private LayerMask environmentLayer = 1 << 8; // 비행 지형 충돌 대상
         private FlightPilotVitals vitals; // 현재 비행체의 생존 상태
@@ -18,6 +19,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float pitch; // 기본 시점의 상하 각도
         private float orbitYaw; // 둘러보기의 좌우 각도
         private float orbitPitch; // 둘러보기의 상하 각도
+        private float sensitivityScale = 1f; // 게임 설정의 마우스 회전 배율
 
         public bool CanFly => vitals == null || !vitals.IsDefeated; // 출격 조작 가능 상태
         public bool IsFocusHeld { get; private set; } // 현재 집중 비행 입력
@@ -42,6 +44,11 @@ namespace ProjectG // 프로젝트 게임 영역
             IsFreeLooking = false; // 출격 시작 시 둘러보기 초기 상태
             transform.SetPositionAndRotation(position, rotation); // 시작 위치와 회전 복귀
         }
+
+        public void SetSensitivityScale(float scale) // 게임 설정의 마우스 감도
+        {
+            sensitivityScale = Mathf.Clamp(scale, 0.25f, 2f); // 설정에서 지원하는 감도 범위
+        }
         private void OnEnable() // 시험 씬 입력 시작
         {
             if (!Application.isBatchMode && Application.isFocused) // 실제 게임에 포커스가 있는 상태
@@ -60,6 +67,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // 매 프레임 비행 조작 갱신
         {
+            if (Time.timeScale == 0f) // 레벨 선택은 비행 조작이 아님
+            {
+                return; // 카메라 선회와 클릭 잠금 방지
+            }
             PointerCapturedThisFrame = false; // 누르기 전의 새 입력 프레임
             if (!CanFly) // 체력 소진 상태
             {
@@ -68,8 +79,8 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             Keyboard keyboard = Keyboard.current; // 현재 키보드
             Mouse mouse = Mouse.current; // 현재 마우스
-            UpdateLook(keyboard, mouse, Time.deltaTime); // 선회와 독립 시점 적용
-            IsFocusHeld = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed); // 양쪽 Shift 집중 이동
+            UpdateLook(mouse, Time.deltaTime); // 선회와 독립 시점 적용
+            IsFocusHeld = keyboard != null && bindings.Held(keyboard, FlightAction.Focus); // 현재 설정의 집중 이동
             Vector3 input = keyboard == null ? Vector3.zero : ReadFlightInput(keyboard); // 현재 비행 방향
             Vector3 desired = transform.rotation * input * (speed * (IsFocusHeld ? focusSpeed : 1f)); // 정량화된 비행 목표 속도
             bool slowing = desired.sqrMagnitude < velocity.sqrMagnitude || Vector3.Dot(desired, velocity) < 0f; // 감속과 반대 방향의 제동
@@ -77,29 +88,24 @@ namespace ProjectG // 프로젝트 게임 영역
             MoveWithinBounds(velocity * Time.deltaTime); // 지형과 경계 안에서 이동
         }
 
-        private static Vector3 ReadFlightInput(Keyboard keyboard) // 키보드의 축별 방향
+        private Vector3 ReadFlightInput(Keyboard keyboard) // 키보드의 축별 방향
         {
-            float lateral = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f); // 좌우 입력
-            bool descending = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed; // 양쪽 Ctrl 하강
-            float vertical = (keyboard.spaceKey.isPressed ? 1f : 0f) - (descending ? 1f : 0f); // 상승과 하강 입력
-            float depth = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f); // 앞뒤 입력
+            float lateral = (bindings.Held(keyboard, FlightAction.Right) ? 1f : 0f) - (bindings.Held(keyboard, FlightAction.Left) ? 1f : 0f); // 설정된 좌우 이동
+            float vertical = (bindings.Held(keyboard, FlightAction.Rise) ? 1f : 0f) - (bindings.Held(keyboard, FlightAction.Descend) ? 1f : 0f); // 설정된 상승과 하강
+            float depth = (bindings.Held(keyboard, FlightAction.Forward) ? 1f : 0f) - (bindings.Held(keyboard, FlightAction.Back) ? 1f : 0f); // 설정된 앞뒤 이동
             return Vector3.ClampMagnitude(new Vector3(lateral, vertical, depth), 1f); // 동시 입력의 최고 속도 유지
         }
 
-        private void UpdateLook(Keyboard keyboard, Mouse mouse, float seconds) // 마우스 시점 처리
+        private void UpdateLook(Mouse mouse, float seconds) // 마우스 시점 처리
         {
-            if (!Application.isBatchMode && keyboard != null && keyboard.escapeKey.wasPressedThisFrame) // 커서 해제 입력
-            {
-                Cursor.lockState = CursorLockMode.None; // 창 밖으로 이동 가능한 커서
-            }
-            else if (!HasPointerControl && Application.isFocused && mouse != null && mouse.leftButton.wasPressedThisFrame) // 게임 창 재선택
+            if (!HasPointerControl && Application.isFocused && mouse != null && mouse.leftButton.wasPressedThisFrame) // 게임 창 재선택
             {
                 Cursor.lockState = CursorLockMode.Locked; // 시점 마우스 재사용
                 PointerCapturedThisFrame = true; // 창 선택 클릭을 카드 사용에서 제외
                 return; // 창 선택 클릭의 회전 억제
             }
 
-            Vector2 look = HasPointerControl && mouse != null ? mouse.delta.ReadValue() * mouseSensitivity : Vector2.zero; // 현재 프레임의 회전 입력
+            Vector2 look = HasPointerControl && mouse != null ? mouse.delta.ReadValue() * (mouseSensitivity * sensitivityScale) : Vector2.zero; // 설정된 프레임 회전 입력
             IsFreeLooking = HasPointerControl && mouse != null && mouse.middleButton.isPressed; // 휠 버튼 독립 시점
             if (IsFreeLooking) // 진행 방향과 분리된 카메라 입력
             {

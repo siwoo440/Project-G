@@ -45,6 +45,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             public RawImage art; // 해당 스킬의 제작 이미지
             public Text cooldown; // 흰색으로 표시할 남은 시간
+            public Text keyLabel; // 설정에서 바뀌는 현재 스킬 키
             public int cost; // 현재 슬롯의 시험 자원 비용
             public bool usesUltimate; // 마력과 필살기 에너지 구분
             [System.NonSerialized] public float countdownFrom; // 효과 뒤 쿨타임의 시작 시각
@@ -76,6 +77,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private Texture ariaUltimateArt; // 아리아의 원래 R 스킬 그림
         private Rect ariaSkillUv; // 아리아 Q의 아틀라스 영역
         private Rect ariaUltimateUv; // 아리아 R의 아틀라스 영역
+        private Texture guardArt; // 기본 E 보호막의 원본 그림
+        private Rect guardUv; // 기본 E 보호막의 아틀라스 범위
         private bool isSniper; // 현재 표시하는 리안의 전투 설정
         private const int MaxResource = 100; // 초기 시험 자원의 최대값
         private int manaPoints = MaxResource; // 시작 시 마력
@@ -94,6 +97,21 @@ namespace ProjectG // 프로젝트 게임 영역
             ariaUltimateArt = slots[2].art.texture; // 기존 R 아이콘의 원본 저장
             ariaSkillUv = slots[0].art.uvRect; // 기존 Q 아틀라스 좌표
             ariaUltimateUv = slots[2].art.uvRect; // 기존 R 아틀라스 좌표
+            guardArt = slots[1].art.texture; // 기본 E 그림
+            guardUv = slots[1].art.uvRect; // 기본 E 범위
+        }
+
+        public void SetFanSkill(Texture fan) // 교체한 E 선택과 화면 그림 동기화
+        {
+            slots[1].art.texture = fan != null ? fan : guardArt; // 산탄이나 원래 보호막 그림
+            slots[1].art.uvRect = fan != null ? new Rect(0f, 0f, 1f, 1f) : guardUv; // 산탄 전체 그림 또는 아틀라스 조각
+        }
+
+        public void SetSkillKeys(string special, string common, string ultimateKey) // 설명과 일치하는 세 스킬 입력
+        {
+            slots[0].keyLabel.text = special; // 현재 고유기 키
+            slots[1].keyLabel.text = common; // 현재 공용 키
+            slots[2].keyLabel.text = ultimateKey; // 현재 필살기 키
         }
 
         public void SetSniper(bool active) // 시험 캐릭터와 Q·R 아이콘 전환
@@ -143,11 +161,11 @@ namespace ProjectG // 프로젝트 게임 영역
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
             if (isSniper) // 리안의 약점 피해 안내
             {
-                rapidLabel.text = "RIAN  WEAK +50%"; // HUD 안에 들어가는 리안 약점 보너스
+                rapidLabel.text = "리안  약점 +50%"; // HUD 안에 들어가는 리안 약점 보너스
             }
             else if (rapid != null) // 아리아의 누적 값을 사용하는 슬롯
             {
-                rapidLabel.text = $"RAPID +{Mathf.FloorToInt(rapid.BonusPercent + 0.003f)}%{(rapid.IsDecaying ? "   DECAY" : "")}"; // 감소하는 연속 적중 정보
+                rapidLabel.text = $"연속 적중 +{Mathf.FloorToInt(rapid.BonusPercent + 0.003f)}%{(rapid.IsDecaying ? " 감소" : "")}"; // 감소하는 연속 적중 정보
             }
             foreach (SkillSlot slot in slots) // 편집된 세 슬롯 표시
             {

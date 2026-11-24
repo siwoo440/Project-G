@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         [SerializeField] private FlightPilotVitals pilot; // 조각을 획득하는 비행체
         [SerializeField] private FlightCombatHud hud; // 기존 레벨·경험치 표시
+        [SerializeField] private FlightUpgradeChoices upgrades; // 자석이 바꾸는 현재 픽업 범위
         [SerializeField] private FlightEnemy[] rewardSources; // 이 씬에서 드롭하는 마물 목록
         [SerializeField] private Transform shardPrefab; // 경험치 조각 모델과 표시 크기
         [SerializeField, Min(0f)] private float fallSpeed = 0.5f; // 공중 드롭의 초당 낙하 거리
@@ -28,6 +29,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private Vector3 previousPilot; // 빠른 비행의 이전 프레임 위치
         private int level = 1; // 전투 시작 레벨
         private int experience; // 현재 레벨에서 누적한 경험치
+
+        public event System.Action<int, int> LeveledUp; // 상승한 수와 새 레벨로 선택 창 예약
 
         private void OnEnable() // 씬에 지정한 마물 처치 연결
         {
@@ -76,6 +79,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 마지막 프레임부터 조각과 기체의 상대 궤적
         {
+            if (Time.timeScale == 0f) // 선택 중 드롭과 획득 정지
+            {
+                return; // 같은 프레임의 추가 경험치 보류
+            }
             Vector3 currentPilot = pilot.transform.position; // 이번 프레임 비행 위치
             float frameTime = Time.deltaTime; // 움직일 수 있는 프레임 구간
             for (int index = active.Count - 1; index >= 0; index--) // 회수해도 다음 조각에 영향 없는 역순
@@ -90,8 +97,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 Vector3 pilotEnd = Vector3.Lerp(pilotStart, currentPilot, fraction); // 조각과 공통으로 존재한 시점
                 if (!pilot.IsDefeated && Intersects(pilotStart - start, pilotEnd - end)) // 빠른 비행에서 놓치지 않는 획득
                 {
-                    Grant(drop.reward); // 실제 획득의 임시 경험치
                     Recycle(index); // 같은 조각의 중복 획득 방지
+                    Grant(drop.reward); // 실제 획득의 임시 경험치
+                    if (Time.timeScale == 0f) // 레벨업으로 선택 창이 열린 경우
+                    {
+                        break; // 다음 조각은 전투 재개 뒤 획득
+                    }
                     continue; // 활성 조각에서 처리 완료
                 }
                 drop.timeLeft -= duration; // 이번 프레임에 소모한 수명
@@ -123,12 +134,14 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 travel = end - start; // 기체와 조각의 상대 변화량
             float length = travel.sqrMagnitude; // 나누기에 사용할 제곱 거리
             float fraction = length > 0f ? Mathf.Clamp01(-Vector3.Dot(start, travel) / length) : 0f; // 선분 내부의 가장 가까운 시점
-            return (start + travel * fraction).sqrMagnitude <= pickupRadius * pickupRadius; // 유효 구간의 실제 접촉
+            float reach = pickupRadius * (upgrades != null ? upgrades.PickupScale : 1f); // 자석에 따라 늘어난 회수 반경
+            return (start + travel * fraction).sqrMagnitude <= reach * reach; // 유효 구간의 실제 접촉
         }
 
         private void Grant(int reward) // 초과 경험치를 다음 전투 레벨에 이월
         {
             long total = (long)experience + reward; // 한 조각의 큰 보상도 누락 없이 합산
+            int previousLevel = level; // 이번 획득 전 레벨
             while (total >= RequiredExperience) // 한 번에 여러 레벨을 넘는 경우
             {
                 total -= RequiredExperience; // 현재 레벨에 사용한 XP
@@ -136,6 +149,10 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             experience = (int)total; // 다음 레벨까지 남은 일부 경험치
             ShowProgress(); // 현 레벨과 게이지를 함께 갱신
+            if (level > previousLevel) // 실제로 레벨이 오른 횟수
+            {
+                LeveledUp?.Invoke(level - previousLevel, level); // 오른 레벨별 선택 하나
+            }
         }
 
         private int RequiredExperience => 10 * level; // 10·20·30 순서의 시험 레벨 비용

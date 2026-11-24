@@ -11,9 +11,11 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0f)] private float immuneSeconds = 1f; // 피격 후 시험 무적 시간
         private float immuneUntil; // 다음 피격 가능 시각
         private float guardUntil; // 한 발만 막는 리안 보호막의 종료 시점
+        private float slotProtectionUntil; // 교체할 수 있는 E 시간 보호막의 종료 시점
+        private int capacityBonus; // 선택한 이번 출격의 최대 체력
 
         public int Health { get; private set; } // 현재 출격 체력
-        public int MaxHealth => maxHealth; // 표시용 최대 체력
+        public int MaxHealth => maxHealth + capacityBonus; // 임시 성장까지 포함한 최대 체력
         public int Grazes { get; private set; } // 유효한 근접 회피 수
         public bool IsDefeated => Health <= 0; // 비행 실패 상태
 
@@ -24,10 +26,23 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void ResetRun() // 출격 재시작의 체력과 판정 초기화
         {
+            capacityBonus = 0; // 이전 출격의 체력 증가 제거
             Health = maxHealth; // 최대 체력 복구
             Grazes = 0; // 근접 회피 초기화
             immuneUntil = 0f; // 이전 무적 종료
             guardUntil = 0f; // 이전 보호막 제거
+            slotProtectionUntil = 0f; // 이전 공용 스킬 보호 삭제
+        }
+
+        public void Heal(int amount) // 출격 강화의 즉시 체력 회복
+        {
+            Health = Mathf.Min(MaxHealth, Health + amount); // 최대 체력 초과 방지
+        }
+
+        public void AddCapacity(int amount) // 이번 출격의 최대 체력 증가
+        {
+            capacityBonus += amount; // 선택한 임시 체력 상한
+            Heal(amount); // 늘어난 체력만큼 현재 체력 반영
         }
 
         public void GrantProtection(float seconds) // E와 보호 카드의 시험 효과
@@ -38,6 +53,17 @@ namespace ProjectG // 프로젝트 게임 영역
         public void GrantSingleHitGuard(float seconds) // 제한 시간 동안 피해 한 번 방지
         {
             guardUntil = Time.time + seconds; // 리안 보호막의 유효 종료 시점
+        }
+
+        public void GrantSlotProtection(float seconds) // E 보호막의 시간형 효과
+        {
+            slotProtectionUntil = Time.time + seconds; // 교체할 수 있는 보호 효과
+        }
+
+        public void ClearSkillGuard() // E를 교체한 뒤 남은 효과 해제
+        {
+            slotProtectionUntil = 0f; // 아리아 시간형 E 해제
+            guardUntil = 0f; // 리안 1회형 E 해제
         }
         internal bool ResolveThreat(Vector3 start, Vector3 end, float projectileRadius, int damage, ref bool nearCandidate, ref bool grazeAwarded) // 탄환 이동 전체와 기체 상대 경로 판정
         {
@@ -53,7 +79,7 @@ namespace ProjectG // 프로젝트 게임 영역
             float inner = hitRadius + projectileRadius; // 기체와 탄환의 접촉 반경 합
             if (closestSquared <= inner * inner) // 프레임 사이 실제 피격 여부
             {
-                if (Time.time >= immuneUntil) // 피격 후 무적 구간 확인
+                if (Time.time >= Mathf.Max(immuneUntil, slotProtectionUntil)) // 피격 후 무적과 장착 보호막 확인
                 {
                     if (Time.time < guardUntil) // 보호막이 막을 첫 피해
                     {

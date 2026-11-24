@@ -10,6 +10,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FirstFlightController pilot; // 재시작 위치를 적용할 비행체
         [SerializeField] private FlightThreatPool pool; // 씬에서 편집할 적탄 재사용 풀
         [SerializeField] private FlightExperience experience; // 이번 출격의 레벨과 드롭
+        [SerializeField] private FlightUpgradeChoices upgrades; // 출격별 카드 선택 초기화
+        [SerializeField] private FlightBindings bindings; // 실제 탄막 연습 키 설정
         private FlightThreatPattern pattern; // 현재 선택한 입체 탄막
         private float phase; // 순차적으로 바뀌는 나선 각도
         [SerializeField] private Text status; // 기존 제작 안내판의 체력 문구
@@ -28,15 +30,15 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Update() // 훈련 키와 적탄 처리
         {
             Keyboard keyboard = Keyboard.current; // 현재 키보드
-            if (keyboard != null && keyboard.backspaceKey.wasPressedThisFrame) // 현재 출격 다시 시작
+            if (Time.timeScale == 0f) // 레벨업 카드 선택 중 유지
             {
-                RestartRun(); // 적탄과 체력 및 카메라 복귀
+                return; // 연습 패턴과 발사 중지
             }
             if (keyboard != null) // 키보드 선택 입력 확인
             {
                 ChoosePattern(keyboard); // 숫자 1~4의 패턴 전환
             }
-            if (!vitals.IsDefeated && keyboard != null && keyboard.tKey.wasPressedThisFrame) // 출격 적탄 연습 토글
+            if (!vitals.IsDefeated && keyboard != null && bindings.Pressed(keyboard, FlightAction.Trial)) // 설정한 적탄 연습 토글
             {
                 active = !active; // 진행 상태 전환
                 nextTrial = Time.time; // 활성화 시 첫 발 즉시 준비
@@ -54,7 +56,15 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 상태 글자의 현재 출격 표시
         {
-            status.text = vitals.IsDefeated ? "FLIGHT FAILED   |   BKSP  Restart" : $"GRAZE {vitals.Grazes}      T  {pattern} {(active ? "ON" : "OFF")}    1-4  Select    BKSP  Restart"; // 체력과 현재 연습 표시
+            string patternName = pattern switch // 연습 탄막의 한국어 이름
+            {
+                FlightThreatPattern.Fan => "부채꼴", // 여러 갈래로 퍼지는 연습
+                FlightThreatPattern.Ring => "고리", // 고리 탄막 연습
+                FlightThreatPattern.Spiral => "나선", // 회전하는 연습
+                _ => "조준" // 기본 조준 탄막
+            };
+            string toggle = FlightBindings.Label(bindings.GetKey(FlightAction.Trial)); // 설정과 일치하는 탄막 토글 키
+            status.text = vitals.IsDefeated ? "출격 실패   ·   BKSP 재출격" : $"그레이즈 {vitals.Grazes}   {toggle} {patternName} {(active ? "켜짐" : "꺼짐")}   1–4 패턴   BKSP 재출격"; // 출격 상태와 연습 조작
         }
 
         public void EmitTrial(Vector3 position, Vector3 direction, float speed) // 직접 편집한 시험 탄으로 판정 재현
@@ -92,7 +102,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
-        private void RestartRun() // 현 출격을 초기 상태로 되돌리기
+        internal void RestartRun() // 현 출격을 초기 상태로 되돌리기
         {
             active = false; // 다음 출격의 적탄 연습 중지
             offset = false; // 처음에 조준탄부터 시작
@@ -101,6 +111,7 @@ namespace ProjectG // 프로젝트 게임 영역
             vitals.ResetRun(); // 최대 체력과 그레이즈 복구
             pilot.ResetFlightPose(spawnPoint, spawnRotation); // 출격 위치와 카메라 시점 복구
             experience?.ResetRun(); // 이전 출격의 레벨과 조각 초기화
+            upgrades?.ResetRun(); // 이전 출격의 선택 효과 제거
         }
     }
 }

@@ -125,11 +125,9 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 실제 클릭과 카드 표시
         {
-            Keyboard keyboard = Keyboard.current; // 재시작 입력 장치
-            if (keyboard != null && keyboard.backspaceKey.wasPressedThisFrame) // 새 출격의 카드 순서 복구
+            if (Time.timeScale == 0f) // 강화 선택 클릭을 전투 카드가 소비하지 않음
             {
-                left.Reset(); // 왼쪽 덱 최초 그림
-                right.Reset(); // 오른쪽 덱 최초 그림
+                return; // 모달이 열린 동안 마법 덱 유지
             }
 
             Mouse mouse = Mouse.current; // 마우스의 실제 상태
@@ -146,6 +144,12 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             left.Render(magic.Mana); // 왼쪽 카드 실시간 표시
             right.Render(magic.Mana); // 오른쪽 카드 실시간 표시
+        }
+
+        internal void ResetRun() // 새 출격의 카드 순서 복구
+        {
+            left.Reset(); // 왼쪽 덱 최초 그림
+            right.Reset(); // 오른쪽 덱 최초 그림
         }
     }
 }

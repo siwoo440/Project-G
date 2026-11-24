@@ -34,6 +34,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // 시간에 따른 출현·공격·이탈 이동
         {
+            if (Time.timeScale == 0f) // 보상 카드 선택 동안 공격 중지
+            {
+                return; // 멈춘 프레임의 발사 금지
+            }
             elapsed += Time.deltaTime; // 해당 출격의 경로 시간
             if (elapsed < entrySeconds) // 등장 중인 구간
             {

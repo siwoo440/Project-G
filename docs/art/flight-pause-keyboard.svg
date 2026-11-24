@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="912" height="354" viewBox="0 0 912 354" role="img" aria-label="Project G keyboard control layout">
+  <style>
+    rect { stroke-width: 2; }
+    text { font: 700 18px Arial, sans-serif; text-anchor: middle; dominant-baseline: central; }
+    .key rect { fill: #182a42; stroke: #344a65; }
+    .key text { fill: #a8bbcd; }
+    .action rect { fill: #185864; stroke: #69d6d7; }
+    .action text { fill: #f0feff; }
+    .magic rect { fill: #5b432b; stroke: #e3b974; }
+    .magic text { fill: #fff3d2; }
+  </style>
+  <rect x="2" y="2" width="908" height="350" rx="12" fill="#101d30" stroke="#a68148"/>
+  <g class="action"><rect x="22.0" y="71" width="71.0" height="43" rx="4"/><text x="57.5" y="93">Esc</text></g>
+  <g class="action"><rect x="99.0" y="71" width="51.0" height="43" rx="4"/><text x="124.5" y="93">1</text></g>
+  <g class="action"><rect x="155.9" y="71" width="51.0" height="43" rx="4"/><text x="181.4" y="93">2</text></g>
+  <g class="action"><rect x="212.9" y="71" width="51.0" height="43" rx="4"/><text x="238.4" y="93">3</text></g>
+  <g class="action"><rect x="269.9" y="71" width="51.0" height="43" rx="4"/><text x="295.4" y="93">4</text></g>
+  <g class="key"><rect x="326.9" y="71" width="51.0" height="43" rx="4"/><text x="352.4" y="93">5</text></g>
+  <g class="key"><rect x="383.9" y="71" width="51.0" height="43" rx="4"/><text x="409.4" y="93">6</text></g>
+  <g class="key"><rect x="440.9" y="71" width="51.0" height="43" rx="4"/><text x="466.4" y="93">7</text></g>
+  <g class="key"><rect x="497.9" y="71" width="51.0" height="43" rx="4"/><text x="523.5" y="93">8</text></g>
+  <g class="key"><rect x="555.0" y="71" width="51.0" height="43" rx="4"/><text x="580.5" y="93">9</text></g>
+  <g class="key"><rect x="612.0" y="71" width="51.0" height="43" rx="4"/><text x="637.5" y="93">0</text></g>
+  <g class="key"><rect x="669.0" y="71" width="51.0" height="43" rx="4"/><text x="694.5" y="93">-</text></g>
+  <g class="key"><rect x="726.0" y="71" width="51.0" height="43" rx="4"/><text x="751.5" y="93">=</text></g>
+  <g class="action"><rect x="783.0" y="71" width="102.3" height="43" rx="4"/><text x="834.1" y="93">BKSP</text></g>
+  <g class="key"><rect x="22.0" y="123" width="86.3" height="43" rx="4"/><text x="65.2" y="145">Tab</text></g>
+  <g class="key"><rect x="114.3" y="123" width="51.0" height="43" rx="4"/><text x="139.8" y="145">Q</text></g>
+  <g class="key"><rect x="171.3" y="123" width="51.0" height="43" rx="4"/><text x="196.8" y="145">W</text></g>
+  <g class="key"><rect x="228.3" y="123" width="51.0" height="43" rx="4"/><text x="253.8" y="145">E</text></g>
+  <g class="key"><rect x="285.3" y="123" width="51.0" height="43" rx="4"/><text x="310.8" y="145">R</text></g>
+  <g class="key"><rect x="342.3" y="123" width="51.0" height="43" rx="4"/><text x="367.8" y="145">T</text></g>
+  <g class="key"><rect x="399.3" y="123" width="51.0" height="43" rx="4"/><text x="424.8" y="145">Y</text></g>
+  <g class="key"><rect x="456.3" y="123" width="51.0" height="43" rx="4"/><text x="481.8" y="145">U</text></g>
+  <g class="key"><rect x="513.3" y="123" width="51.0" height="43" rx="4"/><text x="538.8" y="145">I</text></g>
+  <g class="key"><rect x="570.3" y="123" width="51.0" height="43" rx="4"/><text x="595.8" y="145">O</text></g>
+  <g class="key"><rect x="627.3" y="123" width="51.0" height="43" rx="4"/><text x="652.8" y="145">P</text></g>
+  <g class="key"><rect x="684.3" y="123" width="51.0" height="43" rx="4"/><text x="709.8" y="145">[</text></g>
+  <g class="key"><rect x="741.3" y="123" width="51.0" height="43" rx="4"/><text x="766.8" y="145">]</text></g>
+  <g class="key"><rect x="798.3" y="123" width="86.9" height="43" rx="4"/><text x="841.8" y="145">\</text></g>
+  <g class="key"><rect x="22.0" y="175" width="103.4" height="43" rx="4"/><text x="73.7" y="197">Caps</text></g>
+  <g class="key"><rect x="131.4" y="175" width="51.0" height="43" rx="4"/><text x="156.9" y="197">A</text></g>
+  <g class="key"><rect x="188.4" y="175" width="51.0" height="43" rx="4"/><text x="213.9" y="197">S</text></g>
+  <g class="key"><rect x="245.4" y="175" width="51.0" height="43" rx="4"/><text x="270.9" y="197">D</text></g>
+  <g class="key"><rect x="302.4" y="175" width="51.0" height="43" rx="4"/><text x="327.9" y="197">F</text></g>
+  <g class="key"><rect x="359.4" y="175" width="51.0" height="43" rx="4"/><text x="384.9" y="197">G</text></g>
+  <g class="key"><rect x="416.4" y="175" width="51.0" height="43" rx="4"/><text x="441.9" y="197">H</text></g>
+  <g class="key"><rect x="473.4" y="175" width="51.0" height="43" rx="4"/><text x="498.9" y="197">J</text></g>
+  <g class="key"><rect x="530.4" y="175" width="51.0" height="43" rx="4"/><text x="555.9" y="197">K</text></g>
+  <g class="key"><rect x="587.4" y="175" width="51.0" height="43" rx="4"/><text x="612.9" y="197">L</text></g>
+  <g class="key"><rect x="644.4" y="175" width="51.0" height="43" rx="4"/><text x="669.9" y="197">;</text></g>
+  <g class="key"><rect x="701.4" y="175" width="51.0" height="43" rx="4"/><text x="726.9" y="197">'</text></g>
+  <g class="key"><rect x="758.4" y="175" width="126.8" height="43" rx="4"/><text x="821.8" y="197">Enter</text></g>
+  <g class="key"><rect x="22.0" y="227" width="130.2" height="43" rx="4"/><text x="87.1" y="249">Shift</text></g>
+  <g class="key"><rect x="158.2" y="227" width="51.0" height="43" rx="4"/><text x="183.7" y="249">Z</text></g>
+  <g class="key"><rect x="215.2" y="227" width="51.0" height="43" rx="4"/><text x="240.7" y="249">X</text></g>
+  <g class="key"><rect x="272.2" y="227" width="51.0" height="43" rx="4"/><text x="297.7" y="249">C</text></g>
+  <g class="key"><rect x="329.2" y="227" width="51.0" height="43" rx="4"/><text x="354.7" y="249">V</text></g>
+  <g class="key"><rect x="386.2" y="227" width="51.0" height="43" rx="4"/><text x="411.7" y="249">B</text></g>
+  <g class="key"><rect x="443.2" y="227" width="51.0" height="43" rx="4"/><text x="468.7" y="249">N</text></g>
+  <g class="key"><rect x="500.2" y="227" width="51.0" height="43" rx="4"/><text x="525.7" y="249">M</text></g>
+  <g class="key"><rect x="557.2" y="227" width="51.0" height="43" rx="4"/><text x="582.7" y="249">,</text></g>
+  <g class="key"><rect x="614.2" y="227" width="51.0" height="43" rx="4"/><text x="639.7" y="249">.</text></g>
+  <g class="key"><rect x="671.2" y="227" width="51.0" height="43" rx="4"/><text x="696.7" y="249">/</text></g>
+  <g class="key"><rect x="728.2" y="227" width="157.0" height="43" rx="4"/><text x="806.7" y="249">Shift</text></g>
+  <g class="key"><rect x="22.0" y="279" width="79.5" height="43" rx="4"/><text x="61.8" y="301">Ctrl</text></g>
+  <g class="key"><rect x="107.5" y="279" width="71.0" height="43" rx="4"/><text x="143.0" y="301">Win</text></g>
+  <g class="key"><rect x="184.4" y="279" width="71.0" height="43" rx="4"/><text x="219.9" y="301">Alt</text></g>
+  <g class="key"><rect x="261.4" y="279" width="345.7" height="43" rx="4"/><text x="434.2" y="301">Space</text></g>
+  <g class="key"><rect x="613.1" y="279" width="61.3" height="43" rx="4"/><text x="643.7" y="301">Alt</text></g>
+  <g class="key"><rect x="680.3" y="279" width="61.3" height="43" rx="4"/><text x="711.0" y="301">Fn</text></g>
+  <g class="key"><rect x="747.6" y="279" width="80.6" height="43" rx="4"/><text x="787.9" y="301">Ctrl</text></g>
+  <g class="key"><rect x="22" y="18" width="65" height="39" rx="4"/><text x="54.5" y="38">F1</text></g>
+  <g class="key"><rect x="95" y="18" width="65" height="39" rx="4"/><text x="127.5" y="38">F2</text></g>
+  <g class="key"><rect x="168" y="18" width="65" height="39" rx="4"/><text x="200.5" y="38">F3</text></g>
+  <g class="key"><rect x="241" y="18" width="65" height="39" rx="4"/><text x="273.5" y="38">F4</text></g>
+  <g class="key"><rect x="314" y="18" width="65" height="39" rx="4"/><text x="346.5" y="38">F5</text></g>
+  <g class="key"><rect x="387" y="18" width="65" height="39" rx="4"/><text x="419.5" y="38">F6</text></g>
+  <g class="key"><rect x="460" y="18" width="65" height="39" rx="4"/><text x="492.5" y="38">F7</text></g>
+  <g class="key"><rect x="533" y="18" width="65" height="39" rx="4"/><text x="565.5" y="38">F8</text></g>
+  <g class="key"><rect x="606" y="18" width="65" height="39" rx="4"/><text x="638.5" y="38">F9</text></g>
+  <g class="key"><rect x="679" y="18" width="65" height="39" rx="4"/><text x="711.5" y="38">F10</text></g>
+  <g class="key"><rect x="752" y="18" width="65" height="39" rx="4"/><text x="784.5" y="38">F11</text></g>
+  <g class="key"><rect x="825" y="18" width="65" height="39" rx="4"/><text x="857.5" y="38">F12</text></g>
+</svg>

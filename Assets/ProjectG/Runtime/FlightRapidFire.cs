@@ -8,10 +8,11 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float limit = 50f; // 피해 보너스 상한
         [SerializeField, Min(0f)] private float hold = 2f; // 마지막 적중 뒤 유지 시간
         [SerializeField, Min(0f)] private float decay = 2.5f; // 유지 뒤 초당 감소
+        [SerializeField] private FlightUpgradeChoices upgrades; // 추격 사격 성장
         private float lastHit = float.NegativeInfinity; // 최근 유효 적중 시각
 
         public float BonusPercent { get; private set; } // 현재 피해 보너스
-        public bool IsDecaying => BonusPercent > 0f && Time.time > lastHit + hold; // 감소 상태
+        public bool IsDecaying => BonusPercent > 0f && Time.time > lastHit + hold + (upgrades != null ? upgrades.RapidHold - 2f : 0f); // 성장에 따른 유지 시간
 
         public void RecordHit() // 실제 기본·집중탄의 적중
         {
@@ -19,7 +20,7 @@ namespace ProjectG // 프로젝트 게임 영역
             lastHit = Time.time; // 현재 화력 유지 시간 갱신
         }
 
-        public int ScaleDamage(int baseDamage) // 발사 시점의 피해량
+        public int ScaleDamage(float baseDamage) // 발사 시점의 피해량
         {
             return Mathf.RoundToInt(baseDamage * (1f + BonusPercent * 0.01f)); // 정수 체력 기준 피해
         }

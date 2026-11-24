@@ -34,6 +34,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 이동하는 탄환과 기체의 상대 궤적 검사
         {
+            if (Time.timeScale == 0f) // 재생이 멈춘 선택 프레임
+            {
+                return; // 적탄 충돌을 발생시키지 않음
+            }
             if (vitals.IsDefeated) // 현재 출격 종료 여부
             {
                 owner.Return(this); // 실패 뒤 적탄을 비활성 풀로 회수

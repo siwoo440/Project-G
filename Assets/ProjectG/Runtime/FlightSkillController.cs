@@ -14,7 +14,8 @@ namespace ProjectG // 프로젝트 게임 영역
         Meteor, // 아리아 유성 탄막
         PiercingShot, // 리안 관통 사격
         SniperBeam, // 리안 천공 관측선
-        SingleHitGuard // 리안의 1회 피해 방어
+        SingleHitGuard, // 리안의 1회 피해 방어
+        SlotGuard // 아리아 E가 주는 교체 가능한 시간 보호
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -25,32 +26,33 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightWeapon weapon; // 기본탄 프리팹과 조준 기준
         [SerializeField] private FlightThreatPool threatPool; // 화면 안 적탄 소거 대상
         [SerializeField] private FlightCombatHud hud; // 제작 게이지와 쿨타임 표시
+        [SerializeField] private FlightUpgradeChoices upgrades; // 출격 카드의 Q 재사용과 E 교체
+        [SerializeField] private FlightBindings bindings; // 설정에서 편집하는 세 스킬 키
         private readonly float[] readyAt = new float[3]; // Q·E·R 사용 가능 시각
         private float mana = 100f; // 이번 출격의 실제 마력
         private int ultimate; // 필살기 에너지
         private int recordedGrazes; // 마지막으로 자원에 반영한 스침 수
 
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
+        public int Ultimate => ultimate; // 유효한 충전 대체 보상 검사
+
+        public void AddUltimate(int amount) // 레벨업 대체 보상의 필살기 에너지
+        {
+            ultimate = Mathf.Clamp(ultimate + amount, 0, 100); // 필살기 자원 상한 적용
+            ShowResources(); // 모달 아래의 실제 게이지 반영
+        }
 
         private void LateUpdate() // 자원 회복과 키 입력 확인
         {
+            if (Time.timeScale == 0f) // 선택 중 전투 스킬 입력 차단
+            {
+                return; // 시간 정지 중 발동 불가
+            }
             Keyboard keyboard = Keyboard.current; // 실제 입력 장치
-            if (keyboard != null && keyboard.f2Key.wasPressedThisFrame) // 시험 캐릭터 전환
+            if (keyboard != null && bindings.Pressed(keyboard, FlightAction.Pilot)) // 설정한 시험 캐릭터 전환
             {
                 weapon.TogglePilot(); // 기존 자원을 유지한 전투 설정 변경
                 hud.SetSniper(weapon.IsRian); // 전용 아이콘과 패시브 전환
-            }
-            if (keyboard != null && keyboard.backspaceKey.wasPressedThisFrame) // 출격 재시작 입력
-            {
-                mana = 100f; // 새 출격의 마력
-                ultimate = 0; // 새 출격의 필살기 에너지
-                recordedGrazes = 0; // 스침 반영 초기화
-                weapon.ResetCadence(); // 새 출격의 스킬과 패시브 초기화
-                for (int slot = 0; slot < readyAt.Length; slot++) // 세 슬롯 초기화
-                {
-                    readyAt[slot] = 0f; // 이전 쿨타임 제거
-                    hud.SetCooldown(slot, 0f); // 화면의 이전 숫자 제거
-                }
             }
             if (pilot.CanFly) // 실패 전 자원과 스킬만 갱신
             {
@@ -59,15 +61,18 @@ namespace ProjectG // 프로젝트 게임 영역
                 recordedGrazes = vitals.Grazes; // 중복 에너지 지급 방지
                 if (keyboard != null) // 실제 키 입력 확인
                 {
-                    if (keyboard.qKey.wasPressedThisFrame) // Q 고유기 입력
+                    if (bindings.Pressed(keyboard, FlightAction.Special)) // 설정한 고유기 입력
                     {
-                        TrySkill(0, weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle, 25, weapon.IsRian ? 10f : 8f, false, weapon.IsRian ? 0f : 3f); // 캐릭터의 관통 사격 또는 집중 포화
+                        float scale = upgrades != null ? upgrades.CooldownScale : 1f; // 선택 카드의 고유기 순환
+                        TrySkill(0, weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle, 25, (weapon.IsRian ? 10f : 8f) * scale, false, weapon.IsRian ? 0f : 3f); // 관통 사격 또는 집중 포화
                     }
-                    if (keyboard.eKey.wasPressedThisFrame) // E 보호막 입력
+                    if (bindings.Pressed(keyboard, FlightAction.Common)) // 설정한 공용기 입력
                     {
-                        TrySkill(1, weapon.IsRian ? FlightMagicEffect.SingleHitGuard : FlightMagicEffect.Ward, 30, weapon.IsRian ? 12f : 6f, false); // 리안의 1회 보호 또는 아리아의 시간 보호
+                        bool fan = upgrades != null && upgrades.HasFan; // E가 산탄 카드로 교체된 상태
+                        FlightMagicEffect effect = fan ? FlightMagicEffect.Nova : (weapon.IsRian ? FlightMagicEffect.SingleHitGuard : FlightMagicEffect.SlotGuard); // 산탄 또는 각 캐릭터의 보호막
+                        TrySkill(1, effect, 30, fan ? 8f : (weapon.IsRian ? 12f : 6f), false); // 슬롯의 현재 재사용 시간
                     }
-                    if (keyboard.rKey.wasPressedThisFrame) // R 필살기 입력
+                    if (bindings.Pressed(keyboard, FlightAction.Ultimate)) // 설정한 필살기 입력
                     {
                         TrySkill(2, weapon.IsRian ? FlightMagicEffect.SniperBeam : FlightMagicEffect.Meteor, 100, 12f, true); // 천공 관측선 또는 유성 탄막
                     }
@@ -76,9 +81,23 @@ namespace ProjectG // 프로젝트 게임 영역
             ShowResources(); // 현재 마력과 에너지 표시
         }
 
+        internal void ResetRun() // 새 출격의 자원과 사용 가능 시각
+        {
+            mana = 100f; // 새 출격의 마력
+            ultimate = 0; // 새 출격의 필살기 에너지
+            recordedGrazes = 0; // 스침 반영 초기화
+            weapon.ResetCadence(); // 새 출격의 스킬과 패시브 초기화
+            for (int slot = 0; slot < readyAt.Length; slot++) // 세 슬롯 초기화
+            {
+                readyAt[slot] = 0f; // 이전 쿨타임 제거
+                hud.SetCooldown(slot, 0f); // 화면의 이전 숫자 제거
+            }
+            ShowResources(); // 마력과 필살기 에너지 갱신
+        }
+
         public bool TryUseCard(FlightMagicEffect effect, int cost) // 현재 카드의 성공한 실행에만 비용 차감
         {
-            if (!pilot.CanFly || !pilot.IsAimView || mana < cost || !Activate(effect)) // 실제 사용 자원과 효과 확인
+            if (Time.timeScale == 0f || !pilot.CanFly || !pilot.IsAimView || mana < cost || !Activate(effect)) // 실제 사용 자원과 효과 확인
             {
                 return false; // 카드 순서와 마력을 보존
             }
@@ -116,6 +135,9 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastSpread(true, 1, 0f); // 한 발의 빠른 관통형 실루엣
                 case FlightMagicEffect.Ward: // 보호막
                     vitals.GrantProtection(1.4f); // 현재 적탄 피해 잠시 차단
+                    return true; // 보호 발생 성공
+                case FlightMagicEffect.SlotGuard: // 아리아의 공용 E
+                    vitals.GrantSlotProtection(1.4f); // 교체 시 해제할 수 있는 보호
                     return true; // 보호 발생 성공
                 case FlightMagicEffect.Nova: // 넓은 방사 사격
                     return weapon.CastSpread(empowered, empowered ? 9 : 7, 23f); // 넓게 퍼지는 카드 또는 필살기

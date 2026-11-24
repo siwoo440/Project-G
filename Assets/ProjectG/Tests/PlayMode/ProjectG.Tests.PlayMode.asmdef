@@ -1,0 +1,5 @@
+{
+    "name": "ProjectG.Tests.PlayMode",
+    "references": ["Unity.InputSystem"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}

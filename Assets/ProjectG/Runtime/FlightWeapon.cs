@@ -16,11 +16,28 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private LayerMask aimLayers = (1 << 8) | (1 << 9); // 비행 지형과 조준 표적
         [SerializeField, Min(1f)] private float aimRange = 85f; // 화면 중심의 최대 조준 거리
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
+        private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
+        private float rapidUntil; // Q 효과의 종료 시각
         private float nextShot; // 다음 자동 연사 가능 시각
 
+        public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
+
+        public void BeginRapidFire() // 아리아 Q 집중 포화
+        {
+            rapidUntil = Time.time + 3f; // 3초간 자동탄 가속
+            nextShot = Time.time; // 다음 발사 시작 시각
+        }
+
+        public void ResetCadence() // 재출격 발사 설정 복구
+        {
+            rapidUntil = 0f; // 이전 집중 포화 제거
+            nextShot = Time.time; // 새 첫 발 시각
+            rapid?.ResetRun(); // 아리아 적중 보너스 초기화
+        }
         private void Awake() // 실제 추적 카메라 연결
         {
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
+            TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
         }
 
         private void LateUpdate() // 조준 방향으로 자동 사격
@@ -30,11 +47,11 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 현재 프레임 발사 생략
             }
-            CastSpread(pilot.IsFocusHeld, 1, 0f); // 클릭 없이 기본 또는 집중탄 자동 발사
-            nextShot = Time.time + (pilot.IsFocusHeld ? 0.27f : 0.18f); // 모드에 따른 시험 연사 간격
+            CastSpread(pilot.IsFocusHeld, 1, 0f, true); // 클릭 없이 기본 또는 집중탄 자동 발사
+            nextShot = Time.time + (pilot.IsFocusHeld ? 0.27f : 0.18f) * FireIntervalScale; // 모드에 따른 시험 연사 간격
         }
 
-        public bool CastSpread(bool focused, int count, float spread) // 스킬·카드의 마법탄 배열
+        public bool CastSpread(bool focused, int count, float spread, bool isAutomatic = false) // 스킬·카드의 마법탄 배열
         {
             Ray aim = chase != null ? chase.GetAttackRay() : flightCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f)); // 카메라 자유 회전과 독립된 실제 공격 방향
             Vector3 point = Physics.Raycast(aim, out RaycastHit surface, aimRange, aimLayers, QueryTriggerInteraction.Ignore) ? surface.point : aim.GetPoint(aimRange); // 조준 대상 또는 최대 거리
@@ -51,7 +68,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 float pitch = count >= 5 ? (index % 2 == 0 ? -3f : 3f) : 0f; // 넓은 마법탄의 입체 고도
                 Quaternion direction = basis * Quaternion.Euler(pitch, yaw, 0f); // 화면 중앙 방향에서 분산
                 FlightSpellBolt bolt = Instantiate(focused ? focusedBolt : standardBolt, muzzle.position, direction); // 기존 마법탄 프리팹 재사용
-                bolt.Begin(aimLayers, aimRange); // 실제 발사체의 사거리와 충돌 설정
+                bolt.Begin(aimLayers, aimRange, isAutomatic ? rapid : null); // 실제 발사체의 사거리와 충돌 설정
             }
             return true; // 성공한 발사에만 자원 비용 적용
         }

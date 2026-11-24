@@ -9,7 +9,9 @@ namespace ProjectG // 프로젝트 게임 영역
         Lance, // 집중 마법탄
         Ward, // 단시간 보호
         Nova, // 넓은 다발 마법탄
-        Shade // 다섯 갈래 어둠 마법
+        Shade, // 다섯 갈래 어둠 마법
+        RapidCycle, // 아리아 집중 포화
+        Meteor // 아리아 유성 탄막
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -18,6 +20,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FirstFlightController pilot; // 현재 비행 상태
         [SerializeField] private FlightPilotVitals vitals; // 체력·그레이즈·보호 효과
         [SerializeField] private FlightWeapon weapon; // 기본탄 프리팹과 조준 기준
+        [SerializeField] private FlightThreatPool threatPool; // 화면 안 적탄 소거 대상
         [SerializeField] private FlightCombatHud hud; // 제작 게이지와 쿨타임 표시
         private readonly float[] readyAt = new float[3]; // Q·E·R 사용 가능 시각
         private float mana = 100f; // 이번 출격의 실제 마력
@@ -34,6 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 mana = 100f; // 새 출격의 마력
                 ultimate = 0; // 새 출격의 필살기 에너지
                 recordedGrazes = 0; // 스침 반영 초기화
+                weapon.ResetCadence(); // 새 출격의 스킬과 패시브 초기화
                 for (int slot = 0; slot < readyAt.Length; slot++) // 세 슬롯 초기화
                 {
                     readyAt[slot] = 0f; // 이전 쿨타임 제거
@@ -49,7 +53,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     if (keyboard.qKey.wasPressedThisFrame) // Q 세 발 마법 입력
                     {
-                        TrySkill(0, FlightMagicEffect.Volley, 25, 4f, false); // Q 세 발 마법 발동 시도
+                        TrySkill(0, FlightMagicEffect.RapidCycle, 25, 8f, false, 3f); // Q 집중 포화 발동
                     }
                     if (keyboard.eKey.wasPressedThisFrame) // E 보호막 입력
                     {
@@ -57,7 +61,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     }
                     if (keyboard.rKey.wasPressedThisFrame) // R 필살기 입력
                     {
-                        TrySkill(2, FlightMagicEffect.Nova, 100, 12f, true); // R 필살기 발동 시도
+                        TrySkill(2, FlightMagicEffect.Meteor, 100, 12f, true); // R 유성 탄막 발동
                     }
                 }
             }
@@ -75,7 +79,7 @@ namespace ProjectG // 프로젝트 게임 영역
             return true; // 카드 순환 가능 여부
         }
 
-        private void TrySkill(int slot, FlightMagicEffect effect, int cost, float cooldown, bool useUltimate) // Q·E·R 공통 조건과 효과
+        private void TrySkill(int slot, FlightMagicEffect effect, int cost, float cooldown, bool useUltimate, float startsIn = 0f) // Q·E·R 공통 조건과 효과
         {
             float value = useUltimate ? ultimate : mana; // 해당 자원 선택
             if (Time.time < readyAt[slot] || value < cost || !Activate(effect, useUltimate)) // 대기·자원·실제 효과 검사
@@ -90,8 +94,8 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 mana -= cost; // 사용 후 남은 마력
             }
-            readyAt[slot] = Time.time + cooldown; // 재사용 시간 시작
-            hud.SetCooldown(slot, cooldown); // 슬롯 안 흰 숫자 갱신
+            readyAt[slot] = Time.time + startsIn + cooldown; // 재사용 시간 시작
+            hud.SetDelayedCooldown(slot, cooldown, startsIn); // 슬롯 안 흰 숫자 갱신
         }
 
         private bool Activate(FlightMagicEffect effect, bool empowered = false) // 카드와 스킬이 공유하는 실제 효과
@@ -109,6 +113,16 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastSpread(empowered, empowered ? 9 : 7, 23f); // 넓게 퍼지는 카드 또는 필살기
                 case FlightMagicEffect.Shade: // 어둠 부채꼴
                     return weapon.CastSpread(true, 5, 14f); // 다섯 발의 좁은 집중탄
+                case FlightMagicEffect.RapidCycle: // 아리아의 집중 포화
+                    weapon.BeginRapidFire(); // 자동 기본·집중탄 간격 30% 감소
+                    return true; // 가속 발동
+                case FlightMagicEffect.Meteor: // 아리아의 유성 탄막
+                    threatPool.ClearInView(Camera.main); // 화면 안 적탄만 소거
+                    foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 씬의 살아 있는 일반 적
+                    {
+                        enemy.ReceiveHit(80); // 각 적의 실제 시험 피해
+                    }
+                    return true; // 유성 탄막 발동
                 default: // 정의되지 않은 마법
                     return false; // 불명확한 효과 사용 거절
             }

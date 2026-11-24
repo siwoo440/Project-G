@@ -60,6 +60,24 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        public int ClearInView(Camera view) // 화면 안에서 지울 수 있는 적탄
+        {
+            int count = 0; // 실제 소거 수
+            foreach (FlightThreatBolt bolt in all) // 생성한 적탄의 화면 좌표
+            {
+                if (!bolt.gameObject.activeSelf) // 회수된 탄은 제외
+                {
+                    continue; // 활성 탄만 확인
+                }
+                Vector3 screen = view.WorldToViewportPoint(bolt.transform.position); // 카메라 앞의 단위 화면 위치
+                if (screen.z >= view.nearClipPlane && screen.z <= view.farClipPlane && screen.x >= 0f && screen.x <= 1f && screen.y >= 0f && screen.y <= 1f) // 실제 화면 범위
+                {
+                    Return(bolt); // 적탄 풀로 회수
+                    count++; // 해당 탄의 소거 기록
+                }
+            }
+            return count; // 실제 소거 결과
+        }
         private FlightThreatBolt CreateBolt() // 테스트 프리팹의 객체 생성
         {
             FlightThreatBolt bolt = Instantiate(template, transform); // Hierarchy의 풀 아래 배치

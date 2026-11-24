@@ -6,7 +6,7 @@ namespace ProjectG // 프로젝트 게임 영역
     [DisallowMultipleComponent] // 한 비행체당 컨트롤러 한 개
     public sealed class FirstFlightController : MonoBehaviour // 3축 관성 비행과 시점 조작
     {
-        [SerializeField, Min(0f)] private float speed = 8f; // 시험용 최고 이동 속도
+        [SerializeField, Min(0f)] private float speed = 12f; // 시험용 최고 이동 속도
         [SerializeField, Min(0.01f)] private float acceleration = 28f; // 초당 가속량
         [SerializeField, Min(0.01f)] private float braking = 26f; // 초당 제동량
         [SerializeField, Range(0.01f, 1f)] private float focusSpeed = 0.5f; // 집중 비행 속도 비율

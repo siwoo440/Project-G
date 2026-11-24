@@ -100,6 +100,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Vector3 start = pilot.position; // 일반 속도 시작점
             yield return WaitFrames(6); // 같은 시간 동안 이동
             float regular = (pilot.position - start).magnitude; // 일반 이동량
+            Assert.That(regular * 10f, Is.EqualTo(12f).Within(0.12f)); // 일반 최고 속도 1.5배
             SetKeys(Key.W, Key.LeftShift); // 집중 전진
             yield return WaitFrames(45); // 집중 속도 도달
             start = pilot.position; // 집중 속도 시작점
@@ -211,7 +212,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             SetKeys(Key.LeftShift); // 집중 마법탄 선택
             yield return WaitFrames(90); // 고고도 표적까지 진행
             Assert.That(ReadTargetMetric(high, "HitCount"), Is.GreaterThan(0)); // 고고도 표적 명중
-            Assert.That(ReadTargetMetric(high, "LastDamage"), Is.EqualTo(20)); // 집중탄 시험 피해
+            Assert.That(ReadTargetMetric(high, "LastDamage"), Is.InRange(20, 30)); // 누적을 반영한 집중탄 시험 피해
             SetKeys(); // 집중 입력 해제
         }
 
@@ -558,6 +559,10 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Transform cards = hud.Find("MagicCards"); // 오른쪽 카드 영역
             Transform skills = hud.Find("SkillSlots"); // 세 스킬 위치
             RectTransform cardBounds = cards.GetComponent<RectTransform>(); // 카드 전체 크기
+            Assert.That(((RectTransform)cards.Find("LeftActive")).rect.width, Is.EqualTo(128.8f).Within(0.01f)); // 현재 카드 너비 70%
+            Assert.That(((RectTransform)cards.Find("LeftActive")).rect.height, Is.EqualTo(193.2f).Within(0.01f)); // 현재 카드 높이 70%
+            Assert.That(((RectTransform)cards.Find("LeftNext")).rect.width, Is.EqualTo(100.8f).Within(0.01f)); // 미리보기 너비 70%
+            Assert.That(((RectTransform)cards.Find("RightNext")).rect.height, Is.EqualTo(151.2f).Within(0.01f)); // 미리보기 높이 70%
             RectTransform skillBounds = skills.GetComponent<RectTransform>(); // 스킬 전체 크기
             Assert.That(skillBounds.position.y - skillBounds.rect.height * skillBounds.lossyScale.y * 0.02f, Is.GreaterThan(cardBounds.position.y + cardBounds.rect.height * cardBounds.lossyScale.y)); // 스킬로 카드를 가리지 않음
             Assert.That(cards.Find("LeftNext").position.x, Is.LessThan(cards.Find("LeftActive").position.x)); // 왼쪽 바깥 미리보기
@@ -573,8 +578,13 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(canvas.pixelPerfect, Is.True); // 글자와 이미지의 픽셀 기준 정렬
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 실제 Q 스킬 입력
             yield return WaitFrames(6); // 쿨타임·자원 갱신
-            Assert.That(HudText(skills.Find("Q/Cooldown")), Is.Not.Empty); // 실제 발동 쿨타임
+            Assert.That(HudText(skills.Find("Q/Cooldown")), Is.Empty); // 집중 포화 효과 중에는 쿨타임 이전
+            Component weapon = FindPilot().GetComponent("FlightWeapon"); // 아리아의 실제 발사 간격
+            Assert.That((float)weapon.GetType().GetProperty("FireIntervalScale").GetValue(weapon), Is.EqualTo(0.7f)); // 30% 짧아진 발사 간격
             Assert.That(HudText(hud.Find("Mana/Label")), Is.Not.EqualTo("MANA 100 / 100")); // 실제 마력 소모
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // Q 누름 해제
+            yield return WaitFrames(181); // 집중 포화 종료 이후
+            Assert.That(HudText(skills.Find("Q/Cooldown")), Is.Not.Empty); // 효과 뒤 시작되는 흰색 쿨타임
         }
 
         private IEnumerator Click(ushort button) // 실제 게임의 마우스 입력 프레임
@@ -583,6 +593,62 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(3); // 입력 업데이트 대기
             InputSystem.QueueStateEvent(mouse, new MouseState()); // 버튼 해제
             yield return WaitFrames(3); // 다음 입력 등록까지 대기
+        }
+        [UnityTest] // 아리아의 패시브 및 시험 출격 초기화
+        public IEnumerator AriaRegularHitsStackAndDecayAfterMissing() // 기본·집중탄의 누적 화력
+        {
+            yield return LoadFlight(); // 실제 시작 씬
+            Transform pilot = FindPilot(); // 속사형의 실제 비행체
+            Component rapid = pilot.GetComponent("FlightRapidFire"); // 현재 누적 스크립트
+            Assert.That(rapid, Is.Not.Null); // 씬에 편집 가능한 패시브 존재
+            yield return WaitFrames(62); // 입력 없는 자동탄의 실제 명중
+            Assert.That(Percent(rapid), Is.GreaterThan(0f)); // 자동탄의 실제 연속 적중
+            var record = rapid.GetType().GetMethod("RecordHit"); // 실제 적중과 같은 갱신 경로
+            for (int count = 0; count < 60; count++) // 한도 밖까지 누적
+            {
+                record.Invoke(rapid, null); // 연속 적중 재현
+            }
+            Assert.That(Percent(rapid), Is.EqualTo(50f)); // 최대 50% 상한
+            var damage = (int)rapid.GetType().GetMethod("ScaleDamage").Invoke(rapid, new object[] { 8 }); // 최대 보너스의 실제 피해
+            Assert.That(damage, Is.EqualTo(12)); // 기본 8에서 최대 +50%
+            GameObject.Find("NearPracticeTarget").SetActive(false); // 명중을 중단할 실제 표적
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 발사 중단 상태 재현
+            yield return WaitFrames(111); // 마지막 적중 이후 2초 이내
+            Assert.That(Percent(rapid), Is.EqualTo(50f).Within(0.01f)); // 2초 유예
+            yield return WaitFrames(80); // 2초를 넘겨 감소 시작
+            Assert.That(Percent(rapid), Is.InRange(46.5f, 48.5f)); // 초당 2.5%p 감소
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 시험 출격 재시작
+            yield return WaitFrames(4); // 초기화가 실제로 적용될 프레임
+            Assert.That(Percent(rapid), Is.Zero); // 이전 출격의 피해 보너스 제거
+        }
+
+        private static float Percent(Component rapid) // 현재 화력 비율 확인
+        {
+            return (float)rapid.GetType().GetProperty("BonusPercent").GetValue(rapid); // 실제 패시브 표시값
+        }
+        [UnityTest] // 아리아 R 유성 탄막의 범위와 에너지
+        public IEnumerator AriaMeteorClearsOnScreenThreatAndDamagesEnemy() // 실제 그레이즈 충전과 필살기
+        {
+            yield return LoadFlight(); // 실제 시작 씬
+            Transform pilot = FindPilot(); // 기체 피격 중심
+            for (int index = 0; index < 10; index++) // 필살기 에너지 100까지 충전
+            {
+                EmitThreat(pilot.position + Vector3.right * 0.65f + Vector3.forward * 12f, Vector3.back, 1500f); // 실제 판정의 근접 회피 적탄
+            }
+            yield return WaitFrames(6); // 그레이즈의 에너지 수급
+            Transform hud = LocateCombatHud().transform; // 전투 오버레이
+            Assert.That(HudText(hud.Find("Ultimate/Label")), Is.EqualTo("ULT 100 / 100")); // 실제 에너지 충전 확인
+            GameObject target = GameObject.Find("GlassfinEnemy"); // 시험 마물
+            Camera camera = Camera.main; // 화면 안 탄막의 카메라
+            EmitThreat(camera.ViewportPointToRay(new Vector3(0.64f, 0.63f)).GetPoint(20f), Vector3.forward, 1f); // 화면에 보이는 적탄
+            EmitThreat(pilot.position + new Vector3(-40f, 10f, 3f), Vector3.forward, 1f); // 시야 바깥 적탄
+            Component pool = GetThreatPool(); // 실제 남은 적탄
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(2)); // 두 위치의 적탄 준비
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 스킬 R 발동
+            yield return WaitFrames(6); // 피해와 소거 대기
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(1)); // 보이는 적탄만 소거
+            Assert.That(target.activeSelf, Is.False); // 시험 체력 80의 마물 피해
+            Assert.That(HudText(hud.Find("Ultimate/Label")), Is.EqualTo("ULT 0 / 100")); // 에너지 100 소비
         }
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         {

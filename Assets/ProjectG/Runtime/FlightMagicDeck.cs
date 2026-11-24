@@ -60,7 +60,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     initialized = true; // 초기 밝기 반영 완료
                 }
                 float left = Mathf.Clamp01((arriveAt - Time.time) / 0.18f); // 등장 이동의 남은 비율
-                root.anchoredPosition = resting + Vector2.down * (17f * left * left); // 부드럽게 원래 위치로 올라오는 현재 카드
+                root.anchoredPosition = resting + Vector2.down * ((root.rect.width * 17f / 92f) * left * left); // 부드럽게 원래 위치로 올라오는 현재 카드
             }
         }
 

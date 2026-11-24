@@ -47,13 +47,14 @@ namespace ProjectG // 프로젝트 게임 영역
             public Text cooldown; // 흰색으로 표시할 남은 시간
             public int cost; // 현재 슬롯의 시험 자원 비용
             public bool usesUltimate; // 마력과 필살기 에너지 구분
+            [System.NonSerialized] public float countdownFrom; // 효과 뒤 쿨타임의 시작 시각
             [System.NonSerialized] public float readyAt; // 런타임 재사용 가능 시각
             private int previousSeconds = -1; // 숫자의 갱신 필요 상태
 
             public void Render(int resource) // 최신 자원과 쿨타임 시각화
             {
-                int left = Mathf.CeilToInt(Mathf.Max(0f, readyAt - Time.time)); // 올림된 남은 초
-                art.color = resource < cost || left > 0 ? new Color(0.28f, 0.28f, 0.35f, 1f) : Color.white; // 부족·대기 중 어두운 실루엣
+                int left = Time.time >= countdownFrom ? Mathf.CeilToInt(Mathf.Max(0f, readyAt - Time.time)) : 0; // 올림된 남은 초
+                art.color = resource < cost || Time.time < readyAt ? new Color(0.28f, 0.28f, 0.35f, 1f) : Color.white; // 부족·대기 중 어두운 실루엣
                 if (left != previousSeconds) // 숫자가 실제 바뀐 프레임
                 {
                     cooldown.text = left > 0 ? left.ToString() : string.Empty; // 흰색 숫자 또는 빈 슬롯
@@ -68,6 +69,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Meter ultimate = new Meter(); // 보라 필살기 에너지
         [SerializeField] private Meter experience = new Meter(); // 노란 경험치 게이지
         [SerializeField] private SkillSlot[] slots; // J·K·L 순서의 제작 슬롯
+        [SerializeField] private FlightRapidFire rapid; // 현재 캐릭터의 누적 화력 상태
+        [SerializeField] private Text rapidLabel; // 게이지 아래의 보너스
         private const int MaxResource = 100; // 초기 시험 자원의 최대값
         private int manaPoints = MaxResource; // 시작 시 마력
         private int ultimatePoints; // 시작 시 필살기 에너지
@@ -96,20 +99,29 @@ namespace ProjectG // 프로젝트 게임 영역
             xp = Mathf.Clamp(currentXp, 0, nextXp); // 현재 경험치의 실제 채움
         }
 
-        public void SetCooldown(int index, float seconds) // 대상 스킬의 남은 재사용 시간 전달
+        public void SetCooldown(int index, float seconds) // 즉시 시작하는 재사용 시간
+        {
+            SetDelayedCooldown(index, seconds, 0f); // 대기 없이 재사용 숫자 표시
+        }
+
+        public void SetDelayedCooldown(int index, float seconds, float startsIn) // 효과 뒤 시작하는 카운트다운
         {
             if (index >= 0 && index < slots.Length) // 존재하는 슬롯 확인
             {
-                slots[index].readyAt = Time.time + Mathf.Max(0f, seconds); // 종료까지 표시할 시간
+                slots[index].countdownFrom = Time.time + Mathf.Max(0f, startsIn); // 효과 종료 뒤에만 숫자 표시
+                slots[index].readyAt = slots[index].countdownFrom + Mathf.Max(0f, seconds); // 실제 다시 쓸 수 있는 시각
             }
         }
-
         private void LateUpdate() // 현재 전투 화면에 상태 적용
         {
             health.Set(pilot.Health, pilot.MaxHealth, "HP"); // 실제 피격 체력
             mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
+            if (rapid != null) // 아리아의 누적 값을 사용하는 슬롯
+            {
+                rapidLabel.text = $"RAPID +{Mathf.FloorToInt(rapid.BonusPercent + 0.003f)}%{(rapid.IsDecaying ? "   DECAY" : "")}"; // 감소하는 연속 적중 정보
+            }
             foreach (SkillSlot slot in slots) // 편집된 세 슬롯 표시
             {
                 slot.Render(slot.usesUltimate ? ultimatePoints : manaPoints); // 스킬별로 해당 자원 적용

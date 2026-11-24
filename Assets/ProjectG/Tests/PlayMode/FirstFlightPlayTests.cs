@@ -68,6 +68,9 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Vector3 pilotStart = pilot.position; // 초기 플레이어 위치
             Vector3 cameraStart = camera.transform.position; // 초기 카메라 위치
             Vector3 initialScreen = camera.WorldToViewportPoint(pilot.position); // 화면의 초기 플레이어 위치
+            Vector3 chest = camera.WorldToViewportPoint(pilot.position + Vector3.up * 0.55f); // 몸통의 실제 화면 위치
+            Assert.That(chest.x, Is.LessThan(0.45f)); // 조준점 기준 왼쪽으로 이동
+            Assert.That(chest.y, Is.LessThan(0.45f)); // 조준점보다 아래쪽 유지
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.D, Key.Space)); // 3축 동시 입력
             InputSystem.Update(); // 입력 이벤트 즉시 반영
             for (int frame = 0; frame < 15; frame++) // 이동과 카메라 갱신 프레임
@@ -411,6 +414,36 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(130); // 마지막 피격 뒤 표시 시간 종료
             Assert.That(bar.enabled, Is.False); // 추가 피격 없이 체력바 재숨김
         } // 체력바 시험 종료
+        [UnityTest] // 세 일반 마물의 경로와 복수 패턴
+        public IEnumerator EnemyTrialUsesDescendingSideAndPassingRoutes() // 출현·턴별 공격·이탈 검증
+        { // 경로 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            GameObject encounter = GameObject.Find("EnemyEncounter"); // 씬의 마물 시험 구성
+            Assert.That(encounter, Is.Not.Null); // 편집 가능한 전투 그룹 존재
+            Transform aimed = encounter.transform.Find("AimedEnemy"); // 아래로 내려가는 적
+            Transform fan = encounter.transform.Find("FanEnemy"); // 옆으로 나가는 적
+            Transform dive = encounter.transform.Find("DiverEnemy"); // 전방을 돌진해 지나가는 적
+            Assert.That(aimed, Is.Not.Null); // 조준형 씬 인스턴스 확인
+            Assert.That(fan, Is.Not.Null); // 확산형 씬 인스턴스 확인
+            Assert.That(dive, Is.Not.Null); // 돌진형 씬 인스턴스 확인
+            Assert.That(aimed.gameObject.activeSelf, Is.False); // 시험 키 입력 전 등장 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Y)); // 실제 시험 시작 입력
+            yield return WaitFrames(13); // 세 마물 출현 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 시험 키 해제
+            Assert.That(aimed.gameObject.activeSelf && fan.gameObject.activeSelf && dive.gameObject.activeSelf, Is.True); // 각 유형의 실제 출현 확인
+            Vector3 a = aimed.position; // 조준형 등장 위치
+            Vector3 f = fan.position; // 확산형 등장 위치
+            Vector3 b = dive.position; // 돌진형 등장 위치
+            yield return WaitFrames(177); // 공격 두 번과 각 이동 경로 진행
+            Assert.That(Metric(aimed.GetComponent("FlightEnemyRoute"), "PatternsFired"), Is.GreaterThanOrEqualTo(2)); // 조준형 공격 전환
+            Assert.That(Metric(fan.GetComponent("FlightEnemyRoute"), "PatternsFired"), Is.GreaterThanOrEqualTo(2)); // 확산형 공격 전환
+            Assert.That(Metric(dive.GetComponent("FlightEnemyRoute"), "PatternsFired"), Is.GreaterThanOrEqualTo(2)); // 돌진형 공격 전환
+            Assert.That(aimed.position.y, Is.LessThan(a.y - 5f)); // 조준형이 아래로 이탈 중
+            Assert.That(fan.position.x, Is.GreaterThan(f.x + 4f)); // 확산형이 옆으로 이탈 중
+            Assert.That(dive.position.z, Is.LessThan(b.z - 20f)); // 돌진형이 전방으로 통과 중
+            yield return WaitFrames(88); // 이탈 완료
+            Assert.That(aimed.gameObject.activeSelf || fan.gameObject.activeSelf || dive.gameObject.activeSelf, Is.False); // 이탈 후 원본 비활성화
+        } // 경로 시험 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

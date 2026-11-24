@@ -19,10 +19,11 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play
 | Shift + 좌클릭 | 집중 마법탄 사격 |
 | 우클릭 유지 | 비행 방향을 유지하며 둘러보기 |
 | T | 적탄 연습 켜기·끄기 |
+| Y | 조준형·확산형·돌진형의 이동 및 공격 시험 |
 | 1~4 | 조준·부채꼴·고리·나선 탄막 선택 |
 | R | 시험 출격 재시작 |
 | Esc | 마우스 해제. 게임 창에서 좌클릭으로 복귀 |
 
-![프로젝트 G 3D 6일차 마물과 피격 체력바](docs/screenshots/3d-day-06-flight.png)
+![프로젝트 G 3D 7일차 비행 구도와 적 세 유형](docs/screenshots/3d-day-07-flight.png)
 
-Windows 시험 빌드에서 시험 마물을 맞힌 직후 체력바가 표시된 시점의 1920×1080 화면입니다. [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md)
+Windows 시험 빌드에서 세 적이 사격하고 아리아가 조준점 왼쪽 아래에 보이는 시점의 1920×1080 화면입니다. [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md)

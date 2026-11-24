@@ -7,8 +7,8 @@ namespace ProjectG // 프로젝트 게임 영역
     public sealed class FirstFlightCamera : MonoBehaviour // 시점과 가림을 반영한 추적 카메라
     { // 추적 시작
         [SerializeField] private Transform target; // 씬의 비행체 루트 참조
-        [SerializeField] private Vector3 offset = new Vector3(0f, 2.65f, -7.4f); // 뒤쪽 어깨 위 위치
-        [SerializeField] private Vector3 viewPoint = new Vector3(0f, 0.5f, 7f); // 플레이어 앞의 시선 지점
+        [SerializeField] private Vector3 offset = new Vector3(1.7f, 2.85f, -7.4f); // 오른쪽 뒤에서 내려다보는 위치
+        [SerializeField] private Vector3 viewPoint = new Vector3(1.7f, 0.5f, 7f); // 화면 중앙의 앞쪽 초점
         [SerializeField] private LayerMask environmentLayer = 1 << 8; // 시야를 가리는 지형 레이어
         private FirstFlightController pilot; // 비행 방향과 독립 카메라 시점
         private float distance; // 현재 장애물을 반영한 추적 거리

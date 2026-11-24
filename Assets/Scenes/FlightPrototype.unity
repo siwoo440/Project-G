@@ -490,7 +490,8 @@ GameObject:
   - component: {fileID: 162804579}
   - component: {fileID: 162804581}
   - component: {fileID: 162804580}
-  m_Layer: 0
+  - component: {fileID: 162804582}
+  m_Layer: 8
   m_Name: EasternRuins
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -569,6 +570,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 162804578}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &162804582
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 162804578}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &168356452
 GameObject:
@@ -973,6 +996,9 @@ MonoBehaviour:
   target: {fileID: 1287475975}
   offset: {x: 0, y: 2.65, z: -7.4}
   viewPoint: {x: 0, y: 0.5, z: 7}
+  environmentLayer:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!1 &345872358
 GameObject:
   m_ObjectHideFlags: 0
@@ -1074,7 +1100,8 @@ GameObject:
   - component: {fileID: 380883789}
   - component: {fileID: 380883791}
   - component: {fileID: 380883790}
-  m_Layer: 0
+  - component: {fileID: 380883792}
+  m_Layer: 8
   m_Name: NorthernRidge
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1153,6 +1180,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 380883788}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &380883792
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380883788}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &410011361
 GameObject:
@@ -1898,7 +1947,8 @@ GameObject:
   - component: {fileID: 672293974}
   - component: {fileID: 672293976}
   - component: {fileID: 672293975}
-  m_Layer: 0
+  - component: {fileID: 672293977}
+  m_Layer: 8
   m_Name: HighIslet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1977,6 +2027,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 672293973}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &672293977
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 672293973}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &676279550
 GameObject:
@@ -2471,7 +2543,8 @@ GameObject:
   - component: {fileID: 851431118}
   - component: {fileID: 851431120}
   - component: {fileID: 851431119}
-  m_Layer: 0
+  - component: {fileID: 851431121}
+  m_Layer: 8
   m_Name: WesternTerrace
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2550,6 +2623,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 851431117}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &851431121
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 851431117}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &899522437
 GameObject:
@@ -3222,6 +3317,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FirstFlightController
   speed: 8
+  acceleration: 28
+  braking: 26
+  focusSpeed: 0.5
+  mouseSensitivity: 0.18
+  flightBounds:
+    m_Center: {x: 0, y: 14, z: 26}
+    m_Extent: {x: 46, y: 23, z: 61}
+  environmentLayer:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!4 &1287475975
 Transform:
   m_ObjectHideFlags: 0
@@ -4241,7 +4346,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 36, y: 23}
-  m_SizeDelta: {x: 670, y: 45}
+  m_SizeDelta: {x: 1000, y: 65}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &1838389745
 MonoBehaviour:
@@ -4291,7 +4396,10 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: WASD   Fly     Space   Ascend     Ctrl   Descend
+  m_Text: 'WASD  Fly     Space / Ctrl  Altitude     Shift  Focus
+
+    Mouse  Turn  
+    Hold RMB  Look around     Esc  Release cursor'
 --- !u!222 &1838389747
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4491,7 +4599,8 @@ GameObject:
   - component: {fileID: 1994423218}
   - component: {fileID: 1994423220}
   - component: {fileID: 1994423219}
-  m_Layer: 0
+  - component: {fileID: 1994423221}
+  m_Layer: 8
   m_Name: SouthernIslet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4570,6 +4679,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1994423217}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &1994423221
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994423217}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &2060969213
 GameObject:
@@ -4705,7 +4836,8 @@ GameObject:
   - component: {fileID: 2092989795}
   - component: {fileID: 2092989797}
   - component: {fileID: 2092989796}
-  m_Layer: 0
+  - component: {fileID: 2092989798}
+  m_Layer: 8
   m_Name: FarIslet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4784,6 +4916,28 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2092989794}
+  m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
+--- !u!64 &2092989798
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092989794}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: a17d324978ffadf439e8aee4cdffecf2, type: 2}
 --- !u!1 &2105243457
 GameObject:

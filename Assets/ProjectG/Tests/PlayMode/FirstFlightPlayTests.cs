@@ -376,6 +376,41 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(pool, Is.Not.Null); // 풀 로직 연결
             return pool; // 테스트 대상 상태
         } // 탐색 종료
+        [UnityTest] // 마물의 비행과 편집 가능한 씬 상태 확인
+        public IEnumerator EnemyHasAnimatedWingsAndInitiallyHiddenHealthBar() // 저장된 시험 마물의 애니메이션
+        { // 마물 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 씬에 배치한 시험 마물
+            Assert.That(enemy, Is.Not.Null); // 실제 씬에 마물 저장 확인
+            Transform wing = enemy.transform.Find("Model/LeftWingPivot"); // 편집 가능한 날개 회전축
+            Assert.That(wing, Is.Not.Null); // 날개 하이러키 배치
+            Quaternion start = wing.localRotation; // 시작 날개 각도
+            yield return WaitFrames(19); // 날갯짓 실제 프레임
+            Assert.That(Quaternion.Angle(start, wing.localRotation), Is.GreaterThan(6f)); // 비행 모델의 실제 움직임
+            Canvas bar = enemy.transform.Find("HealthBar").GetComponent<Canvas>(); // 제작 이미지가 놓인 월드 체력바
+            Assert.That(bar.enabled, Is.False); // 첫 피격 전 체력 숨김
+        } // 마물 시험 종료
+
+        [UnityTest] // 실제 아군탄에 의한 체력 표시와 재숨김 검증
+        public IEnumerator EnemyHealthBarAppearsOnHitAndHidesAfterQuietTime() // 명중 피해와 표시 수명
+        { // 체력바 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 표적 역할의 마물 인스턴스
+            Assert.That(enemy, Is.Not.Null); // 씬 배치 확인
+            enemy.transform.position = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f)).GetPoint(18f); // 가까운 조준 위치의 마물
+            Physics.SyncTransforms(); // 실제 발사와 마물 판정 위치 동기화
+            Component life = enemy.GetComponent("FlightEnemy"); // 마물의 실제 체력 컴포넌트
+            Canvas bar = enemy.transform.Find("HealthBar").GetComponent<Canvas>(); // 월드 공간 체력 프레임
+            Transform fill = bar.transform.Find("Fill"); // 피격에 따라 줄어드는 이미지
+            float full = ((RectTransform)fill).rect.width; // 정규화된 최대 표시 너비
+            yield return FireOne(); // 실제 기본탄 마우스 사격
+            yield return WaitFrames(60); // 빠른 탄환 도달과 피격 반응
+            Assert.That(Metric(life, "Health"), Is.EqualTo(72)); // 실제 마물에 피해 8 반영
+            Assert.That(bar.enabled, Is.True); // 첫 피격 후 표시 조건
+            Assert.That(((RectTransform)fill).rect.width / full, Is.EqualTo(0.9f).Within(0.02f)); // 체력에 비례한 붉은 이미지 너비
+            yield return WaitFrames(130); // 마지막 피격 뒤 표시 시간 종료
+            Assert.That(bar.enabled, Is.False); // 추가 피격 없이 체력바 재숨김
+        } // 체력바 시험 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

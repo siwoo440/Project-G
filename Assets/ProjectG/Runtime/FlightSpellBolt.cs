@@ -21,7 +21,11 @@ namespace ProjectG // 프로젝트 게임 영역
             float step = Mathf.Min(remaining, speed * Time.deltaTime); // 사거리 안에서 이동할 거리
             if (Physics.SphereCast(transform.position, radius, transform.forward, out RaycastHit hit, step, collisionLayers, QueryTriggerInteraction.Ignore)) // 프레임 사이의 표적과 지형 검사
             { // 접촉 시작
-                if (hit.collider.TryGetComponent<FlightPracticeTarget>(out var target)) // 시험 표적 접촉
+                if (hit.collider.TryGetComponent<FlightEnemy>(out var enemy)) // 실제 일반 마물 충돌
+                { // 마물 타격 시작
+                    enemy.ReceiveHit(damage); // 체력과 제작 체력바 갱신
+                } // 마물 타격 종료
+                else if (hit.collider.TryGetComponent<FlightPracticeTarget>(out var target)) // 기존 시험 표적 접촉
                 { // 표적 타격 시작
                     target.ReceiveHit(damage); // 해당 탄환의 실제 피해 기록
                 } // 표적 타격 종료

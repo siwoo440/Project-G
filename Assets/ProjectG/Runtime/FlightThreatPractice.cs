@@ -53,7 +53,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 상태 글자의 현재 출격 표시
         { // 표시 시작
-            status.text = vitals.IsDefeated ? "FLIGHT FAILED   |   R  Restart" : $"HP {vitals.Health} / {vitals.MaxHealth}      GRAZE {vitals.Grazes}      T  {pattern} {(active ? "ON" : "OFF")}    1-4  Select    R  Restart"; // 체력과 현재 연습 표시
+            status.text = vitals.IsDefeated ? "FLIGHT FAILED   |   R  Restart" : $"GRAZE {vitals.Grazes}      T  {pattern} {(active ? "ON" : "OFF")}    1-4  Select    R  Restart"; // 체력과 현재 연습 표시
         } // 표시 종료
 
         public void EmitTrial(Vector3 position, Vector3 direction, float speed) // 직접 편집한 시험 탄으로 판정 재현

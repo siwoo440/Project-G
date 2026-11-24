@@ -444,6 +444,75 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(88); // 이탈 완료
             Assert.That(aimed.gameObject.activeSelf || fan.gameObject.activeSelf || dive.gameObject.activeSelf, Is.False); // 이탈 후 원본 비활성화
         } // 경로 시험 종료
+        [UnityTest] // 전투 게이지의 실제 상태와 생성 이미지
+        public IEnumerator CombatHudShowsDamageAndKeepsAllGaugesLabeled() // HP와 자원별 표시 검증
+        { // HUD 시험 시작
+            yield return LoadFlight(); // 실제 비행 씬
+            Transform hud = LocateCombatHud().transform; // 기존 안내와 별도 전투 HUD
+            Transform hp = hud.Find("Health"); // 체력 게이지
+            Transform mana = hud.Find("Mana"); // 마력 게이지
+            Transform ultimate = hud.Find("Ultimate"); // 필살기 게이지
+            Transform xp = hud.Find("Experience"); // 경험치 게이지
+            Assert.That(HudText(hp.Find("Label")), Is.EqualTo("HP 100 / 100")); // 처음 체력 수치
+            Assert.That(HudText(mana.Find("Label")), Is.EqualTo("MANA 100 / 100")); // 초기 마력 문구
+            Assert.That(HudText(ultimate.Find("Label")), Is.EqualTo("ULT 0 / 100")); // 초기 필살기 게이지
+            Assert.That(HudText(xp.Find("Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 초기 레벨과 경험치
+            foreach (Transform meter in new[] { hp, mana, ultimate, xp }) // 실제 채움 이미지 모두 확인
+            { // 이미지 검사 시작
+                Component image = meter.Find("Fill").GetComponent("RawImage"); // 기본 색 사각형 대신 실제 텍스처
+                Assert.That(image.GetType().GetProperty("texture").GetValue(image), Is.Not.Null); // 생성 파일이 실제 씬에 연결
+            } // 이미지 검사 종료
+            float full = ((RectTransform)hp.Find("Fill")).rect.width; // 최대 HP 표시 폭
+            Transform pilot = FindPilot(); // 현재 시험 기체
+            EmitThreat(pilot.position + Vector3.forward * 12f, Vector3.back, 1500f); // 고속 적탄 피격
+            yield return WaitFrames(4); // 체력과 HUD 업데이트 대기
+            Assert.That(HudText(hp.Find("Label")), Is.EqualTo("HP 80 / 100")); // 피격 후 새 체력 수치
+            Assert.That(((RectTransform)hp.Find("Fill")).rect.width / full, Is.EqualTo(0.8f).Within(0.02f)); // 채움 길이 80%
+        } // HUD 시험 종료
+
+        [UnityTest] // 스킬 슬롯의 부족 표시와 흰색 카운트다운
+        public IEnumerator SkillHudDimsUnavailableArtAndDisplaysCooldown() // 세 슬롯과 시험 상태 반영
+        { // 표시 시험 시작
+            yield return LoadFlight(); // 실제 비행 씬
+            Component hud = LocateCombatHud(); // 전투 HUD의 표시 상태
+            Transform first = hud.transform.Find("SkillSlots/J"); // J 첫 스킬 슬롯
+            Transform last = hud.transform.Find("SkillSlots/L"); // L 필살기 슬롯
+            Assert.That(SkillArtColor(first).r, Is.GreaterThan(0.8f)); // 충분한 마력의 일반 아이콘
+            Assert.That(SkillArtColor(last).r, Is.LessThan(0.55f)); // 에너지가 부족한 필살기 실루엣
+            hud.GetType().GetMethod("SetResources").Invoke(hud, new object[] { 10, 100 }); // 마력 부족과 필살기 용량 상태
+            hud.GetType().GetMethod("SetCooldown").Invoke(hud, new object[] { 0, 2.4f }); // 숫자 카운트다운 표시
+            yield return WaitFrames(5); // 실제 HUD 표시 적용
+            Assert.That(SkillArtColor(first).r, Is.LessThan(0.55f)); // 부족한 마력의 어두운 이미지
+            Assert.That(SkillArtColor(last).r, Is.GreaterThan(0.8f)); // 충전된 필살기 아이콘
+            Assert.That(HudText(first.Find("Cooldown")), Is.EqualTo("3")); // 흰색 정수 카운트다운 문구
+            Component countdown = first.Find("Cooldown").GetComponent("Text"); // 제작 슬롯 안의 동적 숫자
+            Color number = (Color)countdown.GetType().GetProperty("color").GetValue(countdown); // 실제 글자 색
+            Assert.That(number, Is.EqualTo(Color.white)); // 카운트다운 흰색 표시
+            hud.GetType().GetMethod("SetCooldown").Invoke(hud, new object[] { 0, 0.05f }); // 만료 직전 상태
+            yield return WaitFrames(12); // 쿨타임 종료
+            Assert.That(HudText(first.Find("Cooldown")), Is.Empty); // 카운트다운 종료 후 사라짐
+        } // 표시 시험 종료
+
+        private static Component LocateCombatHud() // 씬의 전투 UI 로직 탐색
+        { // 탐색 시작
+            GameObject root = GameObject.Find("CombatHUD"); // Hierarchy에 저장한 게이지 루트
+            Assert.That(root, Is.Not.Null); // 실제 UI 배치 확인
+            Component hud = root.GetComponent("FlightCombatHud"); // 게이지 표시 로직
+            Assert.That(hud, Is.Not.Null); // 실제 게이지 연결 확인
+            return hud; // 상태 검증에 사용하는 컴포넌트
+        } // 탐색 종료
+
+        private static string HudText(Transform child) // 현재 화면의 실제 글자
+        { // 글자 읽기 시작
+            Component label = child.GetComponent("Text"); // 씬에 저장된 글자 노드
+            return (string)label.GetType().GetProperty("text").GetValue(label); // 현재 상태에 표시된 값
+        } // 글자 읽기 종료
+
+        private static Color SkillArtColor(Transform child) // 스킬 이미지의 실루엣 계산 확인
+        { // 색 읽기 시작
+            Component art = child.Find("Art").GetComponent("RawImage"); // 생성 스킬 이미지
+            return (Color)art.GetType().GetProperty("color").GetValue(art); // 실제 이미지 표시 색
+        } // 색 읽기 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

@@ -14,6 +14,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightUpgradeChoices upgrades; // 출격별 카드 선택 초기화
         [SerializeField] private FlightBindings bindings; // 실제 탄막 연습 키 설정
         [SerializeField] private FlightEnhancements enhancements; // 이번 출격의 드롭과 장착 보조 장비
+        [SerializeField] private FlightScoreHud score; // 이번 출격의 점수와 획득 숫자
         private FlightThreatPattern pattern; // 현재 선택한 입체 탄막
         private float phase; // 순차적으로 바뀌는 나선 각도
         [SerializeField, FormerlySerializedAs("status")] private Text failureNotice; // 출격에 실패했을 때만 표시
@@ -107,6 +108,7 @@ namespace ProjectG // 프로젝트 게임 영역
             experience?.ResetRun(); // 이전 출격의 레벨과 조각 초기화
             upgrades?.ResetRun(); // 이전 출격의 선택 효과 제거
             enhancements?.ResetRun(); // 이전 출격의 강화 아이템과 장비 제거
+            score?.ResetRun(); // 새 출격의 점수와 획득 숫자 초기화
         }
     }
 }

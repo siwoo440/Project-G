@@ -1239,6 +1239,73 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(((Behaviour)contact.Find("Distance").GetComponent("Text")).enabled, Is.True); // 적마다 읽을 수 있는 경우 함께 표시
         }
 
+        [UnityTest] // 점수 지급과 재출격 회귀
+        public IEnumerator ScoreCountsDefeatAndGrazeOnceAndClearsOnRestart() // 처치·스침·이탈과 출격 초기화
+        {
+            yield return LoadFlight(); // 저장된 전투 씬
+            Transform score = LocateCombatHud().transform.Find("ScoreReadout"); // 연속 적중 아래의 점수 표시
+            Assert.That(score, Is.Not.Null, "출격 점수 HUD"); // 전투 화면의 점수 노드
+            Transform label = score.Find("Label"); // 점수 합계
+            Assert.That(HudText(label), Is.EqualTo("점수 0")); // 새 출격의 점수 초기값
+            Transform pilot = FindPilot(); // 탄막 스침의 기준
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 사격의 임의 처치 차단
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Y)); // 첫 마물을 처치 없이 이탈시킴
+            yield return WaitFrames(3); // 다음 시험 웨이브 시작
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 시험 키 해제
+            Assert.That(HudText(label), Is.EqualTo("점수 0")); // 씬 비활성화에는 보상 없음
+            Component enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy").GetComponent("FlightEnemy"); // 실제 웨이브 적
+            enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 1 }); // 적에게 피해만 준 상태
+            Assert.That(HudText(label), Is.EqualTo("점수 0")); // 명중에는 처치 점수 없음
+            enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 1000 }); // 실제 적 처치
+            enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 1000 }); // 같은 적에게 들어온 중복 명중
+            EmitThreat(pilot.position + Vector3.right * 0.65f + Vector3.forward * 12f, Vector3.back, 1500f); // 그레이즈 한 건
+            EmitThreat(pilot.position + Vector3.forward * 10f, Vector3.back, 1300f); // 점수를 주지 않는 직접 피격
+            yield return WaitFrames(6); // 적탄 판정과 합계 갱신
+            Assert.That(HudText(label), Is.EqualTo("점수 110")); // 처치 100과 유효 스침 10의 합
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 실제 재출격 키
+            yield return WaitFrames(4); // 새 출격 초기화
+            Assert.That(HudText(label), Is.EqualTo("점수 0")); // 이전 출격 점수 제거
+            foreach (Transform popup in score.Find("Popups")) // 프레임에 남을 수 있는 이전 획득 숫자
+            {
+                Assert.That(popup.gameObject.activeSelf, Is.False); // 남은 획득 숫자도 삭제
+            }
+        }
+
+        [UnityTest] // 획득 숫자 이동과 각 줄의 만료
+        public IEnumerator ScorePopupsMoveUpAndExpireInOrderAfterPause() // 실제 점수 이벤트와 전투 시간 검증
+        {
+            yield return LoadFlight(); // 저장된 전투 씬
+            Transform stack = LocateCombatHud().transform.Find("ScoreReadout/Popups"); // 씬에 배치한 획득 숫자 영역
+            Assert.That(stack, Is.Not.Null, "획득 점수 숫자 영역"); // 전투 화면의 숫자 영역
+            Transform pilot = FindPilot(); // 적탄 지나는 위치의 기준
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 표시 시간의 임의 처치 차단
+            Component enemy = GameObject.Find("GlassfinEnemy").GetComponent("FlightEnemy"); // 첫 웨이브의 실제 적
+            enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 1000 }); // 첫 획득 숫자 발생
+            yield return WaitFrames(36); // 두 이벤트의 개별 만료 간격
+            var older = (RectTransform)stack.Find("Popup0"); // 처음 등장한 숫자
+            float firstY = older.anchoredPosition.y; // 새 숫자 전의 높이
+            Assert.That(older.gameObject.activeSelf, Is.True); // 첫 점수 표시 상태
+            Assert.That(HudText(older), Is.EqualTo("+100")); // 처치의 실제 획득 수치
+            EmitThreat(pilot.position + Vector3.right * 0.65f + Vector3.forward * 12f, Vector3.back, 1500f); // 두 번째 획득 숫자
+            yield return WaitFrames(9); // 새 줄과 기존 줄의 상승
+            var newer = (RectTransform)stack.Find("Popup1"); // 아래에 생긴 새 획득 숫자
+            Assert.That(HudText(newer), Is.EqualTo("+10")); // 그레이즈의 실제 획득 수치
+            Assert.That(older.anchoredPosition.y, Is.GreaterThan(firstY)); // 이전 줄의 실제 위쪽 이동
+            Assert.That(older.anchoredPosition.y, Is.GreaterThan(newer.anchoredPosition.y)); // 최신 숫자가 아래의 자리에 표시
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 전투 시간을 멈추는 실제 메뉴
+            yield return WaitFrames(105); // 표시 시간보다 오래 유지
+            Assert.That(Time.timeScale, Is.Zero); // 일시정지 입력 반영
+            Assert.That(older.gameObject.activeSelf && newer.gameObject.activeSelf, Is.True); // 일시정지 중 숫자 수명 보존
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 키 해제
+            yield return WaitFrames(2); // 복귀 입력 준비
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 전투 복귀
+            yield return WaitFrames(60); // 첫 숫자만 수명을 넘긴 상태
+            Assert.That(older.gameObject.activeSelf, Is.False); // 먼저 얻은 숫자가 먼저 사라짐
+            Assert.That(newer.gameObject.activeSelf, Is.True); // 뒤에 얻은 숫자의 별도 수명
+            yield return WaitFrames(41); // 새 숫자의 수명도 종료
+            Assert.That(newer.gameObject.activeSelf, Is.False); // 남은 획득 숫자 종료
+        }
+
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         {
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

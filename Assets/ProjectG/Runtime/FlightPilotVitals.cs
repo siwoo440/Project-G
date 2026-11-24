@@ -22,6 +22,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public int Grazes { get; private set; } // 유효한 근접 회피 수
         public bool IsDefeated => Health <= 0; // 비행 실패 상태
         public int ItemShield { get; private set; } // 아이템의 남은 방어 횟수
+        public event System.Action Grazed; // 유효한 근접 회피 발생 알림
 
         private void Awake() // 씬 시작 때 체력 초기화
         {
@@ -125,6 +126,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 grazeAwarded = true; // 같은 탄환에서 한 번만 인정
                 Grazes++; // 현재 출격의 그레이즈 증가
+                Grazed?.Invoke(); // 이번 탄환의 그레이즈 전달
             }
 
             return false; // 충돌하지 않은 탄환의 계속 이동

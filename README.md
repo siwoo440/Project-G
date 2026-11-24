@@ -27,10 +27,10 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
 
-![프로젝트 G 3D 14일차 상단 중앙 타이머와 오른쪽 위 원형 전투 레이더](docs/screenshots/3d-day-14-flight.png)
+![프로젝트 G 3D 15일차 전투 점수와 연속 획득 숫자](docs/screenshots/3d-day-15-flight.png)
 
-Windows 시험 빌드의 1920×1080 전투 화면입니다. 상단 중앙에서 경과 시간, Wave 번호와 남은 적 수를 확인합니다. 오른쪽 위 레이더는 카메라가 바라보는 방향을 기준으로 살아 있는 적의 방향과 거리를 표시합니다. ESC를 누르면 정지 시점의 전투 정보와 조작 안내가 열립니다. 설정에서 변경한 키는 실제 입력과 키보드 강조, 스킬 슬롯에 함께 반영됩니다.
+Windows 시험 빌드의 1920×1080 전투 화면입니다. 왼쪽 위 연속 적중 정보 아래에 출격 점수가 표시됩니다. 적 처치 100점과 그레이즈 10점은 HUD 시험값입니다. 새 획득 숫자가 아래에 나타나면 이전 숫자는 위로 밀리고, 각 숫자는 약 1.6초 뒤 사라집니다. 상단 중앙에는 경과 시간과 Wave·남은 적 수, 오른쪽 위에는 살아 있는 적의 방향과 거리를 보여 주는 레이더가 있습니다. ESC로 조작 안내와 설정을 엽니다.
 
-[1024×576 Windows 전투 HUD](docs/screenshots/3d-day-14-hud-1024.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png) · [소리와 감도](docs/screenshots/3d-day-14-settings.png) · [강화 아이템](docs/screenshots/3d-day-14-enhancement.png)
+[1024×576 Windows 점수 HUD](docs/screenshots/3d-day-15-hud-1024.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png) · [소리와 감도](docs/screenshots/3d-day-14-settings.png) · [강화 아이템](docs/screenshots/3d-day-14-enhancement.png)
 
-[1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md)
+[1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md) · [15일차 기록](docs/development/3d-day-15.md)

@@ -307,6 +307,75 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(course, Is.Not.Null); // 씬의 적탄 설정 참조
             course.GetType().GetMethod("EmitTrial").Invoke(course, new object[] { position, direction, speed }); // 실제 적탄 발사 로직 사용
         } // 발사 종료
+        [UnityTest] // 조준·부채·고리·나선 배치 검증
+        public IEnumerator ThreatPatternsProduceDistinctThreeDimensionalTrajectories() // 입체 탄막 방향과 발사 수 확인
+        { // 탄막 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            Component pool = GetThreatPool(); // 씬의 적탄 재사용 풀
+            Component course = GameObject.Find("ThreatPractice").GetComponent("FlightThreatPractice"); // 씬 연습 코스
+            var emit = course.GetType().GetMethod("EmitPattern"); // 지정한 탄막 패턴의 발사 경로
+            Assert.That(emit, Is.Not.Null); // 실제 조준·부채·고리·나선 기능 연결
+            var kind = emit.GetParameters()[0].ParameterType; // 어셈블리를 넘는 패턴 값
+            int[] expected = { 1, 7, 12, 4 }; // 패턴별 기본 발사 수
+            Vector3 center = new Vector3(0f, 26f, 10f); // 지형 위의 안전한 발사 위치
+            for (int index = 0; index < expected.Length; index++) // 네 패턴 차례로 시험
+            { // 패턴 순회 시작
+                object selection = System.Enum.ToObject(kind, index); // 선택한 탄막 데이터
+                int fired = (int)emit.Invoke(course, new[] { selection, (object)center, Vector3.back }); // 씬의 실제 적탄 발사
+                Assert.That(fired, Is.EqualTo(expected[index])); // 각 패턴의 발사 수 확인
+                if (index == 2) // 고리의 3차원 횡방향 검사
+                { // 고리 방향 확인 시작
+                    float top = 0f; // 고리 상단의 수직 성분
+                    float bottom = 0f; // 고리 하단의 수직 성분
+                    foreach (Transform bolt in pool.transform) // 재사용 더미의 모든 적탄
+                    { // 적탄 확인 시작
+                        if (!bolt.gameObject.activeSelf) // 회수된 탄 제외
+                        { // 회수체 생략 시작
+                            continue; // 현재 탄막만 방향 검증
+                        } // 회수체 생략 종료
+                        top = Mathf.Max(top, bolt.forward.y); // 가장 높은 고리 각도
+                        bottom = Mathf.Min(bottom, bolt.forward.y); // 가장 낮은 고리 각도
+                    } // 적탄 확인 종료
+                    Assert.That(top, Is.GreaterThan(0.15f)); // 위로 벌어진 고리
+                    Assert.That(bottom, Is.LessThan(-0.15f)); // 아래로 벌어진 고리
+                } // 고리 방향 확인 종료
+                pool.GetType().GetMethod("ReturnAll").Invoke(pool, null); // 다음 패턴의 밝은 외형과 탄환 상태 초기화
+            } // 패턴 순회 종료
+        } // 탄막 시험 종료
+
+        [UnityTest] // 적탄 풀 상한과 사용 수명 검증
+        public IEnumerator ThreatPoolCapsConcurrencyAndReusesExpiredBolts() // 최대 탄수·회수·다음 발사 확인
+        { // 풀 시험 시작
+            yield return LoadFlight(); // 실제 시작 씬
+            Component pool = GetThreatPool(); // 씬의 적탄 풀
+            int capacity = Metric(pool, "Capacity"); // 씬에서 지정한 동시 활성 상한
+            Assert.That(capacity, Is.EqualTo(128)); // 시험용 동시 탄수 상한 검증
+            Vector3 origin = new Vector3(25f, 28f, 0f); // 플레이어와 충돌하지 않는 시험 좌표
+            for (int i = 0; i < capacity + 15; i++) // 상한 초과 발사 시도
+            { // 포화 시험 시작
+                EmitThreat(origin, Vector3.forward, 1000f); // 사거리 끝에서 회수할 빠른 탄
+            } // 포화 시험 종료
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(capacity)); // 동시 활성 상한 유지
+            Assert.That(Metric(pool, "CreatedCount"), Is.EqualTo(capacity)); // 불필요한 게임 오브젝트 생성 방지
+            yield return WaitFrames(14); // 탄환이 사거리에 도달하도록 대기
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 사거리 만료로 전체 회수
+            EmitThreat(origin, Vector3.forward, 1f); // 이전 객체를 느린 새 탄으로 다시 사용
+            yield return WaitFrames(3); // 남은 수명 초기화 확인
+            Assert.That(Metric(pool, "CreatedCount"), Is.EqualTo(capacity)); // 새 오브젝트 생성 없이 재사용
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(1)); // 재사용한 새 탄이 활성 상태
+            yield return WaitFrames(490); // 멀리 가지 않은 적탄의 최대 수명 대기
+            Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 사거리와 독립된 시간 만료 회수
+            Debug.Log($"FLIGHT_DAY05_POOL capacity={capacity} created={Metric(pool, "CreatedCount")} active={Metric(pool, "ActiveCount")}"); // 실제 상한과 회수 수치
+        } // 풀 시험 종료
+
+        private static Component GetThreatPool() // 씬에 배치된 적탄 풀 찾기
+        { // 탐색 시작
+            GameObject owner = GameObject.Find("ThreatBoltPool"); // 실제 Hierarchy의 풀 루트
+            Assert.That(owner, Is.Not.Null); // 씬에서 풀 편집 가능 여부
+            Component pool = owner.GetComponent("FlightThreatPool"); // 풀 상태를 읽을 컴포넌트
+            Assert.That(pool, Is.Not.Null); // 풀 로직 연결
+            return pool; // 테스트 대상 상태
+        } // 탐색 종료
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         { // 입력 시작
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

@@ -4327,7 +4327,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: HP 100 / 100      GRAZE 0      T  Practice OFF     R  Restart
+  m_Text: HP 100 / 100      GRAZE 0      T  Aimed OFF    1-4  Select    R  Restart
 --- !u!222 &1552497048
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4568,6 +4568,54 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1634370738}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1680948883
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1680948885}
+  - component: {fileID: 1680948884}
+  m_Layer: 0
+  m_Name: ThreatBoltPool
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1680948884
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1680948883}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36aa41718cf12ea43af9d63a33ce5503, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightThreatPool
+  template: {fileID: 3869321570729924614, guid: 46b234e3f16950d41a7f1ba285a80beb, type: 3}
+  target: {fileID: 1287475977}
+  capacity: 128
+  warmCount: 24
+--- !u!4 &1680948885
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1680948883}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1801967457}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1700276170
 GameObject:
   m_ObjectHideFlags: 0
@@ -5139,7 +5187,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightThreatPractice
   vitals: {fileID: 1287475977}
   pilot: {fileID: 1287475974}
-  threat: {fileID: 3869321570729924614, guid: 46b234e3f16950d41a7f1ba285a80beb, type: 3}
+  pool: {fileID: 1680948884}
   status: {fileID: 1552497047}
 --- !u!4 &1801967457
 Transform:
@@ -5153,7 +5201,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1680948885}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1804862306

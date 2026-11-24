@@ -19,9 +19,10 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/FlightPrototype.unity`를 열고 Play
 | Shift + 좌클릭 | 집중 마법탄 사격 |
 | 우클릭 유지 | 비행 방향을 유지하며 둘러보기 |
 | T | 적탄 연습 켜기·끄기 |
+| 1~4 | 조준·부채꼴·고리·나선 탄막 선택 |
 | R | 시험 출격 재시작 |
 | Esc | 마우스 해제. 게임 창에서 좌클릭으로 복귀 |
 
-![프로젝트 G 3D 4일차 Windows 적탄 연습 화면](docs/screenshots/3d-day-04-flight.png)
+![프로젝트 G 3D 5일차 Windows 고리탄 화면](docs/screenshots/3d-day-05-flight.png)
 
-Windows 시험 빌드에서 시험 탄환에 맞고 다른 탄환을 스쳐 지나간 시점의 1920×1080 화면입니다. [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md)
+Windows 시험 빌드에서 입체 고리탄을 발사한 시점의 1920×1080 화면입니다. [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md)

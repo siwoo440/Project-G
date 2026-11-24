@@ -9,6 +9,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightPilotVitals vitals; // 씬 비행체의 판정 상태
         [SerializeField] private FirstFlightController pilot; // 재시작 위치를 적용할 비행체
         [SerializeField] private FlightThreatPool pool; // 씬에서 편집할 적탄 재사용 풀
+        [SerializeField] private FlightExperience experience; // 이번 출격의 레벨과 드롭
         private FlightThreatPattern pattern; // 현재 선택한 입체 탄막
         private float phase; // 순차적으로 바뀌는 나선 각도
         [SerializeField] private Text status; // 기존 제작 안내판의 체력 문구
@@ -99,6 +100,7 @@ namespace ProjectG // 프로젝트 게임 영역
             pool.ReturnAll(); // 이전 출격의 활성 적탄을 모두 회수
             vitals.ResetRun(); // 최대 체력과 그레이즈 복구
             pilot.ResetFlightPose(spawnPoint, spawnRotation); // 출격 위치와 카메라 시점 복구
+            experience?.ResetRun(); // 이전 출격의 레벨과 조각 초기화
         }
     }
 }

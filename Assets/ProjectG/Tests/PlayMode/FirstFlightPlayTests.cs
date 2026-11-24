@@ -785,6 +785,59 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
         }
 
 
+        [UnityTest] // 실제 처치로 생긴 3D 경험치 조각
+        public IEnumerator ExperienceDropFallsCollectsAndCarriesAcrossLevels() // 세 배 크기와 연속 레벨업
+        {
+            yield return LoadFlight(); // 씬에 저장된 경험치 시스템
+            Transform pilot = FindPilot(); // 조각을 수집할 실제 기체
+            Transform hud = LocateCombatHud().transform; // 레벨과 경험치 게이지
+            GameObject drops = GameObject.Find("ExperienceDrops"); // 씬의 편집 가능한 드롭 시스템
+            Assert.That(drops, Is.Not.Null); // 실제 출격 씬에 경험치 연결
+            Transform dropRoot = drops.transform; // 조각의 부모 하이러키
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 경험치를 주는 시험 마물
+            Component life = enemy.GetComponent("FlightEnemy"); // 마물의 실제 처치 처리
+            life.GetType().GetField("experienceReward", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(life, 35); // 한 번에 두 레벨을 넘길 시험값
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 실제 죽음에서 경험치 발생
+            Assert.That(dropRoot.childCount, Is.EqualTo(1)); // 처치 한 번에 조각 하나
+            Transform shard = dropRoot.GetChild(0); // 살아 있는 경험치 조각
+            float height = shard.position.y; // 드롭 순간 고도
+            Assert.That(shard.localScale.x, Is.EqualTo(0.48f).Within(0.01f)); // 기준 0.16의 세 배 표시
+            yield return WaitFrames(62); // 공중에서 약 1초 낙하
+            Assert.That(height - shard.position.y, Is.InRange(0.45f, 0.57f)); // 초당 0.5 월드 단위 낙하
+            Assert.That(HudText(hud.Find("Experience/Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 획득 전에는 초기 수치
+            pilot.position = shard.position; // 실제 기체와 조각의 접촉
+            yield return WaitFrames(3); // 획득과 HUD 반영
+            Assert.That(shard.gameObject.activeSelf, Is.False); // 획득 뒤 조각 풀 회수
+            Assert.That(HudText(hud.Find("Experience/Label")), Is.EqualTo("LV. 3   XP 5 / 30")); // 연속 레벨업과 남은 경험치
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace)); // 현재 시험 출격 재시작
+            yield return WaitFrames(4); // 출격 상태 초기화
+            Assert.That(HudText(hud.Find("Experience/Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 새 출격 경험치 분리
+        }
+
+        [UnityTest] // 획득하지 않은 조각의 만료
+        public IEnumerator ExperienceDropExpiresAndReusesItsView() // 만료 뒤 경험치 지급 방지와 풀 재사용
+        {
+            yield return LoadFlight(); // 실제 시작 씬
+            GameObject drops = GameObject.Find("ExperienceDrops"); // 씬에서 편집할 처리 오브젝트
+            Assert.That(drops, Is.Not.Null); // 실제 드롭 연결 확인
+            Transform pilot = FindPilot(); // 획득 거리 밖 기체
+            Transform hud = LocateCombatHud().transform; // 레벨업 여부 확인
+            GameObject enemy = GameObject.Find("GlassfinEnemy"); // 경험치 드롭의 실제 공급원
+            Component life = enemy.GetComponent("FlightEnemy"); // 반복 처치에 사용할 마물
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 첫 실제 처치
+            Transform first = drops.transform.GetChild(0); // 고유 드롭 오브젝트
+            yield return WaitFrames(488); // 8초의 공중 드롭 수명 경과
+            Assert.That(first.gameObject.activeSelf, Is.False); // 채집되지 않은 조각의 회수
+            pilot.position = first.position; // 만료된 조각과 겹치게 비행
+            yield return WaitFrames(3); // 만료된 보상의 지급 여부 확인
+            Assert.That(HudText(hud.Find("Experience/Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 만료 뒤 XP는 그대로
+            enemy.SetActive(true); // 마물 시험 부활
+            enemy.transform.position += Vector3.forward * 8f; // 두 번째 드롭만 기체와 떨어진 위치
+            life.GetType().GetMethod("ReceiveHit").Invoke(life, new object[] { 1000 }); // 같은 마물의 정상 재등장 후 처치
+            Assert.That(drops.transform.childCount, Is.EqualTo(1)); // 추가 생성 없이 기존 조각 재사용
+            Assert.That(first.gameObject.activeSelf, Is.True); // 반환된 조각이 다시 보임
+        }
+
         private void SetKeys(params Key[] keys) // 가상 키보드 입력 반영
         {
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys)); // 새로운 키 상태 적용

@@ -953,6 +953,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 526462d6bcb87ef48ade2e4379913989, type: 3}
+--- !u!114 &178516260 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1814654239113805975, guid: 526462d6bcb87ef48ade2e4379913989, type: 3}
+  m_PrefabInstance: {fileID: 178516259}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81aa3f0b74c50b4faf1ad9679efbd85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightEnemy
 --- !u!1 &197193716
 GameObject:
   m_ObjectHideFlags: 0
@@ -2785,6 +2796,17 @@ MonoBehaviour:
   exitSeconds: 2
   opening: 1
   following: 2
+--- !u!114 &506080407 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1814654239113805975, guid: 526462d6bcb87ef48ade2e4379913989, type: 3}
+  m_PrefabInstance: {fileID: 506080403}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 506080404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81aa3f0b74c50b4faf1ad9679efbd85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightEnemy
 --- !u!1 &510897091
 GameObject:
   m_ObjectHideFlags: 0
@@ -3072,6 +3094,17 @@ MonoBehaviour:
   exitSeconds: 2
   opening: 0
   following: 1
+--- !u!114 &529816799 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1814654239113805975, guid: 526462d6bcb87ef48ade2e4379913989, type: 3}
+  m_PrefabInstance: {fileID: 529816795}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 529816796}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81aa3f0b74c50b4faf1ad9679efbd85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightEnemy
 --- !u!1 &531719226
 GameObject:
   m_ObjectHideFlags: 0
@@ -4153,6 +4186,64 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 685709653}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &699633217
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 699633219}
+  - component: {fileID: 699633218}
+  m_Layer: 0
+  m_Name: ExperienceDrops
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &699633218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 699633217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fadef4d0e1b49594d8d6aca7d18107b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightExperience
+  pilot: {fileID: 1287475977}
+  hud: {fileID: 1102515535}
+  rewardSources:
+  - {fileID: 178516260}
+  - {fileID: 529816799}
+  - {fileID: 506080407}
+  - {fileID: 772688680}
+  shardPrefab: {fileID: 4242104421610726129, guid: 5c2c3bdf878097642abee022a3277ba3, type: 3}
+  fallSpeed: 0.5
+  lifetime: 8
+  pickupRadius: 0.9
+  terrain:
+    serializedVersion: 2
+    m_Bits: 256
+--- !u!4 &699633219
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 699633217}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &701424640
 GameObject:
   m_ObjectHideFlags: 0
@@ -5272,6 +5363,17 @@ MonoBehaviour:
   exitSeconds: 2
   opening: 2
   following: 1
+--- !u!114 &772688680 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1814654239113805975, guid: 526462d6bcb87ef48ade2e4379913989, type: 3}
+  m_PrefabInstance: {fileID: 772688676}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 772688677}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81aa3f0b74c50b4faf1ad9679efbd85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightEnemy
 --- !u!1 &773136782
 GameObject:
   m_ObjectHideFlags: 0
@@ -10187,6 +10289,7 @@ MonoBehaviour:
   vitals: {fileID: 1287475977}
   pilot: {fileID: 1287475974}
   pool: {fileID: 1680948884}
+  experience: {fileID: 699633218}
   status: {fileID: 1552497047}
 --- !u!4 &1801967457
 Transform:
@@ -11357,3 +11460,4 @@ SceneRoots:
   - {fileID: 1801967457}
   - {fileID: 178516259}
   - {fileID: 892431605}
+  - {fileID: 699633219}

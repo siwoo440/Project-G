@@ -7,6 +7,7 @@ namespace ProjectG // 프로젝트 게임 영역
     public sealed class FlightEnemy : MonoBehaviour // 시험 마물의 체력과 비행 표현
     {
         [SerializeField, Min(1)] private int maxHealth = 80; // 일반 마물의 시험 체력
+        [SerializeField, Min(0)] private int experienceReward = 12; // 처치 때 드롭할 경험치
         [SerializeField, Min(0.05f)] private float displaySeconds = 2f; // 피격 후 체력 표시 시간
         [SerializeField] private Transform model; // 판정과 분리된 렌더 하이러키
         [SerializeField] private Transform leftWing; // 왼쪽 날개의 회전축
@@ -30,6 +31,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool flashing; // 재질을 변경할 필요가 있는 피격 반응 상태
 
         public int Health { get; private set; } // 현재 마물의 시험 체력
+        public event System.Action<Vector3, int> Defeated; // 처치 위치와 경험치 보상 알림
 
         private void Awake() // 편집된 모델과 이미지의 기준 상태 보관
         {
@@ -64,6 +66,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (Health == 0) // 처치로 마물 활동이 끝난 상태
             {
                 gameObject.SetActive(false); // 마물 모델과 피격 오브젝트 숨김
+                Defeated?.Invoke(transform.position, experienceReward); // 같은 처치에만 한 번 조각 지급
                 return; // 처치 뒤 체력 표시 생략
             }
 

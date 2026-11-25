@@ -10,7 +10,6 @@ namespace ProjectG // 프로젝트 게임 영역
     public sealed class FlightTitleMenu : MonoBehaviour // 메인 메뉴의 입력과 대화 흐름
     {
         public const string SceneName = "FlightMainMenu"; // 배포 첫 화면의 고정 이름
-        private const string Stage = "OuterIslandsStage"; // 24일차 출격 준비 전의 진입 씬
         [SerializeField] private GameObject home; // 네 개의 기본 메뉴
         [SerializeField] private GameObject settings; // 화면·음량 설정 보기
         [SerializeField] private GameObject dialog; // 새 게임 또는 종료 확인
@@ -38,7 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
             EventSystem.current.sendNavigationEvents = false; // 키보드의 메뉴 클릭 중복 방지
             options.Initialize(); // 현재 환경 설정 읽기
             newGame.onClick.AddListener(NewGame); // 저장 여부에 따른 새 출격
-            continueGame.onClick.AddListener(Begin); // 저장한 출격을 계속
+            continueGame.onClick.AddListener(() => Begin(true)); // 저장한 출격을 계속
             openSettings.onClick.AddListener(ShowSettings); // 화면 및 소리 설정
             quit.onClick.AddListener(() => Confirm("게임을 종료할까요?", Application.Quit)); // 종료 확인
             settingsBack.onClick.AddListener(ShowHome); // 조작을 저장하고 기본 메뉴로 돌아가기
@@ -143,11 +142,11 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             if (HasHistory()) // 기존 출격 기록이 있는 사용자
             {
-                Confirm("기존 출격 대신 새 출격을 시작할까요?\n저장한 장비와 마법은 보존됩니다.", Begin); // 현재 작업 흐름 교체 확인
+                Confirm("기존 출격 대신 새 출격을 시작할까요?\n저장한 장비와 마법은 보존됩니다.", () => Begin(false)); // 현재 작업 흐름 교체 확인
             }
             else // 게임 사용 이력이 없는 최초 실행
             {
-                Begin(); // 확인 없이 첫 출격 시작
+                Begin(false); // 확인 없이 첫 출격 준비
             }
         }
 
@@ -162,19 +161,15 @@ namespace ProjectG // 프로젝트 게임 영역
             cancel.Select(); // 사용자의 의도 없는 진행 교체 방지
         }
 
-        private void Begin() // 첫 출격에 연결되는 공통 진입
+        private void Begin(bool resume) // 선택과 준비로 연결하는 메인 화면 진입
         {
             if (transitioning) // 화면 전환 중 다른 클릭
             {
                 return; // 한 씬 전환으로 통합
             }
             transitioning = true; // 시작 요청 확정
-            if (FlightTitleSettings.CanStore) // 이후 사용할 출격 기록 보존
-            {
-                PlayerPrefs.SetString(FlightTitleSettings.Key("Resume"), Stage); // 최근 시작한 출격
-                PlayerPrefs.Save(); // 종료 뒤에도 이어서하기 표시
-            }
-            SceneManager.LoadSceneAsync(Stage); // 기존 하늘섬 외곽 항로 시작
+            FlightSortieChoice.Open(resume); // 새 캐릭터 선택 또는 저장 조종사 준비
+            SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 별도의 실제 출격 준비 화면
         }
     }
 }

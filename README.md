@@ -8,7 +8,14 @@
 
 ![프로젝트 G 3D 메인 화면](docs/screenshots/3d-day-23-title.png)
 
-Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. 새 게임으로 하늘섬 외곽 항로에 출격하고, 이어서하기로 저장된 장비와 마법을 불러와 출격합니다. 설정에서 화면 모드·해상도·음량·마우스 감도를 적용할 수 있습니다. [설정 화면](docs/screenshots/3d-day-23-settings.png) · [1024×576 시작 화면](docs/screenshots/3d-day-23-title-1024.png) · [23일차 기록](docs/development/3d-day-23.md)
+Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. 새 게임과 이어서하기는 출격 준비로 이어집니다. 이어서하기는 마지막 조종사와 저장된 장비·마법을 불러옵니다. 설정에서 화면 모드·해상도·음량·마우스 감도를 적용할 수 있습니다. [설정 화면](docs/screenshots/3d-day-23-settings.png) · [1024×576 시작 화면](docs/screenshots/3d-day-23-title-1024.png) · [23일차 기록](docs/development/3d-day-23.md)
+
+---
+## 캐릭터 선택과 출격 준비
+
+![프로젝트 G 3D 리안 출격 준비](docs/screenshots/3d-day-24-rian.png)
+
+`Assets/Scenes/FlightSortieBriefing.unity`에서 아리아·리안을 선택하고, 빗자루 조립과 마법 편성을 조정합니다. 오른쪽 아래 출발 버튼으로 선택한 조합이 실제 항로에 반영됩니다. [아리아 준비 화면](docs/screenshots/3d-day-24-aria.png) · [1024×576 준비 화면](docs/screenshots/3d-day-24-briefing-1024.png) · [24일차 기록](docs/development/3d-day-24.md)
 
 ---
 ## 3D 하늘섬 외곽 항로

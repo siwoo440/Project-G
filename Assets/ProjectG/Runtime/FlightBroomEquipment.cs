@@ -147,6 +147,11 @@ namespace ProjectG // 프로젝트 게임 영역
             return bonuses[(int)stat]; // 개별 효과와 불이익의 합
         }
 
+        internal string GetEquippedName(FlightBroomSlot slot) // 출격 요약의 실제 장착 이름
+        {
+            return equipped[(int)ActivePilot, (int)slot]?.Definition.displayName ?? "미장착"; // 준비 화면과 같은 장착 상태
+        }
+
         internal void ListParts(FlightBroomSlot slot, List<PartOption> result) // 선택한 슬롯에 장착할 수 있는 종류 목록
         {
             result.Clear(); // 앞서 선택한 슬롯 결과 제거

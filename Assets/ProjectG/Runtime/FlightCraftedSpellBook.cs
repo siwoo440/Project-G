@@ -25,7 +25,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public CraftedSpellRecipe Saved { get; private set; } // 편집기로 불러올 가장 최근 조합
         internal int MagicBudget => 100 + Mathf.RoundToInt(equipment.GetBonus(FlightBroomStat.MagicPower)); // 실전 편성 기준과 장착 효과
-        internal bool AppliesNow => encounter.IsPreparing; // 설정한 조합이 지금 출격에 들어가는지 확인
+        internal bool AppliesNow => encounter == null || encounter.IsPreparing; // 준비 씬 또는 첫 웨이브 전의 편성
 
         private void Awake() // 저장된 제작 마법과 좌우 편성 읽기
         {

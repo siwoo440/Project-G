@@ -1780,6 +1780,9 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Assert.That(PlayerPrefs.HasKey(root + ".Screen"), Is.True); // 화면 설정 저장
                 ClickPauseButton(settings, "Back"); // 실제 메인 화면 유지
                 ClickPauseButton(menu, "Home/NewGame"); // 처음에는 바로 새 출격
+                const string briefingPath = "Assets/Scenes/FlightSortieBriefing.unity"; // 타이틀 뒤의 준비 씬
+                yield return WaitForActiveScene(briefingPath); // 실제 캐릭터 선택과 준비 진입
+                ClickPauseButton(GameObject.Find("SortieBriefing").transform, "Ready/Depart"); // 선택한 캐릭터로 출발 확정
                 yield return WaitForActiveScene(OuterIslandsPath); // 비동기 실전 씬 전환 완료 대기
                 Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 실전으로 진입
                 Assert.That(PlayerPrefs.HasKey(root + ".Resume"), Is.True); // 재실행에서 사용할 출격 기록
@@ -1803,6 +1806,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 ClickPauseButton(menu, "Confirm/Cancel"); // 기존 진행 보존
                 Assert.That(menu.Find("Home").gameObject.activeSelf, Is.True); // 메인 화면 복귀
                 ClickPauseButton(menu, "Home/Continue"); // 저장된 출격 불러오기
+                yield return WaitForActiveScene(briefingPath); // 저장한 조종사로 선택 화면 복원
+                ClickPauseButton(GameObject.Find("SortieBriefing").transform, "Ready/Depart"); // 저장된 준비 상태로 실제 비행
                 yield return WaitForActiveScene(OuterIslandsPath); // 실전 씬의 비동기 진입
                 Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 계속하기 실제 진입
             }
@@ -1812,8 +1817,65 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 PlayerPrefs.DeleteKey(root + ".Sensitivity"); // 시험 감도만 정리
                 PlayerPrefs.DeleteKey(root + ".Screen"); // 시험 화면 설정만 정리
                 PlayerPrefs.DeleteKey(root + ".Resume"); // 시험 출격 표시만 정리
+                PlayerPrefs.DeleteKey(root + ".Pilot"); // 시험 조종사 표시만 정리
                 PlayerPrefs.Save(); // 남은 독립 시험 상태 확정
                 System.Environment.SetEnvironmentVariable("PROJECTG_MENU_TEST_KEY", previous); // 실행 환경 복원
+            }
+        }
+
+        [UnityTest] // 캐릭터·빗자루·마법을 실제 출격 씬에 연결
+        public IEnumerator SortieBriefingCarriesRianGearAndMagicIntoStage() // 기획 일러스트와 세 가지 선택 보존
+        {
+            string root = "ProjectG.Briefing.Test." + System.Guid.NewGuid().ToString("N"); // 서로 다른 선택의 독립 저장
+            string[] flags = { "PROJECTG_MENU_TEST_KEY", "PROJECTG_BROOM_TEST_KEY", "PROJECTG_CRAFTED_TEST_KEY" }; // 실제 제작 화면의 저장 키
+            string[] original = new string[flags.Length]; // 시험 전의 환경
+            for (int i = 0; i < flags.Length; i++) // 세 가지 프로필의 검증 분리
+            {
+                original[i] = System.Environment.GetEnvironmentVariable(flags[i]); // 이용자의 실제 환경값 보존
+                System.Environment.SetEnvironmentVariable(flags[i], root + i); // 독립 출격에서 쓸 기록
+            }
+            try // 전용 준비·장비·마법 값을 시험한 뒤 정리
+            {
+                const string path = "Assets/Scenes/FlightSortieBriefing.unity"; // 출격 준비의 실제 씬
+                int buildIndex = SceneUtility.GetBuildIndexByScenePath(path); // 빌드 등록 여부
+                Assert.That(buildIndex, Is.GreaterThan(0)); // 시작 다음에 열리는 씬
+                yield return SceneManager.LoadSceneAsync(buildIndex); // 독립 준비 화면으로 진입
+                yield return WaitFrames(3); // 실제 초기 화면 준비
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 편집 가능한 준비 화면
+                ClickPauseButton(briefing, "Ready/SelectRian"); // 리안 조종사 선택
+                Assert.That(briefing.Find("Ready/Portrait").GetComponent<RawImage>().texture.name, Is.EqualTo("RianStanding")); // 기획서 원본 스탠딩 적용
+                ClickPauseButton(briefing, "Ready/EditGear"); // 기존 8슬롯 조립 화면 열기
+                Transform gear = briefing.Find("BroomWorkshop"); // 출격 전에 편집하는 빗자루
+                ClickPauseButton(gear, "Parts/Part1"); // 리안의 시험용 질풍 몸체 선택
+                ClickPauseButton(gear, "Equip"); // 현재 장비의 부품 교체 확정
+                ClickPauseButton(gear, "Back"); // 리안의 출격 준비로 복귀
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 기존 제작 마법 화면 열기
+                Transform workshop = briefing.Find("CraftedSpellEditor"); // 같은 제작 조합과 저장 흐름
+                ClickPauseButton(workshop, "Save"); // 현재 마법 조합 저장
+                ClickPauseButton(workshop, "EquipLeft"); // 좌클릭 마법에 편성
+                ClickPauseButton(workshop, "Back"); // 실제 출발 버튼으로 복귀
+                ClickPauseButton(briefing, "Ready/Depart"); // 선택한 장비로 출격
+                yield return WaitForActiveScene(OuterIslandsPath); // 준비 씬에서 실제 전투 진입
+                Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 정상 씬 전환
+                Transform pilot = FindPilot(); // 현재 실제 비행체
+                var weapon = pilot.GetComponent("FlightWeapon"); // 같은 캐릭터의 공격과 HUD
+                Assert.That(weapon.GetType().GetProperty("IsRian").GetValue(weapon), Is.True); // 실제 리안의 전투 프로필
+                Assert.That(BroomAction(pilot.GetComponent("FlightBroomEquipment"), "GetEquippedId", "Rian", "Body"), Is.EqualTo("trial.storm-body:1")); // 리안의 장착한 부품 복원
+                var book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 전투 편성과 실제 시전 도감
+                var slot = book.GetType().GetMethod("ActiveSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 전투에서 쓰는 좌우 슬롯
+                Assert.That(slot.Invoke(book, new object[] { 0 }), Is.Not.Null); // 출격 전 저장한 좌측 마법 로드
+            }
+            finally // 시험에서만 사용한 프로필과 환경 정리
+            {
+                PlayerPrefs.DeleteKey(root + "0.Resume"); // 격리 출격 상태
+                PlayerPrefs.DeleteKey(root + "0.Pilot"); // 격리 조종사 기록
+                PlayerPrefs.DeleteKey(root + "1"); // 격리 장비
+                PlayerPrefs.DeleteKey(root + "2"); // 격리 제작 마법
+                PlayerPrefs.Save(); // 실제 배치의 설정값 저장소 정리
+                for (int i = 0; i < flags.Length; i++) // 시험 전의 외부 설정 복원
+                {
+                    System.Environment.SetEnvironmentVariable(flags[i], original[i]); // 사용자 설정 분리 유지
+                }
             }
         }
 

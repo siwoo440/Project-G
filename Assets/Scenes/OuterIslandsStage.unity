@@ -29246,6 +29246,7 @@ GameObject:
   - component: {fileID: 1287475979}
   - component: {fileID: 1287475980}
   - component: {fileID: 1287475981}
+  - component: {fileID: 1287475982}
   m_Layer: 0
   m_Name: AriaPilot
   m_TagString: Untagged
@@ -29424,6 +29425,20 @@ MonoBehaviour:
     m_Bits: 768
   practice: 0
   aimCamera: {fileID: 330585548}
+--- !u!114 &1287475982
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1287475973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbc58c67dfe826a4897c79a97a91f7e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightSortiePilot
+  weapons: {fileID: 1287475976}
+  hud: {fileID: 1102515535}
 --- !u!1 &1290058536
 GameObject:
   m_ObjectHideFlags: 0

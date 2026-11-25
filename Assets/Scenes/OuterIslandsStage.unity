@@ -20919,6 +20919,21 @@ MonoBehaviour:
   - startsAt: 2.6
     enemies: []
     boss: {fileID: 1772971609}
+  expeditionBattle:
+  - startsAt: 2
+    enemies:
+    - {fileID: 529816798}
+    - {fileID: 506080406}
+    boss: {fileID: 0}
+  - startsAt: 10
+    enemies:
+    - {fileID: 772688679}
+    boss: {fileID: 0}
+  expeditionFinal:
+  - startsAt: 2.5
+    enemies: []
+    boss: {fileID: 1772971609}
+  expeditionBattleEnds: 19
   experience: {fileID: 699633218}
   drops: {fileID: 158209855}
 --- !u!4 &892431605
@@ -31419,6 +31434,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightSortiePilot
   weapons: {fileID: 1287475976}
+  encounter: {fileID: 892431604}
   hud: {fileID: 1102515535}
 --- !u!114 &1287475983
 MonoBehaviour:

@@ -58,6 +58,10 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             flight = pilot.GetComponent<FirstFlightController>(); // 이 출격의 실제 비행 입력
             open.onClick.AddListener(OpenResult); // 결과 씬의 실제 진입 버튼
+            if (stage.IsExpedition && open.GetComponentInChildren<Text>() is Text label) // 같은 버튼에서 탐험 복귀 안내
+            {
+                label.text = "탐험 지도로"; // 전투 뒤 정상 지도와 체크포인트 복귀
+            }
         }
 
         private void LateUpdate() // 기존 전투 점수와 최종 시계 이후 종료 확인
@@ -94,7 +98,12 @@ namespace ProjectG // 프로젝트 게임 영역
             bool newRecord = rush && cleared && FlightBossRushRecords.TryRecord(current, stage.ElapsedSeconds); // 두 보스를 모두 격파한 전투 기록
             int bestTime = rush ? FlightBossRushRecords.Best(current) : 0; // 보스 모드의 조종사별 최고 기록
             snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt, rush, bestTime, newRecord); // 결과에 복제할 확정값
-            heading.text = $"{(rush ? "보스 러시" : "출격")} {(cleared ? "완료" : "실패")}"; // 전투에 표시할 실제 결과
+            string mode = rush ? "보스 러시" : stage.IsExpedition ? "탐험 전투" : "출격"; // 결과에서 구분할 전투 방식
+            heading.text = $"{mode} {(cleared ? "완료" : "실패")}"; // 전투에 표시할 실제 결과
+            if (stage.IsExpedition) // 실제 교전과 최종 전투 종료를 한 번 반영
+            {
+                FlightExpedition.Resolve(cleared); // 체크포인트 전진 또는 임시 재화 정리
+            }
             flight.SetSortieEnded(true); // 결과 확인에 쓸 클릭이 비행으로 넘어가지 않도록 분리
             priorLock = Cursor.lockState; // 현재 전투의 커서 제어 기록
             priorVisible = Cursor.visible; // 현재 표시 상태 저장
@@ -110,6 +119,13 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 같은 씬 전환 반복 방지
             }
             loading = true; // 새로 결과를 열고 있는 상태
+            if (stage.IsExpedition) // 탐험에서만 전투 정산 후 지도 복귀
+            {
+                FlightSortieChoice.RememberPilot(snapshot.Pilot); // 같은 조종사와 지도에서 다음 지점 선택
+                FlightExpedition.RequestMap(); // 저장된 지도 상태를 진입점으로 표시
+                SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 같은 탐험의 진행 화면
+                return; // 본편용 결과로 중복 전달하지 않음
+            }
             FlightSortieResult.StageReport(snapshot); // 실제 종료한 값만 결과로 전달
             Time.timeScale = 0f; // 새 씬이 열리기 전에 뒤늦은 전투 상태 변화 방지
             SceneManager.LoadSceneAsync(FlightSortieResult.SceneName); // 배포 등록된 별도 결과

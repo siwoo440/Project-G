@@ -222,6 +222,11 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 별도 연습 환경의 초기화만 수행
             }
+            if (encounter.IsExpedition && (encounter.IsStageComplete || FlightExpedition.Current == null)) // 이미 확정한 탐험 전투 반복 지급 방지
+            {
+                LeaveExpedition(); // 종료 상태의 기존 지도에서 다음 지점 선택
+                return; // 완료한 전투의 재시작 대신 지도
+            }
             run.RestartRun(); // 체력·레벨·드롭·연습 재설정
             encounter.RestartTrial(); // 첫 웨이브와 타이머
             skills.ResetRun(); // 마력·필살기·쿨타임
@@ -300,6 +305,13 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Abandon() // 끝난 출격을 다시 재생할 수 없도록 표시
         {
+            if (encounter.IsExpedition) // 탐험 포기는 현재 임시 진행만 정리
+            {
+                FlightExpedition.Cancel("탐험 포기 · 임시 재화와 강화 초기화"); // 저장한 지도 체크포인트 해제
+                encounter.StopStage(); // 남은 적과 탄막 정리
+                LeaveExpedition(); // 실제 탐험 지도 복귀
+                return; // 본편의 중단 정산은 따로 유지
+            }
             encounter.Conclude(false); // 첫 전투에 참가한 출격의 참여 보상 확정
             encounter.StopStage(); // 실전 포기 시 두 시간의 최종값 고정
             abandon = true; // 복귀 차단
@@ -313,6 +325,13 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 titleButton.gameObject.SetActive(true); // 포기 확인 후 메인 화면 복귀
             }
+        }
+
+        private void LeaveExpedition() // 종료한 탐험 전투에서 같은 지도 열기
+        {
+            FlightSortieChoice.RememberPilot(pilot.GetComponent<FlightWeapon>().ActivePilot); // 전투에 참가한 조종사 복원
+            FlightExpedition.RequestMap(); // 결과 안내와 현재 위치의 지도
+            SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 별도 출격 선택 흐름으로 복귀
         }
 
         private void ReturnToTitle() // 종료한 출격에서 메인 화면으로 복귀

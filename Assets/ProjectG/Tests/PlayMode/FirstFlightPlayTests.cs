@@ -2718,6 +2718,112 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(3); // 다음 대사로 들어갈 수 있는 별도 입력
         }
 
+        [UnityTest] // 두 탐험 분기와 별도 저장·성장·실패 확인
+        public IEnumerator ExpeditionRestoresItsCheckpointAndKeepsTemporaryGrowthSeparate() // 실제 F6와 전투 씬 왕복
+        {
+            const string flag = "PROJECTG_MENU_TEST_KEY"; // 일반 설정과 분리한 저장 경로
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance; // 실제 피격과 자동탄 강화 읽기
+            string prior = System.Environment.GetEnvironmentVariable(flag); // 기존 저장 환경 복원용
+            string root = "ProjectG.Expedition.Test." + System.Guid.NewGuid().ToString("N"); // 이번 탐험만의 기록
+            string record = root + ".Expedition.v1"; // 지도 체크포인트 한 개
+            System.Environment.SetEnvironmentVariable(flag, root); // 실제 사용자 설정과 분리
+            System.Type store = System.Type.GetType("ProjectG.FlightExpedition, Assembly-CSharp", true); // 실제 출격과 공유하는 저장 클래스
+            var reset = store.GetMethod("ResetSession", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static); // 실제 새 실행 초기화
+            reset.Invoke(null, null); // 이전 지도 세션의 영향 제외
+            try
+            {
+                PlayerPrefs.SetInt(root + ".Pilot", 1); // 다른 본편 조종사의 저장
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 사용자가 여는 편성 씬
+                yield return WaitFrames(5); // 모드 버튼과 장비 준비
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 탐험으로 연결하는 출격 준비
+                ClickPauseButton(briefing, "Ready/SelectIris"); // 현재 탐험의 조종사
+                yield return TapVillage(Key.F6); // 실제 탐험 지름길
+                Transform map = briefing.Find("ExpeditionMap"); // 씬에 배치된 다섯 지점
+                Assert.That(map.gameObject.activeSelf, Is.True); // F6에 현재 지도 표시
+                ClickPauseButton(map, "Card/Primary"); // 이리스의 새 탐험
+                ClickPauseButton(map, "Card/Primary"); // 항구를 떠나 경로 선택
+                Assert.That(HudText(map.Find("Card/Detail")), Does.Contain("우회")); // 아직 선택 가능한 갈림길
+                yield return TapVillage(Key.Digit2); // 우회 보급을 고르기
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("보급표 1장")); // 우회 경로의 시험값
+                ClickPauseButton(map, "Card/Secondary"); // 탐험 보급표로 자동탄 구매
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("보급표 0장")); // 같은 재화 한 장만 소비
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("+20%")); // 구매 및 실제 강화 안내
+                Assert.That(map.Find("Card/Secondary").GetComponent<Button>().interactable, Is.False); // 같은 상품 중복 구매 차단
+                ClickPauseButton(map, "Card/Primary"); // 최종 전투 입장 전 저장
+                ClickPauseButton(map, "Card/Close"); // 체크포인트를 보존한 상태로 편성 복귀
+                Assert.That(map.gameObject.activeSelf, Is.False); // 원래 출격 버튼으로 돌아옴
+                string checkpoint = PlayerPrefs.GetString(record); // 게임 재실행에 쓰는 실제 직렬 데이터
+                Assert.That(checkpoint, Does.Contain("\"power\":1")); // 첫 임시 강화를 저장
+                reset.Invoke(null, null); // 임시 메모리가 없는 새 실행 재현
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 같은 실제 준비 씬 다시 열기
+                yield return WaitFrames(5); // 초기 설정
+                briefing = GameObject.Find("SortieBriefing").transform; // 새로 읽은 준비 화면
+                ClickPauseButton(briefing, "Ready/SelectAria"); // 저장된 탐험 조종사를 바꾸지 않는 일반 선택
+                ClickPauseButton(briefing, "Ready/Expedition"); // 마우스로도 같은 체크포인트
+                map = briefing.Find("ExpeditionMap"); // 실제 복구한 지도
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("이리스")); // 첫 탐험 조종사 유지
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("+20%")); // 임시 성장 저장은 복원
+                Assert.That(HudText(map.Find("Card/Primary/Label")), Does.Contain("최종 전투")); // 최종 전투 직전 지점
+                ClickPauseButton(map, "Card/Primary"); // 실제 탐험의 최종 보스
+                yield return WaitForActiveScene(OuterIslandsPath); // 같은 하늘섬 지형
+                Transform pilot = FindPilot(); // 탐험의 이리스
+                Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 자동탄 배율 창구
+                Assert.That(weapon.GetType().GetProperty("ExpeditionDamageScale", hidden).GetValue(weapon), Is.EqualTo(1.2f).Within(.001f)); // 구매한 값이 실제 피해로 전달
+                Component timeline = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 최종 노드 시간표
+                Time.captureDeltaTime = .1f; // 기존 전투 시간 진행
+                yield return AdvanceStageTo(timeline, 4.5f); // 최종 보스만 나오는 시험 노드
+                Assert.That((bool)timeline.GetType().GetProperty("IsFinalBossActive").GetValue(timeline), Is.True); // 본편의 일반 적 구간 건너뜀
+                Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 피격과 실패
+                vitals.GetType().GetMethod("ResolveThreat", hidden).Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, .1f, 200, false, false }); // 패배 후 임시 진행 초기화
+                yield return WaitFrames(6); // 실제 결과 기록 전환
+                Assert.That(PlayerPrefs.HasKey(record), Is.False); // 실패하면 임시 저장 제거
+                ClickPauseButton(LocateCombatHud().transform, "SortieEnd/Open"); // 탐험 지도로 복귀
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 결과 대신 복구한 UI
+                briefing = GameObject.Find("SortieBriefing").transform; // 탐험 지도와 편성의 실제 계층
+                map = briefing.Find("ExpeditionMap"); // 전투 정산에서 자동으로 열린 지도
+                Assert.That(map.gameObject.activeSelf, Is.True); // 일괄 정산 뒤 바로 탐험
+                Assert.That(HudText(map.Find("Card/Notice")), Does.Contain("탐험 실패")); // 결과와 초기화 표시
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("+0%")); // 새 출발에는 강화 없음
+
+                ClickPauseButton(map, "Card/Primary"); // 처음부터 다시 탐험 시작
+                ClickPauseButton(map, "Card/Primary"); // 이번에는 교전을 선택하는 갈림길
+                ClickPauseButton(map, "Card/Primary"); // 실제 일반 마물 웨이브로 입장
+                yield return WaitForActiveScene(OuterIslandsPath); // 모드의 다른 실제 전투
+                Transform encounter = GameObject.Find("EnemyEncounter").transform; // 실제 장면의 시험 경로
+                timeline = encounter.GetComponent("FlightEnemyEncounter"); // 보스 없는 두 마물 배치
+                yield return AdvanceStageTo(timeline, 2.2f); // 첫 떼 등장
+                Assert.That(Metric(timeline, "ActiveEnemyCount"), Is.EqualTo(2)); // 실제 첫 일반 마물 둘
+                Assert.That(HudText(LocateCombatHud().transform.Find("WaveReadout/Wave")), Does.Contain("탐험")); // 기존 웨이브와 다른 탐험 상태를 표시
+                foreach (Transform route in encounter) // 현재 실제 마물만 빠르게 종료
+                {
+                    if (route.gameObject.activeSelf && route.GetComponent("FlightEnemy") is Component enemy) // 장면의 적과 실제 피해
+                    {
+                        enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 2000 }); // 제어 피해로 교전 진행
+                    }
+                }
+                yield return AdvanceStageTo(timeline, 10.3f); // 다음 웨이브 진입
+                Assert.That(Metric(timeline, "WaveNumber"), Is.EqualTo(2)); // 두 번째 설정 배치 사용
+                Component diver = encounter.Find("DiverEnemy").GetComponent("FlightEnemy"); // 둘째 배치의 통제할 마물
+                diver.GetType().GetMethod("ReceiveHit").Invoke(diver, new object[] { 2000 }); // 교전 완료 조건의 실제 처치
+                yield return AdvanceStageTo(timeline, 18.9f); // 구간 종료 직전의 실제 시간
+                yield return WaitFrames(5); // 전투가 끝나며 고정되는 시계
+                Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.True); // 결과 버튼으로 넘어갈 실제 완료
+                ClickPauseButton(LocateCombatHud().transform, "SortieEnd/Open"); // 우회와 같은 임시 상점으로
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 지도에 교전 성과 복원
+                map = GameObject.Find("SortieBriefing").transform.Find("ExpeditionMap"); // 다른 분기의 실제 결과
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("보급표 2장")); // 교전에만 보급표 2장
+                Assert.That(HudText(map.Find("Card/Summary")), Does.Contain("+20%")); // 같은 탐험 임시 성장
+                Assert.That(PlayerPrefs.GetInt(root + ".Pilot"), Is.EqualTo(1)); // 본편 조종사 저장 보존
+            }
+            finally
+            {
+                reset.Invoke(null, null); // 다른 PlayMode 테스트에 임시 기록 영향 제거
+                PlayerPrefs.DeleteKey(record); // 이번 독립 실험만 정리
+                PlayerPrefs.DeleteKey(root + ".Pilot"); // 고유 본편 조종사 시험 값 삭제
+                System.Environment.SetEnvironmentVariable(flag, prior); // 호출 전 저장 경로 복원
+            }
+        }
+
         [UnityTest] // 두 보스와 모드별 정산을 실제 배포 씬에서 확인
         public IEnumerator BossRushPreservesTheNormalSaveAndRecordsOnlyClears() // 시제품의 회복·페이즈·같은 모드 재도전
         {

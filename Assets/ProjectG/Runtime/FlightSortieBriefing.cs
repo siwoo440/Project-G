@@ -36,12 +36,15 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightFirstIncident incident; // 출격 준비에서 읽는 첫 사건 기록
         [SerializeField] private Button freeTraining; // 정식 출격과 따로 여는 연습 메뉴
         [SerializeField] private Button bossRush; // 두 보스를 연속으로 만나 기록할 별도 모드
+        [SerializeField] private Button expedition; // 편성 화면에서 입장할 탐험 지도
+        [SerializeField] private FlightExpeditionMap map; // 임시 경로·상점·저장 지도
         private FlightBroomPilot pilot; // 선택 화면의 현재 조종사
         private bool moving; // 중복 씬 전환 방지
 
         private void Start() // 두 개의 검증된 캐릭터와 저장 흐름
         {
             Time.timeScale = 1f; // 메인 화면과 같이 실제 메뉴 시간
+            AudioListener.pause = false; // 탐험 전투를 일시정지한 뒤 돌아오면 메뉴 소리 복원
             Cursor.lockState = CursorLockMode.None; // UI 마우스 포인터
             Cursor.visible = true; // 첫 선택에서 커서 표시
             EventSystem.current.sendNavigationEvents = false; // 자체 선택 키와 UI 제출 중복 방지
@@ -69,6 +72,12 @@ namespace ProjectG // 프로젝트 게임 영역
             freeTraining?.onClick.AddListener(OpenTraining); // 자유 훈련으로 현재 조종사 전달
             bossRush?.onClick.AddListener(OpenBossRush); // 기존 보스와 같은 충돌·패턴의 연속 도전
             Choose(FlightPilotRoster.CanSelect(FlightSortieChoice.Initial) ? FlightSortieChoice.Initial : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
+            map?.Initialize(); // 실제 지도 선택지 연결
+            expedition?.onClick.AddListener(OpenExpedition); // 마우스로 탐험 지도
+            if (map != null && FlightExpedition.ConsumeMapRequest()) // 전투 결과 뒤 같은 지도 열기
+            {
+                OpenExpedition(); // 정산하고 저장한 다음 위치
+            }
         }
 
         private void Update() // 실제 키보드로 캐릭터와 이동 선택
@@ -77,6 +86,10 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 마우스 단독 또는 씬 전환 중
             {
                 return; // 추가 출발 없음
+            }
+            if (map != null && map.HandleKey(keyboard)) // 지도 열림 동안 다른 준비 조작 차단
+            {
+                return; // 지도의 저장 및 선택으로 입력 제한
             }
             if (incident != null && incident.HandleArchiveKey(keyboard, ready.activeSelf)) // 첫 사건 창 열람에 우선 키 전달
             {
@@ -97,6 +110,11 @@ namespace ProjectG // 프로젝트 게임 영역
             if (!ready.activeSelf) // 세부 화면에서 캐릭터와 출발 입력 차단
             {
                 return; // 편집 중인 상태 보존
+            }
+            if (keyboard.f6Key.wasPressedThisFrame) // 현재 조종사로 탐험 지도 열기
+            {
+                OpenExpedition(); // 버튼과 같은 독립 탐험
+                return; // 승인을 한 프레임에 중복 처리하지 않음
             }
             if (keyboard.f5Key.wasPressedThisFrame) // 두 보스를 연이어 만나는 별도 모드
             {
@@ -204,6 +222,15 @@ namespace ProjectG // 프로젝트 게임 영역
             moving = true; // 다른 버튼과 키 입력 차단
             FlightSortieChoice.Launch(pilot); // 출발을 확정하고 플레이어에 전달
             SceneManager.LoadSceneAsync(FlightSortieChoice.StageScene); // 실제 하늘섬 외곽 항로
+        }
+
+        private void OpenExpedition() // 캐릭터를 유지하며 탐험 지도 표시
+        {
+            if (!moving && ready.activeSelf && map != null) // 출격 준비가 표시될 때만 열기
+            {
+                FlightAudio.Play(FlightSfx.UiConfirm); // 같은 메뉴의 클릭 소리
+                map.Show(pilot); // 현재 또는 저장한 조종사의 지도
+            }
         }
 
         private void OpenBossRush() // 장비 편성으로 실제 첫 보스에 들어가는 진입

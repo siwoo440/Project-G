@@ -36,6 +36,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     wave.text = shownComplete ? "도전 완료" : shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownWave > 0 ? "보스 전환" : "보스 러시"; // 출격 준비·휴식·전투 단계
                 }
+                else if (encounter.IsExpedition) // 현재 탐험 지점에서의 전투 표시
+                {
+                    wave.text = shownComplete ? "구간 완료" : shownFinal ? "최종 보스" : shownWave == 0 ? "탐험 준비" : $"탐험 {shownWave}"; // 선택한 항로의 실제 진행
+                }
                 else
                 {
                     wave.text = shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownComplete ? "항로 완료" : shownWave == 0 ? "준비" : $"Wave : {shownWave}"; // 전투 구간에 맞는 표기

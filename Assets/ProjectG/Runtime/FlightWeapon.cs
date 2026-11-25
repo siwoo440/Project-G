@@ -47,6 +47,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
         internal int WeakPointBonusPercent => Mathf.RoundToInt(WeakRatio * 100f); // 실제 약점 피해에 사용한 보너스 표기
+        internal float ExpeditionDamageScale { get; set; } = 1f; // 이번 탐험에서만 적용할 자동탄 배율
         internal FlightIrisCombat Resonance => resonance; // 현재 공명 수치와 파동 스킬
         internal FlightVeraTurret Turret => turret; // 설치 상태와 자동탄 강화의 실제 참조
         internal FlightNoxCombat Counter => counter; // 출격의 실제 반격 컴포넌트
@@ -328,6 +329,10 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             bool grown = isAutomatic && upgrades != null; // 강화는 기본·집중 자동탄에만 적용
             float damage = grown ? upgrades.DamageScale(focused) : 1f; // 상대 피해
+            if (isAutomatic) // 탐험 강화는 일반·집중 자동탄에 적용
+            {
+                damage *= ExpeditionDamageScale; // 현재 지점의 저장된 임시 성장
+            }
             if (isAutomatic && ActivePilot == FlightBroomPilot.Vera && turret != null) // 출격에서 베라가 발사하는 기본·집중탄
             {
                 damage *= turret.DamageMultiplier; // 설치 포대 반경 안의 자동 공격 보너스

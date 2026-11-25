@@ -23,7 +23,9 @@ namespace ProjectG // 프로젝트 게임 영역
         ShadowCounter, // 녹스가 표식을 써서 발사하는 반격탄
         BoundaryReversal, // 녹스 주변의 적탄 소거와 방사 피해
         DeployVeraTurret, // 베라 마도 포대 설치
-        TurretCrossBeam // 배치한 포대에서 발사하는 교차 광선
+        TurretCrossBeam, // 배치한 포대에서 발사하는 교차 광선
+        IrisSpreadWave, // 이리스의 넓은 확산 파동
+        IrisSkyResonance // 두 차례 이어지는 창공의 공명
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -116,6 +118,7 @@ namespace ProjectG // 프로젝트 게임 영역
                         FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 고유기
                         {
                             FlightBroomPilot.Lumi => FlightMagicEffect.StarlightSeekers, // 별빛 추적탄
+                            FlightBroomPilot.Iris => FlightMagicEffect.IrisSpreadWave, // 전방 확산 파동
                             FlightBroomPilot.Vera => FlightMagicEffect.DeployVeraTurret, // 마도 포대 배치
                             FlightBroomPilot.Nox => FlightMagicEffect.ShadowCounter, // 그림자 반격
                             FlightBroomPilot.Sera => FlightMagicEffect.BreakthroughBlade, // 돌파 검기
@@ -134,6 +137,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     {
                         FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 필살기
                         {
+                            FlightBroomPilot.Iris => FlightMagicEffect.IrisSkyResonance, // 주 파동과 추가 연쇄
                             FlightBroomPilot.Vera => FlightMagicEffect.TurretCrossBeam, // 포대에서만 발사하는 광선
                             FlightBroomPilot.Nox => FlightMagicEffect.BoundaryReversal, // 경계 역전의 3D 소거
                             FlightBroomPilot.Sera => FlightMagicEffect.SkyChainSlash, // 천공 연참
@@ -241,6 +245,10 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastPiercingShot(); // 발사 성공 후 마력 소비
                 case FlightMagicEffect.SniperBeam: // 리안의 천공 관측선
                     return weapon.CastSniperBeam(threatPool); // 광선 적중과 경로의 적탄 소거
+                case FlightMagicEffect.IrisSpreadWave: // 이리스 Q의 실제 전방 원뿔
+                    return weapon.Resonance != null && weapon.Resonance.CastWave(false); // 직접 파동만 적용
+                case FlightMagicEffect.IrisSkyResonance: // 이리스 R의 직접 피해와 연쇄
+                    return weapon.Resonance != null && weapon.Resonance.CastWave(true); // 첫 적중 이후 두 번 전파
                 case FlightMagicEffect.DeployVeraTurret: // 베라의 실제 세계 좌표 포대
                     return weapon.Turret != null && weapon.Turret.Deploy(); // 한 포대의 배치 또는 교체
                 case FlightMagicEffect.TurretCrossBeam: // 실제 포대가 살아 있는 상태의 광선

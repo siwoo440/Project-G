@@ -10,7 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread, SeraApproach, SeraWidth, NoxPrecision, NoxPierce, VeraDuration, VeraCadence // 단계와 보조 슬롯 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread, SeraApproach, SeraWidth, NoxPrecision, NoxPierce, VeraDuration, VeraCadence, IrisRange, IrisFocus // 단계와 보조 슬롯 구분
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -63,7 +63,9 @@ namespace ProjectG // 프로젝트 게임 영역
             new Card(Reward.NoxPrecision, "정밀 회피 1", "그레이즈 세 번마다 추가 표식 1", 1, 5, 1, 2), // 녹스의 그레이즈 보상 증가
             new Card(Reward.NoxPierce, "반격 전환 1", "그림자 반격탄 관통 대상 +1", 1, 5, 2, 4), // 녹스의 추가 반격 관통
             new Card(Reward.VeraDuration, "진지 구축 1", "마도 포대 유지 8→11초", 1, 6, 1, 2), // 베라의 포대 배치 시간
-            new Card(Reward.VeraCadence, "교차 사격 1", "포대 사격 간격 1→0.75초", 1, 6, 2, 3) // 베라의 포대 공격 속도
+            new Card(Reward.VeraCadence, "교차 사격 1", "포대 사격 간격 1→0.75초", 1, 6, 2, 3), // 베라의 포대 공격 속도
+            new Card(Reward.IrisRange, "연쇄 공명 1", "공명 범위 상한 +30→40%", 1, 7, 1, 0), // 이리스의 공명 상한 확대
+            new Card(Reward.IrisFocus, "집중 파동 1", "집중탄 폭 -20%·피해 +20%", 1, 7, 2, 3) // 이리스의 좁고 강한 집중탄
         };
 
         private static readonly Card[] Fallback = // 유효 후보가 부족할 때만 쓰는 보상
@@ -109,6 +111,8 @@ namespace ProjectG // 프로젝트 게임 영역
         public bool HasProtectionDevice => Rank(Reward.ProtectionDevice) > 0; // 패시브 보호 장치 슬롯
         internal bool ChaseSecond => Rank(Reward.ChaseSecond) > 0; // 아리아의 현재 출격 후속 탄
         internal bool SpreadSecond => Rank(Reward.SpreadSecond) > 0; // 고유기 지속 중 추가 사격
+        internal bool IrisFocus => Rank(Reward.IrisFocus) > 0; // 집중 자동탄의 두 시험 배율
+        internal int IrisLimit => Rank(Reward.IrisRange) > 0 ? 40 : 30; // 전용 노드를 포함한 실제 공명 상한
         internal float TurretSeconds => Rank(Reward.VeraDuration) > 0 ? 11f : 8f; // 배치한 포대의 실제 유지 시간
         internal float TurretInterval => Rank(Reward.VeraCadence) > 0 ? 0.75f : 1f; // 포대가 발사하는 독립 간격
         internal bool NoxPrecision => Rank(Reward.NoxPrecision) > 0; // 세 번당 추가 표식의 첫 성장 카드

@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float remaining; // 남은 사거리
         private bool practice; // 시험과 실전의 독립된 시간
         private bool pierces; // 관통 선택 여부
+        private FlightIrisCombat resonance; // 실제 체력을 바꿨는지 공명에 전달
         private FlightSeraCombat meleeSource; // 피격 시점의 세라와 적 사이 거리 계산
         private bool explodes; // 폭발 선택 여부
 
@@ -44,6 +45,11 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void SetMeleeSource(FlightSeraCombat source) // 실전에서 세라가 발사한 직접 마법
         {
             meleeSource = source; // 제작 연습에 없고 실전 적중에 쓰는 참조
+        }
+
+        internal void SetResonance(FlightIrisCombat source) // 이리스가 실제 출격에서 발사한 직접 마법
+        {
+            resonance = source; // 같은 탄환에 붙은 공명의 조종사 참조
         }
 
         private void Update() // 탄환의 실제 비행과 충돌
@@ -147,7 +153,12 @@ namespace ProjectG // 프로젝트 게임 영역
             if (target is FlightEnemy enemy) // 실제 전투의 마물
             {
                 float close = meleeSource != null ? meleeSource.DamageMultiplier(enemy.transform.position) : 1f; // 실제 적 중심과의 근거리 결의
+                int before = enemy.Health; // 공명에서 확인할 실제 피격 전 체력
                 enemy.ReceiveHit(Mathf.RoundToInt(raw * close * CraftedSpellRules.DamageMultiplier(recipe.Element, enemy.DefenseElement))); // 전투와 동일한 피해 상성
+                if (enemy.Health < before) // 전환 무적과 차단 상태에서 공명 제외
+                {
+                    resonance?.Observe(enemy, false); // 실제로 한 번 피해를 입은 대상만 전달
+                }
             }
             else if (target is FlightCraftedTarget practiceTarget) // 정산에 영향을 주지 않는 표적
             {

@@ -26,7 +26,7 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 ![프로젝트 G 3D 리안 출격 준비](docs/screenshots/3d-day-24-rian.png)
 
-`Assets/Scenes/FlightSortieBriefing.unity`에서 아리아·리안·루미·세라·녹스·베라를 선택하고, 빗자루 조립과 마법 편성을 조정합니다. 오른쪽 아래 출발 버튼으로 선택한 조합이 실제 항로에 반영됩니다. [아리아 준비 화면](docs/screenshots/3d-day-24-aria.png) · [1024×576 준비 화면](docs/screenshots/3d-day-24-briefing-1024.png) · [24일차 기록](docs/development/3d-day-24.md)
+`Assets/Scenes/FlightSortieBriefing.unity`에서 아리아·리안·루미·세라·녹스·베라·이리스를 선택하고, 빗자루 조립과 마법 편성을 조정합니다. 오른쪽 아래 출발 버튼으로 선택한 조합이 실제 항로에 반영됩니다. [아리아 준비 화면](docs/screenshots/3d-day-24-aria.png) · [1024×576 준비 화면](docs/screenshots/3d-day-24-briefing-1024.png) · [24일차 기록](docs/development/3d-day-24.md)
 
 루미는 같은 적을 추적할수록 유도탄 회전력이 높아집니다. Q는 별빛 추적탄, R은 서로 다른 고도의 적에게 분산되는 별무리 항로를 발사합니다. 천공 결정은 파란 결정 다발 아이콘, 골드는 금빛 동전 아이콘으로 상점·강화·출격과 정산의 수치에 표시합니다. [루미 준비 화면](docs/screenshots/3d-day-32-lumi-briefing.png) · [전투](docs/screenshots/3d-day-32-lumi-combat.png) · [상점](docs/screenshots/3d-day-32-market.png) · [결과](docs/screenshots/3d-day-32-result.png) · [32일차 기록](docs/development/3d-day-32.md)
 
@@ -44,6 +44,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 녹스는 그레이즈로 반격 표식을 모읍니다. Q는 표식 하나당 반격탄 한 발을 발사하고, R은 반경 3m 안의 일반 적탄을 지웁니다. [표식 HUD](docs/screenshots/3d-day-34-nox-marks.png) · [경계 역전](docs/screenshots/3d-day-34-nox-reversal.png) · [34일차 기록](docs/development/3d-day-34.md)
 
 베라는 Q로 상단 프로펠러가 달린 부유 포대 한 기를 배치하며, 포대에서 R 교차 광선을 발사합니다. 포대가 만료되면 R이 잠기고 에너지는 보존됩니다. [부유 포대](docs/screenshots/3d-day-35-vera-turret.png) · [교차 광선](docs/screenshots/3d-day-35-vera-beam.png) · [35일차 기록](docs/development/3d-day-35.md)
+
+이리스는 서로 다른 적을 맞히면 파동 범위가 넓어집니다. Q 확산 파동은 전방의 적을 공격하고, R 창공의 공명은 직접 적중한 곳에서 다른 적에게 최대 두 번 이어집니다. [일곱 조종사 선택](docs/screenshots/3d-day-36-iris-briefing.png) · [이리스 전투](docs/screenshots/3d-day-36-iris-chain.png) · [36일차 기록](docs/development/3d-day-36.md)
 
 첫 웨이브가 시작된 출격은 영구 정산에 포함됩니다. 결과에서 숙련도와 재료 증가량을, 출격 준비에서 누적 숙련도와 보유량을 확인할 수 있습니다. 전투 도중 종료한 출격은 다음 실행의 메인 화면에서 참여 보상으로 한 번 정산됩니다. [영구 정산 화면](docs/screenshots/3d-day-26-settlement.png) · [재실행 복구 화면](docs/screenshots/3d-day-26-recovery-1024.png) · [26일차 기록](docs/development/3d-day-26.md)
 

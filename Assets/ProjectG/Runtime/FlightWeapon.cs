@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
         private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
         private FlightBroomEquipment broom; // 캐릭터별 빗자루 조합
+        private FlightIrisCombat resonance; // 이리스의 적중 기록과 실제 전방 파동
         private FlightVeraTurret turret; // 베라의 실제 설치 포대와 지원 피해
         private FlightNoxCombat counter; // 녹스의 실제 반격 표식과 필살기
         private FlightSeraCombat sword; // 세라의 검기 모션과 근거리 피해 판정
@@ -45,6 +46,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float nextShot; // 다음 자동 연사 가능 시각
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
+        internal FlightIrisCombat Resonance => resonance; // 현재 공명 수치와 파동 스킬
         internal FlightVeraTurret Turret => turret; // 설치 상태와 자동탄 강화의 실제 참조
         internal FlightNoxCombat Counter => counter; // 출격의 실제 반격 컴포넌트
         internal FlightSeraCombat Sword => sword; // 고유기와 필살기의 실제 검기 구성
@@ -96,6 +98,7 @@ namespace ProjectG // 프로젝트 게임 영역
             sword?.ResetRun(); // 이전 출격에 예약했던 연참과 검기 화면 제거
             counter?.ResetRun(); // 이전 출격과 다른 캐릭터의 스침 표식 제거
             turret?.ResetRun(); // 재출격 시 기존 포대와 광선 제거
+            resonance?.ResetRun(); // 전환·재출격 때 이전 공명과 시각 효과 삭제
             lumiTarget = null; // 출격과 전환 뒤 추적 누적 제거
             lumiTargets.Clear(); // 이전 웨이브의 후보 제거
             trackingSince = Time.time; // 새 표적의 기본 누적 시각
@@ -114,6 +117,7 @@ namespace ProjectG // 프로젝트 게임 영역
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
             TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
             TryGetComponent(out broom); // 실전 씬의 장착 구성
+            TryGetComponent(out resonance); // 전장에 배치한 이리스 파동과 연쇄
             TryGetComponent(out turret); // 하이러키의 베라 설치 포대와 빔
             TryGetComponent(out counter); // 씬의 실제 반격 판정과 경계 시각 효과
             TryGetComponent(out sword); // 씬에 배치한 세라의 검기와 돌파
@@ -327,6 +331,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 damage *= turret.DamageMultiplier; // 설치 포대 반경 안의 자동 공격 보너스
             }
             float width = grown ? upgrades.WidthScale(focused) : 1f; // 기본 또는 집중탄의 충돌 폭
+            if (isAutomatic && focused && ActivePilot == FlightBroomPilot.Iris && upgrades != null && upgrades.IrisFocus) // 집중 파동 첫 카드를 선택한 실제 자동 집중탄
+            {
+                width *= 0.8f; // 집중 공격의 좁아진 충돌 폭
+                damage *= 1.2f; // 실제 집중 공격의 강화 피해
+            }
             int pierce = grown ? upgrades.AutoPierce : 0; // 추가 관통 가능한 대상
             Quaternion basis = Quaternion.LookRotation(travel); // 해당 발사의 중심 방향
             for (int index = 0; index < count; index++) // 실제 마법탄 생성
@@ -340,7 +349,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     bolt.SetMeleeSource(sword); // 실제 피격 위치에서 근거리 결의 판정
                 }
-                if (isAutomatic && (IsAria || IsRian)) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
+                if (ActivePilot == FlightBroomPilot.Iris && resonance != null) // 이리스의 직접 탄환은 실제 공명에 포함
+                {
+                    bolt.Observe(resonance.Observe); // 같은 마물과 2초 이내의 유효 적중 추적
+                }
+                else if (isAutomatic && (IsAria || IsRian)) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
                 {
                     bolt.Observe(IsRian ? rianHit : ariaHit); // 시작 시점 조종사의 직접 공격 확인
                 }

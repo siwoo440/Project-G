@@ -47,6 +47,92 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Application.runInBackground = runInBackground; // 시험 전 백그라운드 실행 복원
         }
 
+        [UnityTest] // 이리스의 실제 파동과 고도가 다른 연쇄 전파
+        public IEnumerator IrisSortieTracksDistinctHitsAndChainsToNewTargets() // 중복 공명과 연쇄 대상의 피해 확인
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 이리스 출격 선택
+            yield return WaitFrames(3); // 조종사 버튼과 스탠딩 초기화
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 하이러키
+            Assert.That(briefing.Find("Ready/SelectIris"), Is.Not.Null); // 일곱 번째 출격 조종사
+            ClickPauseButton(briefing, "Ready/SelectIris"); // 파동 마도사의 실제 선택
+            ClickPauseButton(briefing, "Ready/Depart"); // 선택한 조합으로 전투 진입
+            yield return WaitForActiveScene(OuterIslandsPath); // 실전 외곽 섬의 실제 전투
+            Transform pilot = FindPilot(); // 마법을 사용한 비행체
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 조종사 및 자동탄
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 Q·R의 조건과 소모
+            Component resonance = pilot.GetComponent("FlightIrisCombat"); // 공명과 실제 3D 파동
+            Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Iris")); // 실제 출격 조종사
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 독립 회귀의 필드 접근
+            ((MonoBehaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 시험 적 외 자동 출현 방지
+            weapon.GetType().GetField("nextShot", hidden).SetValue(weapon, float.PositiveInfinity); // 공명 적중에 다른 탄이 섞이지 않도록 제한
+            var boltType = weapon.GetType().Assembly.GetType("ProjectG.FlightSpellBolt"); // 이전 캐릭터 순간 사격으로 나간 탄환 타입
+            foreach (Component shot in Object.FindObjectsByType(boltType, FindObjectsSortMode.None)) // 실전 시작의 기본 사격 정리
+            {
+                Object.Destroy(shot.gameObject); // 파동 시험의 독립적인 첫 적중
+            }
+            yield return WaitFrames(1); // 이전 자동탄이 제거된 실제 프레임
+            var enemies = (Component[])skills.GetType().GetField("defeatRewards", hidden).GetValue(skills); // 실제 마물 피격의 원본
+            foreach (Component enemy in enemies) // 현재 자동 웨이브에서 쓰던 원본
+            {
+                enemy.gameObject.SetActive(false); // 새 파동의 실제 후보를 따로 배치
+            }
+            Vector3 center = pilot.position; // 조준된 전파의 실제 중심
+            Vector3 direction = pilot.forward; // 전방 판정의 깊이
+            Vector3 right = pilot.right; // 다른 연쇄 위치의 실제 좌우
+            GameObject first = CloneStationaryTarget(enemies[0], center + direction * 5f, 750); // 첫 직접 파동 적중
+            GameObject second = CloneStationaryTarget(enemies[0], center + direction * 5.4f - right + Vector3.up * 0.9f, 750); // 다른 높이의 직접 파동 적중
+            GameObject above = CloneStationaryTarget(enemies[0], center + direction * 3.2f + Vector3.up * 4.5f, 750); // 원뿔 밖의 높은 적
+            Physics.SyncTransforms(); // 실제 3차원 표적의 충돌 위치
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 첫 부채꼴 확산 파동
+            yield return WaitFrames(4); // 실제 피해 한 번 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 독립된 다음 스킬 입력
+            Assert.That(Metric(first.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(685)); // 첫 표적의 65 피해
+            Assert.That(Metric(second.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(685)); // 다른 높이의 두 번째 표적도 65 피해
+            Assert.That(Metric(above.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(750)); // 더 높은 원뿔 외부의 적
+            Assert.That(Metric(resonance, "ResonancePercent"), Is.EqualTo(20)); // 서로 다른 두 적에 10%씩
+            yield return WaitFrames(3); // 실제 Q 키를 놓은 뒤 다시 입력
+            var cooldown = (float[])skills.GetType().GetField("readyAt", hidden).GetValue(skills); // 같은 대상의 중복 검증용 재사용 간격
+            cooldown[0] = Time.time; // 시험에서 같은 Q를 기다리지 않고 다시 사용
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 같은 두 표적을 재타격
+            yield return WaitFrames(4); // 다시 들어온 피해와 공명 상태
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 실제 Q의 키 해제
+            Assert.That(Metric(first.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(620)); // 같은 표적의 실제 두 번째 피해
+            Assert.That(Metric(resonance, "ResonancePercent"), Is.EqualTo(20)); // 같은 적은 새 공명 없음
+            yield return new WaitForSeconds(2.12f); // 실제 2초 공명 창 종료
+            Assert.That(Metric(resonance, "ResonancePercent"), Is.Zero); // 새 적중이 없으면 초기화
+            above.SetActive(false); // 두 번의 연쇄를 독립 확인할 외부 대상만 유지
+            GameObject hopA = CloneStationaryTarget(enemies[0], center + direction * 4.5f + right * 3.25f + Vector3.up * 1.75f, 750); // 첫 직접 원뿔 밖의 연쇄 대상
+            GameObject hopB = CloneStationaryTarget(enemies[0], center + direction * 4.5f + right * 5.75f + Vector3.up * 2.65f, 750); // 첫 연쇄의 새 인접 대상
+            Physics.SyncTransforms(); // 서로 다른 높이와 거리의 실제 연쇄
+            skills.GetType().GetMethod("AddUltimate").Invoke(skills, new object[] { 100 }); // 실제 필살기 조건 충전
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 창공의 공명 실제 스킬
+            yield return WaitFrames(4); // 주 파동과 두 번의 피해 전파
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // R 사용이 반복되지 않도록 키 해제
+            Assert.That(Metric(skills, "Ultimate"), Is.Zero); // 에너지 100의 실제 소모
+            Assert.That(Metric(first.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(480)); // 직접 파동에 140 피해 한 번
+            Assert.That(Metric(second.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(480)); // 두 번째 직접 대상에도 중복 전파 없음
+            Assert.That(Metric(hopA.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(720)); // 첫 연쇄의 별도 피해 30
+            Assert.That(Metric(hopB.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(720)); // 두 번째 다른 적의 별도 피해 30
+            Assert.That(Metric(resonance, "ResonancePercent"), Is.EqualTo(30)); // 네 대상 적중에서도 공명 30% 상한
+            first.SetActive(false); // 단일 보스 조건에서 다른 적을 제외
+            second.SetActive(false); // 현재 원뿔의 다른 시작 후보 제거
+            hopA.SetActive(false); // 첫 연쇄의 편향을 없앰
+            hopB.SetActive(false); // 두 번째 연쇄의 편향을 없앰
+            Component bossSource = System.Array.Find(enemies, enemy => enemy.GetType().GetProperty("LootTier").GetValue(enemy).ToString() == "MidBoss"); // 실전 중간 보스의 실제 충돌 원본
+            GameObject boss = CloneStationaryTarget(bossSource, center + direction * 7f + Vector3.up, 750); // 다른 표적이 없는 단일 보스
+            Physics.SyncTransforms(); // 보스의 실제 고도 좌표
+            var cast = resonance.GetType().GetMethod("CastWave", hidden); // 같은 실제 스킬에서 쓰는 최종 물리 경로
+            Assert.That(cast.Invoke(resonance, new object[] { true }), Is.True); // 단일 상대에게 시전 성공
+            Assert.That(Metric(boss.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(610)); // 두 추가 연쇄가 같은 보스를 다시 맞히지 않음
+            Assert.That(pilot.Find("IrisChainLinks").GetComponent<LineRenderer>().enabled, Is.False); // 단일 적에 허위 연쇄 선 표시 없음
+            Object.Destroy(boss); // 실제 보스 시험 상태 정리
+            Object.Destroy(first); // 직접 시전 표적 정리
+            Object.Destroy(second); // 높이가 다른 두 번째 적 정리
+            Object.Destroy(above); // 원뿔 밖의 적 정리
+            Object.Destroy(hopA); // 첫 연쇄 대상 정리
+            Object.Destroy(hopB); // 두 번째 연쇄 대상 정리
+        }
+
         [UnityTest] // 베라의 한 포대 설치와 포대에서 시작하는 광선
         public IEnumerator VeraSortieTurretStaysPlacedAndGatesBeam() // 미설치·설치·이동·교체·만료의 실제 스킬
         {

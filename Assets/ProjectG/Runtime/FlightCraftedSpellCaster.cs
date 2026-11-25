@@ -126,6 +126,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     shot.SetMeleeSource(weapon.Sword); // 실제 적과의 거리로 제작 마법 피해 조정
                 }
+                else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 실제 전투에서 이리스가 사용한 제작 마법
+                {
+                    shot.SetResonance(weapon.Resonance); // 마법 카드의 유효 적중도 공명에 합산
+                }
                 active.Add(shot); // 동시 활성 개수 검사에 반영
                 emissions.Enqueue(now); // 초당 생성 검사에 반영
             }

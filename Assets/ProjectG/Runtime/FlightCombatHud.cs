@@ -173,7 +173,11 @@ namespace ProjectG // 프로젝트 게임 영역
             bool vera = currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Vera; // 현재 살아 있는 포대의 조종사
             FlightVeraTurret turret = vera ? currentWeapon.Turret : null; // 포대 상태를 읽는 실제 오브젝트
             bool hasTurret = turret != null && turret.IsDeployed; // 필살기의 설치 선행 조건
-            if (vera) // 베라에게 보이는 포대 상태와 근처 보너스
+            if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Iris && currentWeapon.Resonance != null) // 이리스가 적중으로 쌓은 현재 상태
+            {
+                rapidLabel.text = $"공명 범위 +{currentWeapon.Resonance.ResonancePercent}%"; // 최근 서로 다른 대상의 실제 범위 보너스
+            }
+            else if (vera) // 베라에게 보이는 포대 상태와 근처 보너스
             {
                 rapidLabel.text = hasTurret ? $"포대 {turret.SecondsLeft}초{(turret.DamageMultiplier > 1f ? "  +20%" : "")}" : "포대 미설치"; // 실제 남은 시간과 반경 안 자동탄 보너스
             }

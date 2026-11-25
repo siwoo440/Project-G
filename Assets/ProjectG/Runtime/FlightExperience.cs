@@ -31,6 +31,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private int experience; // 현재 레벨에서 누적한 경험치
 
         public event System.Action<int, int> LeveledUp; // 상승한 수와 새 레벨로 선택 창 예약
+        public int Level => level; // 결과에 표시할 마지막 출격 레벨
 
         private void OnEnable() // 씬에 지정한 마물 처치 연결
         {

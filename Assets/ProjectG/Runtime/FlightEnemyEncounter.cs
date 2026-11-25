@@ -180,7 +180,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 최종 시간을 보존
             }
-            TotalSeconds += Time.unscaledDeltaTime; // 정지와 카드 선택을 포함한 시간
+            TotalSeconds += Mathf.Max(Time.unscaledDeltaTime, Time.deltaTime); // 전투와 정지 시간을 모두 포함
             if (Time.timeScale == 0f) // 메뉴와 보상 선택 중
             {
                 return; // 전투 시간과 자동 출현은 정지

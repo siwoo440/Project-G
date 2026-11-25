@@ -22,8 +22,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private float orbitYaw; // 둘러보기의 좌우 각도
         private float orbitPitch; // 둘러보기의 상하 각도
         private float sensitivityScale = 1f; // 게임 설정의 마우스 회전 배율
+        private bool sortieEnded; // 종료 안내에서 비행과 커서 재잠금 차단
 
-        public bool CanFly => vitals == null || !vitals.IsDefeated; // 출격 조작 가능 상태
+        public bool CanFly => !sortieEnded && (vitals == null || !vitals.IsDefeated); // 실제 출격 조작 가능 상태
         public bool IsFocusHeld { get; private set; } // 현재 집중 비행 입력
         public bool IsFreeLooking { get; private set; } // 현재 독립 시점 입력
         public bool PointerCapturedThisFrame { get; private set; } // 커서 재잠금 클릭 소비
@@ -52,6 +53,11 @@ namespace ProjectG // 프로젝트 게임 영역
         public void SetSensitivityScale(float scale) // 게임 설정의 마우스 감도
         {
             sensitivityScale = Mathf.Clamp(scale, 0.25f, 2f); // 설정에서 지원하는 감도 범위
+        }
+
+        internal void SetSortieEnded(bool ended) // 결과 확인 또는 같은 씬의 새 출격
+        {
+            sortieEnded = ended; // 현재 카메라와 비행 입력 상태
         }
         private void OnEnable() // 시험 씬 입력 시작
         {

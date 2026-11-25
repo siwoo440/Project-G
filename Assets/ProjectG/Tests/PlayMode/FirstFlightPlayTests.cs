@@ -1460,10 +1460,21 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(5); // 종료와 화면 정리 후 프레임
             Assert.That((bool)timeline.GetType().GetProperty("IsStageComplete").GetValue(timeline), Is.True); // 최종 격파가 출격 완료를 결정
             Assert.That(StageTime(timeline, "ElapsedSeconds"), Is.EqualTo(finished)); // 결과 이후 시계 정지
+            Assert.That(StageTime(timeline, "TotalSeconds"), Is.GreaterThanOrEqualTo(finished)); // 전체 시계에 전투 시간 포함
             Assert.That(Metric(rewards, "Ultimate"), Is.EqualTo(previousUltimate + 20)); // 최종 보스 에너지 한 번 지급
             Assert.That(Metric(drops, "ActiveCount"), Is.EqualTo(previousDrops)); // 최종 강화 아이템 미지급
             Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 마지막 페이즈 적탄 회수
             Assert.That(hud.gameObject.activeSelf, Is.False); // 완료 뒤 HUD 숨김
+            Transform completed = LocateCombatHud().transform.Find("SortieEnd"); // 최종 보스 격파에서 켜지는 결과 진입
+            Assert.That(completed.gameObject.activeSelf, Is.True); // 결과 버튼의 실제 전투 조건
+            ClickPauseButton(completed, "Open"); // 클리어한 출격 결과 이동
+            yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 기존 전투와 분리한 결과
+            Transform result = GameObject.Find("SortieResult").transform; // 실제 결과 하이러키
+            Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 완료")); // 실패와 다른 실제 성공 표시
+            Assert.That(long.Parse(HudText(result.Find("Panel/Score")), System.Globalization.NumberStyles.Number), Is.GreaterThan(0)); // 최종 격파의 실제 점수 전달
+            ClickPauseButton(result, "Panel/Title"); // 결과에서 메인 화면 복귀
+            yield return WaitForActiveScene("Assets/Scenes/FlightMainMenu.unity"); // 메인 씬의 정상 전환
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FlightMainMenu")); // 기존 전투 대신 메인 화면 표시
         }
 
         [UnityTest] // 보스의 교대 패턴과 공격 후 약점
@@ -1877,6 +1888,37 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                     System.Environment.SetEnvironmentVariable(flags[i], original[i]); // 사용자 설정 분리 유지
                 }
             }
+        }
+
+        [UnityTest] // 실패 결과와 같은 캐릭터의 새 출격
+        public IEnumerator SortieResultRetriesSamePilotAndClearsOldCombatState() // 전투 → 결과 → 재출격
+        {
+            yield return LoadOuterIslands(); // 정상 출격 항로
+            yield return SelectRian(); // 실제 리안 전투 프로필
+            Component vitals = FindPilot().GetComponent("FlightPilotVitals"); // 실제 체력과 피격
+            var hit = vitals.GetType().GetMethod("ResolveThreat", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 탄환의 실제 피격 처리
+            hit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, 0.1f, 120, false, false }); // 초기 체력을 넘어서는 단일 시험 피격
+            yield return WaitFrames(4); // 실패 상태와 HUD 갱신
+            Assert.That(Metric(vitals, "Health"), Is.Zero); // 테스트가 실제 실패 상태에 도달
+            Transform hud = LocateCombatHud().transform; // 실제 출격 HUD
+            Transform finished = hud.Find("SortieEnd"); // 실패 후 결과 확인 화면
+            Assert.That(finished, Is.Not.Null); // 실제 씬에 편집된 결과 열기
+            Assert.That(finished.gameObject.activeSelf, Is.True); // 사망한 출격에 결과 화면 표시
+            ClickPauseButton(finished, "Open"); // 화면에서 결과로 이동
+            const string resultPath = "Assets/Scenes/FlightSortieResult.unity"; // 별도의 결과 씬
+            yield return WaitForActiveScene(resultPath); // 실제 씬을 완전히 열기
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(resultPath)); // 다른 씬으로 이동 확인
+            Transform result = GameObject.Find("SortieResult").transform; // 실제 편집한 결과 오브젝트
+            Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 실패")); // 실패와 승리 구분
+            Assert.That(HudText(result.Find("Panel/Pilot")), Does.Contain("리안")); // 끝난 같은 캐릭터
+            ClickPauseButton(result, "Panel/Retry"); // 기존 조합으로 즉시 재출격
+            yield return WaitForActiveScene(OuterIslandsPath); // 같은 항로를 새로운 런으로 시작
+            Transform pilot = FindPilot(); // 재출격에서 새로 만들어진 캐릭터
+            Assert.That(Metric(pilot.GetComponent("FlightPilotVitals"), "Health"), Is.EqualTo(100)); // 실패 전의 체력 상태 초기화
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 리안의 실제 슬롯과 조준
+            Assert.That(weapon.GetType().GetProperty("IsRian").GetValue(weapon), Is.True); // 같은 조종사로 재출격
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 결과 전환에서 제거한 일시정지 상태
+            Assert.That(LocateCombatHud().transform.Find("SortieEnd").gameObject.activeSelf, Is.False); // 이전 결과 화면 제거
         }
 
         private static IEnumerator WaitForActiveScene(string scenePath) // 프레임 수에 의존하지 않는 씬 전환 확인

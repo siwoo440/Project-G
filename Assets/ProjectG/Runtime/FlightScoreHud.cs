@@ -22,6 +22,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private int activeCount; // 현재 수명이 남은 숫자 개수
 
         public long Total { get; private set; } // 이번 출격의 누적 점수
+        public int DefeatCount { get; private set; } // 결과에 표시할 실제 격파 마물 수
 
         private void Awake() // 씬에 배치한 각 획득 숫자의 시작 위치 보관
         {
@@ -61,6 +62,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void ResetRun() // 출격을 다시 시작할 때 점수 초기화
         {
             Total = 0; // 새 출격의 합계
+            DefeatCount = 0; // 새 출격의 실제 격파 수 초기화
             totalLabel.text = "점수 0"; // 화면 합계 초기화
             nextSlot = 0; // 첫 표시 슬롯으로 복귀
             activeCount = 0; // 이전 출격의 표시 수 제거
@@ -72,6 +74,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnDefeated(FlightEnemy enemy) // 등록된 적의 처치 보상
         {
+            DefeatCount++; // 결과에서 표시할 실제 마물 수
             Award(defeatPoints); // 적 처치 시험 점수
         }
 

@@ -91,7 +91,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public float PickupScale => 1f + 0.20f * Rank(Reward.Magnet); // 자석의 획득 반경
         public float WeakRatio => Rank(Reward.Weak) > 0 ? 0.65f : 0.5f; // 리안의 약점 첫 노드
         public float RapidHold => Rank(Reward.SlowDecay) > 0 ? 3f : 2f; // 아리아의 누적 유지
-        public bool HasFan => Rank(Reward.Fan) > 0; // E 교체 효과
+        public bool HasFan => Rank(Reward.Fan) > 0 || FlightProgress.Current.GetCommonFan(weapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 출격 카드 또는 마을의 공용 산탄 장착
         public int AutoPierce => (int)Total(FlightEnhancementKind.Pierce, FlightEnhancements.PierceLimit); // 최대 3명의 추가 관통
         public int DroneRank => Rank(Reward.Drone); // 장착한 보조 드론 슬롯
         public int BladeRank => Rank(Reward.Blade); // 장착한 두 번째 보조 슬롯
@@ -148,6 +148,16 @@ namespace ProjectG // 프로젝트 게임 영역
             experience.LeveledUp += QueueChoices; // 1레벨마다 보상 선택 예약
         }
 
+        private void Start() // 출격 준비에서 선택한 공용기 아이콘 적용
+        {
+            RefreshCommonSkill(); // 현재 조종사의 실제 E 상태
+        }
+
+        internal void RefreshCommonSkill() // 출격 또는 시험 캐릭터 전환
+        {
+            hud.SetFanSkill(HasFan ? icons[0] : null); // 산탄 또는 기존 보호막 이미지
+        }
+
         private void OnDisable() // 씬을 나갈 때 정지와 마우스 복원
         {
             experience.LeveledUp -= QueueChoices; // 더 이상 새로운 선택 없음
@@ -159,7 +169,7 @@ namespace ProjectG // 프로젝트 게임 영역
             System.Array.Clear(ranks, 0, ranks.Length); // 이전 강화 단계 초기화
             pending = 0; // 남겨 둔 이전 보상 취소
             picked = -1; // 이전 입력 제거
-            hud.SetFanSkill(null); // 원래 보호막 그림으로 복구
+            RefreshCommonSkill(); // 같은 조종사의 영구 장착으로 복구
             Resume(); // 정지 전 시간으로 복원
         }
 
@@ -233,6 +243,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 Reward.Cadence => CadenceScale > 0.6001f, // 발사 간격에 여유
                 Reward.Cycle => CooldownScale > 0.6001f, // 고유기 쿨타임에 여유
                 Reward.Pierce or Reward.SniperPierce => AutoPierce < FlightEnhancements.PierceLimit, // 추가 관통에 여유
+                Reward.Fan => !HasFan, // 이미 산탄을 쓰는 조종사에게 같은 교체 제외
                 _ => true // 다른 종류의 독립 효과
             };
         }

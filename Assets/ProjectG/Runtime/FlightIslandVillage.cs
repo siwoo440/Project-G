@@ -19,6 +19,8 @@ namespace ProjectG // 프로젝트 하늘섬 마을
         [SerializeField] private FlightBindings bindings; // 전투와 같이 저장한 기본 이동 키
         [SerializeField] private Text locality; // 현재 구역과 플레이어 이동 안내
         [SerializeField] private Button boarding; // 출격소 주변에서만 나타나는 실제 버튼
+        [SerializeField] private Text actionLabel; // 현재 시설에 맞는 상호작용 이름
+        [SerializeField] private FlightVillageFacilities facilities; // 장비 상점과 강화 공방의 실행 패널
         [SerializeField] private LayerMask walkable = 1 << 8; // 섬과 다리 보행 가능 레이어
         [SerializeField, Min(0.1f)] private float speed = 7.25f; // 마을 도보 이동 속도
         [SerializeField, Min(0.1f)] private float interactionRadius = 3.2f; // 출격소 조작 거리
@@ -27,6 +29,8 @@ namespace ProjectG // 프로젝트 하늘섬 마을
         private Vector3 avatarRest; // 걷는 외형의 기준 높이
         private bool movingScene; // 중복 씬 전환 방지
         private bool canBoard; // 현재 위치에서 실제 출격소 접근
+        private bool canShop; // 현재 위치에서 실제 장비 상점 접근
+        private bool canForge; // 현재 위치에서 실제 공방 접근
         private float gait; // 발걸음 높이의 반복 위상
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] // 연속 에디터 플레이의 복귀 지점 초기화
@@ -65,6 +69,14 @@ namespace ProjectG // 프로젝트 하늘섬 마을
             {
                 return; // 기존 화면의 추가 입력 방지
             }
+            if (facilities.IsOpen) // 매장을 조작하는 중 마을 이동 입력 중지
+            {
+                if (keyboard.escapeKey.wasPressedThisFrame) // 매장에서만 닫기로 작동
+                {
+                    facilities.Close(); // 타이틀로 나가지 않고 바로 시설 앞으로 복귀
+                }
+                return; // 뒤에 있는 이동과 입장 처리 차단
+            }
             if (keyboard.escapeKey.wasPressedThisFrame) // 마을에서 메인으로 돌아가기
             {
                 movingScene = true; // 사용자 조작 한 번으로 제한
@@ -76,7 +88,7 @@ namespace ProjectG // 프로젝트 하늘섬 마을
             RefreshLocation(); // 도착한 구역의 이름과 출격 버튼 정리
             if (keyboard.eKey.wasPressedThisFrame) // 가까운 출격소와 실제 상호작용
             {
-                Board(); // 버튼과 같은 시설 동작
+                Board(); // 현재 시설의 입장 버튼과 같은 동작
             }
         }
 
@@ -135,14 +147,28 @@ namespace ProjectG // 프로젝트 하늘섬 마을
         {
             Vector3 position = walker.transform.position; // 실제 보행자의 위치
             canBoard = Vector3.Distance(position, station.position) <= interactionRadius; // 출격소 조작의 실제 유효 거리
-            boarding.gameObject.SetActive(canBoard); // 가까울 때 E 설명과 클릭 표시
-            locality.text = canBoard ? "출격소" : Vector3.Distance(position, market.position) < 9f ? "장비 상점" // 지금 진입한 실제 마을 구역
-                : Vector3.Distance(position, workshop.position) < 9f ? "강화 공방" : position.z < -5f ? "착륙장" : "중앙 광장"; // 시설과 광장의 위치
+            float marketDistance = Vector3.Distance(position, market.position); // 장비 상점의 실제 접근
+            float forgeDistance = Vector3.Distance(position, workshop.position); // 공방의 실제 접근
+            canShop = marketDistance <= interactionRadius; // 가까운 장비 상점만 이용
+            canForge = forgeDistance <= interactionRadius; // 가까운 공방만 이용
+            boarding.gameObject.SetActive(canBoard || canShop || canForge); // 세 건물 중 가까운 시설의 조작
+            actionLabel.text = canBoard ? "E  출격 준비" : canShop ? "E  장비 상점" : "E  강화 공방"; // 같은 키로 서로 다른 시설 입장
+            locality.text = canBoard ? "출격소" : marketDistance < 9f ? "장비 상점" // 지금 진입한 실제 마을 구역
+                : forgeDistance < 9f ? "강화 공방" : position.z < -5f ? "착륙장" : "중앙 광장"; // 시설과 광장의 위치
         }
 
         private void Board() // 출격소에서 준비 화면 열기
         {
-            if (movingScene || !canBoard) // 유효한 상호작용 범위와 한 번의 버튼
+            if (movingScene || facilities.IsOpen) // 유효한 상호작용은 한 번만
+            {
+                return; // 화면을 여는 중 중복 방지
+            }
+            if (canShop || canForge) // 해당 건물의 실제 이동 위치에서만
+            {
+                facilities.Open(canShop); // 장비 상점과 강화 공방 중 가까운 시설
+                return; // 현재 위치와 마을 상태 유지
+            }
+            if (!canBoard) // 출격소의 실제 상호작용 범위
             {
                 return; // 먼 위치의 E 입력 제외
             }

@@ -14,6 +14,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public bool Recovered; // 강제 종료 뒤 실패로 복원한 출격
         public int Mastery; // 이번 출격의 숙련도 증가
         public int Crystals; // 이번 출격의 공통 천공 결정 증가
+        public int Gold; // 이번 출격의 골드 지급량
         public int Marks; // 이번 출격의 조종사 조율의 증표 증가
     }
 
@@ -24,6 +25,15 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         {
             public int mastery; // 경계 보상 산정에 쓰는 누적 숙련도
             public int marks; // 보유한 해당 캐릭터 전용 재료
+            public bool commonFan; // 마을에서 장착한 산탄 공용 스킬
+        }
+
+        [Serializable] // 상점에서 구매하거나 공방에서 강화한 개별 부품
+        private sealed class BroomProgress // 기존 보유 ID와 결합한 영구 데이터
+        {
+            public string id; // 같은 종류에서도 고정된 개별 ID
+            public bool purchased; // 상점에서 구입한 보유 권한
+            public int upgrade; // 실제 공방에서 강화한 단계
         }
 
         [Serializable] // 한 번에 교체하는 단일 저장 스냅샷
@@ -31,20 +41,25 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         {
             public int version = 1; // 첫 3D 영구 성장 저장 형식
             public int crystals; // 모든 조종사의 공용 천공 결정
+            public int gold; // 모든 조종사의 공용 골드
             public PilotProgress[] pilots = new PilotProgress[Enum.GetValues(typeof(FlightBroomPilot)).Length]; // 열거형 순서의 캐릭터별 성장
             public string pendingId; // 실제 참여 후 정산 전인 출격 ID
             public FlightBroomPilot pendingPilot; // 중단 출격을 복구할 캐릭터
             public FlightProgressReceipt recent; // 마지막 지급의 중복 요청 확인
             public string[] unlocks = { "pilot.aria", "pilot.rian" }; // 기존 출격 선택에서 제공하는 기본 해금
+            public BroomProgress[] brooms = Array.Empty<BroomProgress>(); // 시작 부품 이후 추가한 개별 보유와 강화 내역
         }
 
         private const int MarkInterval = 60; // 전용 재료의 시험 숙련도 간격
+        private static readonly int[] ShopPrices = { 900, 1800, 3000 }; // 일반·고급·희귀 부품의 기획 상점가
+        private static readonly (int Crystals, int Gold)[] ForgePrices = { (3, 300), (4, 450), (5, 600), (7, 800), (9, 1100) }; // +1부터 +5까지 목표 단계 비용
         private readonly string path; // 단일 영구 저장 원본
         private FileStream ownership; // 같은 프로필에서 다른 실행의 쓰기 차단
         private bool primaryUnreadable; // 복구용 사본을 그대로 보호할 상태
         private Save state = Empty(); // 저장된 확정 상태와 메모리 시험 기본값
         public string Error { get; private set; } // 결과와 타이틀에 표시할 저장 오류
         public int SharedCrystals => state.crystals; // 프로필의 공통 재료
+        public int Gold => state.gold; // 공방과 장비 상점에 쓰는 실제 골드
         public string PendingId => state.pendingId; // 아직 보상 지급이 없는 출격
 
         public FlightProgressStore(string filePath) // 보존할 파일 또는 격리 메모리 모드
@@ -83,6 +98,69 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int GetMastery(FlightBroomPilot pilot) => state.pilots[(int)pilot].mastery; // 현재 캐릭터 누적 숙련도
         public int GetMarks(FlightBroomPilot pilot) => state.pilots[(int)pilot].marks; // 현재 캐릭터 전용 재료
         public bool HasUnlock(string id) => Array.IndexOf(state.unlocks, id) >= 0; // 실제로 저장된 영구 선택지
+        internal bool GetCommonFan(FlightBroomPilot pilot) => state.pilots[(int)pilot].commonFan; // 캐릭터별 현재 공용 스킬
+        internal bool OwnsBroomPart(string id) => FindBroom(state, id)?.purchased == true; // 상점에서 산 실제 개별 보유
+        internal int BroomUpgrade(string id, int initial) => FindBroom(state, id)?.upgrade ?? initial; // 시작 부품과 강화한 부품의 실제 단계
+
+        internal static int ShopPrice(int grade) => grade >= 1 && grade <= ShopPrices.Length ? ShopPrices[grade - 1] : 0; // 세 판매 등급의 가격
+
+        internal static (int Crystals, int Gold) ForgePrice(int currentLevel) // 다음 목표 단계의 실제 비용
+        {
+            return currentLevel >= 0 && currentLevel < ForgePrices.Length ? ForgePrices[currentLevel] : default; // +5 이후의 요청 금지
+        }
+
+        internal bool SetCommonFan(FlightBroomPilot pilot, bool fan) // 보호막과 산탄의 영구 교체
+        {
+            if (GetCommonFan(pilot) == fan) // 이미 현재 선택을 장착함
+            {
+                return true; // 같은 조작의 중복 저장 제외
+            }
+            Save next = Copy(); // 기존 프로필과 재화 상태 보존
+            next.pilots[(int)pilot].commonFan = fan; // 선택한 조종사에만 반영
+            return Write(next); // 저장 성공과 실제 적용을 함께 전달
+        }
+
+        internal bool BuyBroomPart(string id, int grade) // 마을 상점의 개인 보유 및 골드 확정
+        {
+            int price = ShopPrice(grade); // 현재 상점의 기획 가격
+            if (price <= 0 || state.gold < price || string.IsNullOrEmpty(id) || OwnsBroomPart(id)) // 미지원 부품·재화 부족·중복 구매 금지
+            {
+                return false; // 재화 또는 기존 부품 상태 유지
+            }
+            Save next = Copy(); // 구매 전의 기존 자산 보호
+            BroomProgress item = EnsureBroom(next, id); // 같은 종류에서도 실제 개별 보유 식별
+            item.purchased = true; // 공용 인벤토리에서 조회할 소유권
+            next.gold -= price; // 골드와 보유 권한을 한 파일로 저장
+            return Write(next); // 실제 기록을 마친 지급
+        }
+
+        internal bool UpgradeBroomPart(string id, int currentLevel) // 개별 장착 부품 강화 비용과 단계 확정
+        {
+            var cost = ForgePrice(currentLevel); // 상한까지의 결정과 골드
+            if (string.IsNullOrEmpty(id) || cost.Gold <= 0 || BroomUpgrade(id, currentLevel) != currentLevel || state.crystals < cost.Crystals || state.gold < cost.Gold) // 최신 부품의 부족 재화와 오래된 입력 차단
+            {
+                return false; // 기존 부품과 재화 보존
+            }
+            Save next = Copy(); // 두 종류 비용과 능력치가 같은 파일에 반영
+            EnsureBroom(next, id).upgrade = currentLevel + 1; // 유효한 현재 부품의 다음 단계
+            next.crystals -= cost.Crystals; // 결정 소모
+            next.gold -= cost.Gold; // 골드 소모
+            return Write(next); // 비용과 강화 단계의 실제 저장
+        }
+
+        private static BroomProgress FindBroom(Save profile, string id) => Array.Find(profile.brooms, value => value.id == id); // 저장된 동일 개별 ID
+
+        private static BroomProgress EnsureBroom(Save profile, string id) // 처음 구매하거나 강화하는 개별 부품
+        {
+            BroomProgress part = FindBroom(profile, id); // 기존 부품의 현재 업그레이드 확인
+            if (part == null) // 이전 저장에 변경 내역이 없었던 부품
+            {
+                part = new BroomProgress { id = id }; // 개별 부품의 영구 저장 항목
+                Array.Resize(ref profile.brooms, profile.brooms.Length + 1); // 기존 내역이 보존되는 배열 확장
+                profile.brooms[profile.brooms.Length - 1] = part; // 새로운 변경 내역 등록
+            }
+            return part; // 구입 또는 강화의 공용 값
+        }
 
         public string Begin(FlightBroomPilot pilot) // 첫 전투 진입을 파일에 먼저 확정
         {
@@ -130,12 +208,14 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 Cleared = cleared, // 최종 보스 격파 구분
                 Recovered = recovered, // 재실행 후 실패 정산 표시
                 Mastery = cleared ? 20 : 10, // 참여 10과 성공 시 추가 10
-                Crystals = cleared ? 6 : 3 // 성공 6 또는 기본 참여 3
+                Crystals = cleared ? 6 : 3, // 성공 6 또는 기본 참여 3
+                Gold = cleared ? 600 : 150 // 기획서의 기본 난이도 클리어·참여 골드
             };
             progress.mastery += receipt.Mastery; // 이번 출격의 캐릭터별 참여 숙련도
             receipt.Marks = progress.mastery / MarkInterval - oldSteps; // 실제 새로 달성한 60 경계 수
             progress.marks += receipt.Marks; // 캐릭터 전용 증표 누적
             next.crystals += receipt.Crystals; // 모든 캐릭터에서 공용 재료 증가
+            next.gold += receipt.Gold; // 출격 ID당 한 번만 골드 지급
             next.recent = receipt; // 중복 정산 확인용 최근 영수증
             next.pendingId = null; // 기록과 보상을 한 번에 확정
             return Write(next) ? receipt : null; // 성공한 파일 교체에만 영수증 제공
@@ -164,7 +244,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             try // 깨진 JSON과 부분 파일 검증
             {
                 Save saved = JsonUtility.FromJson<Save>(File.ReadAllText(file, Encoding.UTF8)); // UTF-8 정산 내용 읽기
-                if (saved == null || saved.version != 1 || saved.crystals < 0 || saved.unlocks == null // 알려진 형식과 재화 범위
+                if (saved == null || saved.version != 1 || saved.crystals < 0 || saved.gold < 0 || saved.unlocks == null // 알려진 형식과 재화 범위
                     || saved.pilots?.Length != Enum.GetValues(typeof(FlightBroomPilot)).Length // 캐릭터 배열의 예상 범위
                     || (!string.IsNullOrEmpty(saved.pendingId) && (!Guid.TryParseExact(saved.pendingId, "N", out _) || !ValidPilot(saved.pendingPilot)))) // 복구할 ID·조종사 유효성
                 {
@@ -176,6 +256,11 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                     {
                         return null; // 복구 사본 확인을 요청
                     }
+                }
+                saved.brooms ??= Array.Empty<BroomProgress>(); // 26~29일차의 골드 없는 기존 프로필을 보존
+                if (Array.Exists(saved.brooms, part => part == null || string.IsNullOrEmpty(part.id) || part.upgrade < 0 || part.upgrade > 5)) // 개별 저장의 허용 강화 범위
+                {
+                    return null; // 잘못된 부품 정보를 덮어쓰지 않고 이전 저장 검색
                 }
                 return saved; // 읽을 수 있는 기존 확정본
             }

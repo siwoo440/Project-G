@@ -61,7 +61,7 @@ namespace ProjectG // 프로젝트 게임 영역
             grazes.text = report.Grazes.ToString(); // 실제 스침 수
             level.text = $"LV. {report.Level}"; // 종료 시에 확정된 레벨
             FlightProgressReceipt receipt = report.Receipt; // 실제로 저장을 끝낸 출격 영수증
-            rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   천공 결정 +{receipt.Crystals}   ·   조율의 증표 +{receipt.Marks}" // 지급된 보상
+            rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   조율의 증표 +{receipt.Marks}\n천공 결정 +{receipt.Crystals}   ·   골드 +{receipt.Gold}" // 조종사 보상과 공방 재화
                 : FlightProgress.Current.Error ?? "전투 참여 보상 없음"; // 실패한 저장 또는 참여 전 종료
         }
 

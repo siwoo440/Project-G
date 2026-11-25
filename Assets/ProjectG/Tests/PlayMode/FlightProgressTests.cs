@@ -28,6 +28,7 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
                     Assert.That(Call(type, store, "Complete", run, true), Is.Not.Null); // 클리어 최초 지급 확인
                     Assert.That(Call(type, store, "Complete", run, false), Is.Not.Null); // 동일 ID에 기존 영수증 반환
                     Assert.That(Crystals(type, store), Is.EqualTo(6)); // 중복으로 공통 재료가 오르지 않음
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.EqualTo(600)); // 클리어와 같은 ID에 골드는 한 번만 지급
                     Assert.That(Call(type, store, "GetMastery", aria), Is.EqualTo(20)); // 참여 및 클리어 숙련도
                     Assert.That(Call(type, store, "GetMastery", rian), Is.Zero); // 다른 조종사의 숙련도 유지
                     interrupted = (string)Call(type, store, "Begin", rian); // 보스 격파 전 앱 종료 가정
@@ -39,6 +40,7 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
                     Assert.That(Call(type, store, "Recover"), Is.Null); // 같은 중단 출격의 중복 보상 방지
                     Assert.That(Call(type, store, "GetMastery", rian), Is.EqualTo(10)); // 리안의 기본 참여 숙련도
                     Assert.That(Crystals(type, store), Is.EqualTo(9)); // 실패 이후 공통 재료 합계
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.EqualTo(750)); // 복구 시 실패 기본분 150만 한 번 지급
                     for (int i = 0; i < 2; i++) // 누적 숙련도 60의 경계 통과
                     {
                         string run = (string)Call(type, store, "Begin", aria); // 아리아의 새 출격 ID
@@ -69,9 +71,63 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
             }
         }
 
+        [Test] // 마을 재화와 장비 교체의 영구 진행
+        public void VillagePurchaseAndUpgradePersistWithExactCosts() // 부족·중복·강화 수치와 공용 스킬
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp"); // 실제 파일 저장 형식
+            var purchase = type.GetMethod("BuyBroomPart", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 게임 내부 구매 규칙
+            Assert.That(purchase, Is.Not.Null); // 시험 UI의 숫자가 아닌 실제 구매 API
+            string dir = Path.Combine(Application.temporaryCachePath, "Village-" + Guid.NewGuid().ToString("N")); // 사용자 파일과 격리
+            string path = Path.Combine(dir, "progress.json"); // 양쪽 실행이 공유할 실제 프로필
+            try // 새 저장과 두 번의 재열기
+            {
+                Type pilotType = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 게임 조종사 열거형
+                object aria = Enum.Parse(pilotType, "Aria"); // 장착을 바꿀 조종사
+                object rian = Enum.Parse(pilotType, "Rian"); // 독립적인 공용기 상태
+                const string item = "shop.harbor-grip:1"; // 상점의 첫 일반 부품 ID
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 마을에서 처음 연 프로필
+                {
+                    Assert.That(Call(type, store, "BuyBroomPart", item, 1), Is.False); // 골드가 없으면 지출 및 구매 금지
+                    for (int i = 0; i < 2; i++) // 기본 난이도 두 번의 클리어 정산
+                    {
+                        string id = (string)Call(type, store, "Begin", aria); // 실제 고유 출격으로 올린 재화
+                        Call(type, store, "Complete", id, true); // 천공 결정 6·골드 600
+                    }
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.EqualTo(1200)); // 클리어의 골드 규칙
+                    Assert.That(Call(type, store, "BuyBroomPart", item, 1), Is.True); // 일반 등급을 900골드로 구매
+                    Assert.That(Call(type, store, "BuyBroomPart", item, 1), Is.False); // 같은 보유 개체 중복 구매 차단
+                    Assert.That(Call(type, store, "UpgradeBroomPart", item, 0), Is.True); // 목표 +1의 실제 강화
+                    Assert.That(Call(type, store, "UpgradeBroomPart", item, 0), Is.False); // 오래된 단계 재전송 차단
+                    Assert.That(Call(type, store, "UpgradeBroomPart", item, 1), Is.False); // +2에 필요한 골드가 부족함
+                    Assert.That(Call(type, store, "SetCommonFan", aria, true), Is.True); // 보호막에서 산탄으로 영구 장착
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.Zero); // 두 동작의 정확한 비용 합
+                    Assert.That(Crystals(type, store), Is.EqualTo(9)); // 강화에 실제 결정 3개만 소모
+                }
+                using (var restored = (IDisposable)Activator.CreateInstance(type, path)) // 파일로부터 영구 상태 복원
+                {
+                    Assert.That(Call(type, restored, "OwnsBroomPart", item), Is.True); // 구입 후 계속 소유
+                    Assert.That(Call(type, restored, "BroomUpgrade", item, 0), Is.EqualTo(1)); // 강화 레벨 보존
+                    Assert.That(Call(type, restored, "GetCommonFan", aria), Is.True); // 구매와 독립된 스킬 장착 저장
+                    Assert.That(Call(type, restored, "GetCommonFan", rian), Is.False); // 다른 조종사의 보호막 유지
+                    Assert.That(type.GetProperty("Gold").GetValue(restored), Is.Zero); // 이전 금액 보존
+                }
+            }
+            finally // 현재 시험에서 만든 파일만 제거
+            {
+                if (Directory.Exists(dir)) // 이전 실제 저장 위치에는 영향 없음
+                {
+                    foreach (string file in Directory.GetFiles(dir)) // 정산과 파일 잠금의 시험 자료
+                    {
+                        File.Delete(file); // 임시 파일 삭제
+                    }
+                    Directory.Delete(dir); // 현재 시험 폴더 마무리
+                }
+            }
+        }
+
         private static object Call(Type type, object store, string method, params object[] supplied) // 실제 게임 어셈블리의 정산 호출
         {
-            return type.GetMethod(method).Invoke(store, supplied); // 참조 없는 테스트 조립과 연결
+            return type.GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Invoke(store, supplied); // 참조 없는 테스트 조립과 연결
         }
 
         private static int Crystals(Type type, object store) // 정산 전후에 비교할 공통 재료

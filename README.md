@@ -17,6 +17,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 착륙장에서 이동 키로 광장을 지나 북쪽 다리를 건넙니다. 출격소에 접근하면 **E** 또는 출격 준비 버튼으로 캐릭터와 장비를 선택할 수 있습니다. 준비에서 뒤로가기를 누르면 출격소 앞으로 돌아갑니다. 마을에서 Esc는 메인 화면으로 돌아갑니다. [착륙장](docs/screenshots/3d-day-29-landing.png) · [장비 상점](docs/screenshots/3d-day-29-market.png) · [강화 공방](docs/screenshots/3d-day-29-workshop.png) · [1024×576 출격소](docs/screenshots/3d-day-29-sortie-1024.png) · [29일차 기록](docs/development/3d-day-29.md)
 
+서쪽 장비 상점에서는 골드로 빗자루 부품을 사고 장착하거나 캐릭터별 E 스킬을 보호막·산탄으로 바꿀 수 있습니다. 동쪽 강화 공방에서는 장착 부품에 천공 결정과 골드를 사용해 최대 +5까지 강화합니다. 두 시설은 가까이에서 E로 열고 Esc로 닫습니다. [상점 UI](docs/screenshots/3d-day-30-market.png) · [공방 UI](docs/screenshots/3d-day-30-forge.png) · [1024×576 재실행 확인](docs/screenshots/3d-day-30-forge-1024.png) · [30일차 기록](docs/development/3d-day-30.md)
+
 ---
 ## 캐릭터 선택과 출격 준비
 

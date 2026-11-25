@@ -38,7 +38,7 @@ namespace ProjectG // 프로젝트 게임 영역
             EventSystem.current.sendNavigationEvents = false; // 키보드의 메뉴 클릭 중복 방지
             options.Initialize(); // 현재 환경 설정 읽기
             FlightProgressReceipt recovered = FlightProgress.Current.Recover(); // 이번 실행에서 미정산 출격만 한 번 복구
-            recoveredSortie.text = recovered != null ? $"중단 출격 정산\n숙련도 +{recovered.Mastery}   ·   천공 결정 +{recovered.Crystals}   ·   조율의 증표 +{recovered.Marks}" // 제목과 새로 지급한 참여 보상
+            recoveredSortie.text = recovered != null ? $"중단 출격 정산\n숙련도 +{recovered.Mastery}  ·  천공 결정 +{recovered.Crystals}  ·  골드 +{recovered.Gold}" // 제목과 새로 지급한 기본 참여 보상
                 : FlightProgress.Current.Error ?? string.Empty; // 저장 문제만 별도로 안내
             recoveredSortie.transform.parent.gameObject.SetActive(recoveredSortie.text.Length > 0); // 실제 복구 기록이나 저장 오류가 있을 때만 표시
             newGame.onClick.AddListener(NewGame); // 저장 여부에 따른 새 출격

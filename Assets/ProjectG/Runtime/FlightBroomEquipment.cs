@@ -70,23 +70,77 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 for (int copy = 1; copy <= definition.ownedCopies; copy++) // 같은 종류의 개별 보유 수량
                 {
-                    OwnedPart item = new OwnedPart // 개별 부품의 시작 정보
-                    {
-                        Id = $"{definition.id}:{copy}", // 고정 종류 ID와 순번
-                        Definition = definition, // 공통 부품 데이터
-                        Grade = definition.grade, // 시작 등급
-                        Upgrade = definition.upgrade // 시작 강화 단계
-                    };
-                    owned.Add(item.Id, item); // 개별 부품 등록
+                    OwnedPart item = AddOwned(definition, copy); // 보유 ID와 이전 강화 상태 등록
                     if (definition.starter && copy == 1) // 기본 조합에 첫 번째 부품 장착
                     {
                         Equip(item, (int)definition.pilot, (int)definition.slot); // 최초 캐릭터 장착
                     }
                 }
+                if (definition.stocked && FlightProgress.Current.OwnsBroomPart(definition.id + ":1") && !owned.ContainsKey(definition.id + ":1")) // 해당 판매 부품을 실제로 산 기록
+                {
+                    AddOwned(definition, 1); // 선택 화면·마을·실전이 같은 프로필에서 복원
+                }
             }
 
             RestoreLoadouts(); // 재실행 시 마지막으로 확정한 부품 적용
             ApplyLoadout(); // 첫 비행의 외형과 수치 적용
+        }
+
+        private OwnedPart AddOwned(FlightBroomPart definition, int copy) // 시작 부품과 상점 구입을 같은 목록에 등록
+        {
+            string id = $"{definition.id}:{copy}"; // 해당 종류의 개별 보유 ID
+            var item = new OwnedPart // UI와 비행이 함께 읽는 실제 부품
+            {
+                Id = id, // 각 보유 사본의 고정 ID
+                Definition = definition, // 재질과 능력치 정의
+                Grade = definition.grade, // 구매 또는 초기 보유 등급
+                Upgrade = FlightProgress.Current.BroomUpgrade(id, definition.upgrade) // 개별 부품의 확정 강화
+            };
+            owned.Add(item.Id, item); // 실제 장착에서 조회할 보유 목록
+            return item; // 시작 장착 또는 상점 구매에서 사용할 개체
+        }
+
+        internal void ListStock(List<FlightBroomPart> result) // 에디터에서 고른 상점 초기 재고
+        {
+            result.Clear(); // 화면을 다시 열 때 이전 조회를 제거
+            foreach (FlightBroomPart definition in catalog.Parts) // 현재 프로젝트의 유효한 부품
+            {
+                if (definition.stocked && FlightProgressStore.ShopPrice(definition.grade) > 0) // 일반·고급·희귀 등록 부품
+                {
+                    result.Add(definition); // 상점 화면의 구매 후보
+                }
+            }
+        }
+
+        internal bool IsOwned(string id) => owned.ContainsKey(id); // 실제 장착 가능한 인벤토리 조회
+
+        internal bool Purchase(FlightBroomPart definition) // 전용 재고 한 개를 골드로 구입
+        {
+            string id = definition.id + ":1"; // 같은 상점 등록 부품의 개별 ID
+            if (!definition.stocked || owned.ContainsKey(id) || !FlightProgress.Current.BuyBroomPart(id, definition.grade)) // 현재 재고·보유·재화 검증
+            {
+                return false; // 가격과 장착 변경 없이 이전 화면
+            }
+            AddOwned(definition, 1); // 같은 실행에서도 장착 가능
+            return true; // 실제 영구 저장 성공
+        }
+
+        internal PartOption? CurrentPart(FlightBroomSlot slot) // 공방이 선택한 장착 부품 조회
+        {
+            OwnedPart item = equipped[(int)ActivePilot, (int)slot]; // 현재 조종사의 실제 장착 슬롯
+            return item == null ? null : new PartOption(item.Id, item.Definition.displayName, item.Grade, item.Upgrade, item.Owner, Mathf.Max(1, item.Definition.ownedCopies)); // 구입한 사본을 포함한 보유 정보
+        }
+
+        internal bool Enhance(FlightBroomSlot slot) // 현재 장착 부품의 단계와 비용 갱신
+        {
+            OwnedPart item = equipped[(int)ActivePilot, (int)slot]; // 현재 공방에서 고른 실제 부품
+            if (item == null || !FlightProgress.Current.UpgradeBroomPart(item.Id, item.Upgrade)) // 재화 및 최대 +5 검증과 저장
+            {
+                return false; // 미장착·저장 문제·재화 부족에서 변동 없음
+            }
+            item.Upgrade++; // 실제 구입한 개별 아이템의 다음 단계
+            ApplyLoadout(); // 같은 실행에서도 능력치와 외형 갱신
+            return true; // 저장된 강화 적용
         }
 
         public bool TryEquip(FlightBroomPilot pilot, FlightBroomSlot slot, string ownedId) // 지정 부위로 개별 부품 교체
@@ -159,7 +213,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 if (item.Definition.slot == slot) // 현재 보고 있는 부위
                 {
-                    result.Add(new PartOption(item.Id, item.Definition.displayName, item.Grade, item.Upgrade, item.Owner, item.Definition.ownedCopies)); // 목록 행의 표시 정보
+                    result.Add(new PartOption(item.Id, item.Definition.displayName, item.Grade, item.Upgrade, item.Owner, Mathf.Max(1, item.Definition.ownedCopies))); // 목록의 실제 보유 사본
                 }
             }
             result.Sort((left, right) => CompareOptions(left, right)); // 현재 장착·장착 가능·타 캐릭터 순서

@@ -58,7 +58,8 @@ namespace ProjectG // 프로젝트 게임 영역
         public float penalty; // 불이익의 고정값
         public bool starter; // 기본 장착 여부
         public FlightBroomPilot pilot; // 기본 장착 캐릭터
-        [Min(1)] public int ownedCopies = 1; // 시작 보유 수량
+        [Min(0)] public int ownedCopies = 1; // 시작 보유 수량 또는 상점 전용 0개
+        public bool stocked; // 마을 상점 초기 판매 목록
         [Range(1, 5)] public int grade = 1; // 시작 보유 등급
         [Min(0)] public int upgrade; // 시작 강화 단계
         public Material material; // 장착 시 렌더러 재질

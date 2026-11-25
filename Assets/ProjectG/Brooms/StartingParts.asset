@@ -941,3 +941,54 @@ MonoBehaviour:
     upgrade: 0
     material: {fileID: 2100000, guid: 66577abd0d952024aaf45fcb8c9076c4, type: 2}
     scale: {x: 1.3, y: 1, z: 1.15}
+  - id: shop.harbor-grip
+    displayName: "항구 손잡이"
+    slot: 1
+    stat: 3
+    baseValue: 16
+    gradeStep: 5
+    upgradeStep: 2
+    penaltyStat: 0
+    penalty: 0
+    starter: 0
+    pilot: 0
+    ownedCopies: 0
+    stocked: 1
+    grade: 1
+    upgrade: 0
+    material: {fileID: 2100000, guid: ac6fb62d141c14148b1942cba9b9d855, type: 2}
+    scale: {x: 1.15, y: 1.10, z: 1.12}
+  - id: shop.updraft-drive
+    displayName: "상승기류 추진부"
+    slot: 4
+    stat: 5
+    baseValue: 0.45
+    gradeStep: 0.10
+    upgradeStep: 0.05
+    penaltyStat: 0
+    penalty: 0
+    starter: 0
+    pilot: 0
+    ownedCopies: 0
+    stocked: 1
+    grade: 2
+    upgrade: 0
+    material: {fileID: 2100000, guid: 66577abd0d952024aaf45fcb8c9076c4, type: 2}
+    scale: {x: 1.20, y: 1.12, z: 1.25}
+  - id: shop.reef-body
+    displayName: "해안 순찰 몸체"
+    slot: 0
+    stat: 0
+    baseValue: 0.58
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0
+    starter: 0
+    pilot: 0
+    ownedCopies: 0
+    stocked: 1
+    grade: 3
+    upgrade: 0
+    material: {fileID: 2100000, guid: 4487137e6430540418896b81807dc2ed, type: 2}
+    scale: {x: 2.02, y: 1.12, z: 1.43}

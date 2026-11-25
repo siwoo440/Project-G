@@ -90,6 +90,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 weapon.TogglePilot(); // 기존 자원을 유지한 전투 설정 변경
                 hud.SetSniper(weapon.IsRian); // 전용 아이콘과 패시브 전환
+                upgrades?.RefreshCommonSkill(); // 시험 전환에 다른 조종사의 공용 아이콘 동기화
             }
             if (pilot.CanFly) // 실패 전 자원과 스킬만 갱신
             {

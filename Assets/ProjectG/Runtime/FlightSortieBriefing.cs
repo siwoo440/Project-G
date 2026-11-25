@@ -109,14 +109,15 @@ namespace ProjectG // 프로젝트 게임 영역
             editor.gameObject.SetActive(false); // 연습 사격과 화면 닫기
             ready.SetActive(true); // 포트레이트와 출격 정보
             bool sniper = pilot == FlightBroomPilot.Rian; // 선택한 전투 역할
+            FlightProgressStore profile = FlightProgress.Current; // 실제 원자 정산으로 저장한 성장
+            string common = profile.GetCommonFan(pilot) ? "산탄" : sniper ? "1회 보호" : "보호막"; // 마을에서 저장한 공용기와 캐릭터 기본값
             portrait.texture = sniper ? rianStanding : ariaStanding; // 같은 캐릭터의 기획서 원본
             title.text = sniper ? "리안 · 저격형 수호자" : "아리아 · 속사형 조사원"; // 현재 사용 가능한 캐릭터
             details.text = sniper // 확정한 소속과 핵심 전투 방식
-                ? "수호팀   ·   노출된 약점을 정확하게 노립니다.\nQ  관통 사격    E  1회 보호    R  천공 관측선" // 리안의 실제 현재 키와 기술
-                : "조사팀   ·   연속 적중으로 기본 사격의 화력을 높입니다.\nQ  집중 포화    E  보호막    R  유성 탄막"; // 아리아의 실제 스킬
+                ? $"수호팀   ·   노출된 약점을 정확하게 노립니다.\nQ  관통 사격    E  {common}    R  천공 관측선" // 리안의 스킬과 장착한 공용기
+                : $"조사팀   ·   연속 적중으로 기본 사격의 화력을 높입니다.\nQ  집중 포화    E  {common}    R  유성 탄막"; // 아리아의 스킬과 장착한 공용기
             equipped.text = $"빗자루 몸체  {gear.GetEquippedName(FlightBroomSlot.Body)}\n마법  좌 {SlotName(0)}  /  우 {SlotName(1)}"; // 편성한 부품과 마법의 실제 준비 상태
-            FlightProgressStore profile = FlightProgress.Current; // 실제 원자 정산으로 저장한 성장
-            progression.text = $"숙련도 {profile.GetMastery(pilot)}  ·  천공 결정 {profile.SharedCrystals}  ·  조율의 증표 {profile.GetMarks(pilot)}"; // 캐릭터별 및 공통 누적값
+            progression.text = $"숙련도 {profile.GetMastery(pilot)} · 천공 결정 {profile.SharedCrystals} · 조율의 증표 {profile.GetMarks(pilot)} · 골드 {profile.Gold:N0}"; // 조종사별 성장과 공유 보유 재화
             (sniper ? rian : aria).Select(); // 현재 캐릭터 버튼에 포커스
         }
 

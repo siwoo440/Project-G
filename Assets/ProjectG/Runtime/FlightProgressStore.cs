@@ -45,6 +45,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public int crystals; // 모든 조종사의 공용 천공 결정
             public int gold; // 모든 조종사의 공용 골드
             public PilotProgress[] pilots = new PilotProgress[Enum.GetValues(typeof(FlightBroomPilot)).Length]; // 열거형 순서의 캐릭터별 성장
+            public bool clearedStory; // 과거 클리어도 유지하는 Steam 연동 후보 조건
             public string pendingId; // 실제 참여 후 정산 전인 출격 ID
             public FlightBroomPilot pendingPilot; // 중단 출격을 복구할 캐릭터
             public FlightProgressReceipt recent; // 마지막 지급의 중복 요청 확인
@@ -97,6 +98,8 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             }
         }
 
+        internal bool HasClearedStory => state.clearedStory; // 실제 확정한 본편 완료의 지속 조건
+        internal bool HasAnyFirstTask => Array.Exists(state.pilots, value => value.completedFirstTask); // 이미 영구 기록된 한 명 이상의 첫 과제
         public int GetMastery(FlightBroomPilot pilot) => state.pilots[(int)pilot].mastery; // 현재 캐릭터 누적 숙련도
         public int GetMarks(FlightBroomPilot pilot) => state.pilots[(int)pilot].marks; // 현재 캐릭터 전용 재료
         public bool HasUnlock(string id) => Array.IndexOf(state.unlocks, id) >= 0; // 실제로 저장된 영구 선택지
@@ -240,6 +243,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             progress.marks += receipt.Marks; // 캐릭터 전용 증표 누적
             next.crystals += receipt.Crystals; // 모든 캐릭터에서 공용 재료 증가
             next.gold += receipt.Gold; // 출격 ID당 한 번만 골드 지급
+            next.clearedStory |= cleared; // 이후 실패·복구가 기존 완료를 지우지 않음
             next.recent = receipt; // 중복 정산 확인용 최근 영수증
             next.pendingId = null; // 기록과 보상을 한 번에 확정
             return Write(next) ? receipt : null; // 성공한 파일 교체에만 영수증 제공
@@ -281,6 +285,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                         return null; // 복구 사본 확인을 요청
                     }
                 }
+                saved.clearedStory |= saved.recent?.Cleared == true; // 기존 형식의 마지막 확정 클리어 복원
                 saved.brooms ??= Array.Empty<BroomProgress>(); // 26~29일차의 골드 없는 기존 프로필을 보존
                 if (Array.Exists(saved.brooms, part => part == null || string.IsNullOrEmpty(part.id) || part.upgrade < 0 || part.upgrade > 5)) // 개별 저장의 허용 강화 범위
                 {

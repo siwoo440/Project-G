@@ -7,6 +7,86 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
 {
     public sealed class FlightProgressTests // 영구 보상과 출격 ID 검증
     {
+        [Test] // 실제 파일과 오프라인 Steam 어댑터 경계
+        public void PlatformAchievementsRetryWithoutPayingOrSendingToAnotherAccount() // 콜백 승인과 저장 재시도만 검사
+        {
+            Type progress = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 디스크 프로필
+            Type syncType = Type.GetType("ProjectG.FlightAchievementSync, Assembly-CSharp", true); // 플랫폼 구현과 독립된 해금 규칙
+            const System.Reflection.BindingFlags methods = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 테스트 어셈블리에서 같은 게임 구현
+            string directory = Path.Combine(Application.temporaryCachePath, "Platform-" + Guid.NewGuid().ToString("N")); // 사용자 진행과 분리한 자동 시험
+            string path = Path.Combine(directory, "progress.json"); // 두 실행이 공유할 실제 정산 파일
+            try
+            {
+                Type pilotType = progress.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사의 영구 저장 타입
+                object pilot = Enum.Parse(pilotType, "Aria"); // 조건을 먼저 만족한 로컬 프로필
+                using (var disk = (IDisposable)Activator.CreateInstance(progress, path)) // 연결 없이 클리어와 과제
+                {
+                    string first = (string)Call(progress, disk, "Begin", pilot); // 본편 완료 전에 참여 확정
+                    Assert.That(Call(progress, disk, "CompleteWithTask", first, true, true), Is.Not.Null); // 첫 클리어와 첫 과제를 같은 파일에 저장
+                    string later = (string)Call(progress, disk, "Begin", pilot); // 후속 실패로 저장의 최근 결과 교체
+                    Assert.That(Call(progress, disk, "Complete", later, false), Is.Not.Null); // 이미 달성한 조건의 영속 확인
+                }
+
+                using (var disk = (IDisposable)Activator.CreateInstance(progress, path)) // 새로운 게임 실행과 같은 재열기
+                {
+                    string active = null; // 접속하지 않은 실제 상태
+                    bool available = false; // 서버 조회의 결과 수신 여부
+                    var cache = new System.Collections.Generic.HashSet<string>(); // Steam 클라이언트 준비물의 모의 캐시
+                    var requests = new System.Collections.Generic.List<string>(); // 누락과 중복을 볼 요청 순서
+                    var callbacks = new System.Collections.Generic.Queue<Action<bool>>(); // 실패와 성공을 주는 모의 콜백
+                    Func<string> account = () => active; // 같은 프로필 소유자 확인
+                    Func<string, bool?> read = id => available ? cache.Contains(id) : null; // 원격 조회 전후 구분
+                    Func<string, Action<bool>, bool> submit = (id, done) => // 비동기 플랫폼 승인 대기
+                    {
+                        requests.Add(id); // 실제 어댑터 호출 기록
+                        cache.Add(id); // 콜백 성공 전에도 클라이언트에 표시 가능한 해금
+                        callbacks.Enqueue(done); // 제어된 원격 승인
+                        return true; // 제출을 받은 상태
+                    };
+                    object sync = Activator.CreateInstance(syncType, methods, null, new object[] { disk, "owner", "TEST_CLEAR", "TEST_TASK", account, read, submit }, null); // 후보 API 이름은 자동 시험에만 사용
+                    void Pump() => syncType.GetMethod("Pump", methods).Invoke(sync, null); // 기존 출격 체크포인트로부터 호출
+                    Pump(); // 연결 없음
+                    active = "other"; // 이 프로필과 다른 계정
+                    Pump(); // 잘못된 계정에는 보내지 않음
+                    active = "owner"; // 같은 사용자 로그인
+                    Pump(); // 아직 원격 상태 수신 전
+                    Assert.That(requests, Is.Empty); // 오프라인·다른 계정·조회 실패 시 요청 없음
+                    available = true; // 실제 준비가 끝남
+                    Pump(); // 첫 도전 과제 제출
+                    Pump(); // 같은 요청이 아직 진행 중
+                    Assert.That(requests, Is.EqualTo(new[] { "TEST_CLEAR" })); // 승인 전 중복 방지
+                    callbacks.Dequeue()(false); // 캐시는 해금 상태지만 원격 저장 실패
+                    Pump(); // 같은 해금을 다시 전송
+                    Assert.That(requests, Is.EqualTo(new[] { "TEST_CLEAR", "TEST_CLEAR" })); // 실서버 승인 전 캐시가 누락시키지 않음
+                    Action<bool> stale = callbacks.Dequeue(); // 늦게 돌아올 수 있는 콜백
+                    active = "other"; // 다른 계정으로 전환
+                    Pump(); // 이전 응답 무효화
+                    stale(true); // 이미 다른 계정을 본 뒤 이전 응답
+                    active = "owner"; // 다시 명시한 원래 owner
+                    Pump(); // 실제 서버를 받아 같은 조건을 다시 시도
+                    callbacks.Dequeue()(true); // 이번 연결에서 받은 실제 승인
+                    Pump(); // 두 번째 영구 과제를 제출
+                    callbacks.Dequeue()(true); // 첫 과제의 원격 저장
+                    Pump(); // 이미 승인받은 두 과제를 건너뜀
+                    Assert.That(requests, Is.EqualTo(new[] { "TEST_CLEAR", "TEST_CLEAR", "TEST_CLEAR", "TEST_TASK" })); // 실패와 연결 해제 때만 재요청
+                    Assert.That(progress.GetProperty("Gold").GetValue(disk), Is.EqualTo(750)); // 도전 동기화가 게임 재화에 더 지급하지 않음
+                    Assert.That(Crystals(progress, disk), Is.EqualTo(9)); // 실제 두 출격의 재화 보존
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(directory)) // 현재 검증의 한정된 임시 폴더
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 자동 검사에서 만든 저장 파일
+                    {
+                        File.Delete(file); // 독립 시험 파일만 정리
+                    }
+
+                    Directory.Delete(directory); // 비운 폴더 제거
+                }
+            }
+        }
+
         [Test] // 재실행과 같은 영수증 재요청
         public void SettlementPersistsExactlyOnceAcrossStoreInstances() // 성공·실패·복구와 조종사 분리
         {

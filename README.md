@@ -4,9 +4,16 @@
 하늘섬 사이를 마법 빗자루로 비행하는 PC용 3D 공중 탄막 슈팅 프로젝트입니다.
 
 ---
+## 메인 화면
+
+![프로젝트 G 3D 메인 화면](docs/screenshots/3d-day-23-title.png)
+
+Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. 새 게임으로 하늘섬 외곽 항로에 출격하고, 이어서하기로 저장된 장비와 마법을 불러와 출격합니다. 설정에서 화면 모드·해상도·음량·마우스 감도를 적용할 수 있습니다. [설정 화면](docs/screenshots/3d-day-23-settings.png) · [1024×576 시작 화면](docs/screenshots/3d-day-23-title-1024.png) · [23일차 기록](docs/development/3d-day-23.md)
+
+---
 ## 3D 하늘섬 외곽 항로
 
-Windows 빌드는 `Assets/Scenes/OuterIslandsStage.unity`에서 시작합니다. Unity **6000.3.21f1**에서 이 씬을 열고 Play를 눌러 같은 항로를 시작할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.
+Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 항로에 직접 출격할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.
 
 | 입력 | 동작 |
 |---|---|

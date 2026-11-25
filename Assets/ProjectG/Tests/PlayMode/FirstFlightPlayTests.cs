@@ -5,6 +5,7 @@ using UnityEngine.InputSystem; // 가상 키보드
 using UnityEngine.InputSystem.LowLevel; // 키 입력 상태
 using UnityEngine.SceneManagement; // 실제 씬 로드
 using UnityEngine.TestTools; // 플레이 모드 테스트
+using UnityEngine.UI; // 메인 화면 버튼과 음량 슬라이더
 
 namespace ProjectG.Tests // 프로젝트 검증 영역
 {
@@ -1750,6 +1751,82 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 앱 시작 메뉴·기존 출격 확인·설정 보존
+        public IEnumerator MainMenuConfirmsNewGameAndSavesDisplayAndSound() // 기본 씬의 실제 저장과 출격 경로
+        {
+            string root = "ProjectG.Menu.Test." + System.Guid.NewGuid().ToString("N"); // 일반 설정과 분리한 검증 저장
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_MENU_TEST_KEY"); // 이전 실행 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_MENU_TEST_KEY", root); // 메뉴와 화면의 독립 설정 키
+            try // 확인 후 독립 저장만 정리
+            {
+                const string titlePath = "Assets/Scenes/FlightMainMenu.unity"; // 실제 배포 시작 씬
+                Assert.That(SceneUtility.GetBuildIndexByScenePath(titlePath), Is.Zero); // 패키지 첫 화면 확인
+                yield return SceneManager.LoadSceneAsync(0); // Windows 부팅과 같은 실제 흐름
+                yield return WaitFrames(3); // 캔버스 버튼과 현재 저장 상태
+                Transform menu = GameObject.Find("MainMenu").transform; // 메뉴의 편집 가능한 부모
+                Button continueButton = menu.Find("Home/Continue").GetComponent<Button>(); // 실제 이어서하기 버튼
+                Assert.That(continueButton.interactable, Is.False); // 저장 없는 최초 실행
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.S)); // 지원하는 화살표·WASD 메뉴 이동
+                yield return WaitFrames(3); // 비활성 이어서하기를 건너뜀
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 설정 선택 실행
+                yield return WaitFrames(3); // 선택한 실제 설정 패널 표시
+                Transform settings = menu.Find("Settings"); // 메인 메뉴 환경 설정
+                Assert.That(settings.gameObject.activeSelf, Is.True); // 키보드 진입
+                ClickPauseButton(settings, "DisplayMode"); // 창 모드 또는 전체 화면 변경
+                var volume = settings.Find("Volume").GetComponent<Slider>(); // 실제 마스터 음량
+                volume.value = 0.65f; // 사용자 음량 입력
+                ClickPauseButton(settings, "Apply"); // 화면과 음량 저장
+                Assert.That(PlayerPrefs.GetFloat(root + ".Volume"), Is.EqualTo(0.65f).Within(0.001f)); // 저장한 음량
+                Assert.That(PlayerPrefs.HasKey(root + ".Screen"), Is.True); // 화면 설정 저장
+                ClickPauseButton(settings, "Back"); // 실제 메인 화면 유지
+                ClickPauseButton(menu, "Home/NewGame"); // 처음에는 바로 새 출격
+                yield return WaitForActiveScene(OuterIslandsPath); // 비동기 실전 씬 전환 완료 대기
+                Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 실전으로 진입
+                Assert.That(PlayerPrefs.HasKey(root + ".Resume"), Is.True); // 재실행에서 사용할 출격 기록
+                Transform stagePause = LocateCombatHud().transform.Find("PauseMenu"); // 출격의 실제 일시정지
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 포기 확인 진입
+                yield return WaitFrames(4); // 현재 출격을 멈추고 패널 표시
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 메뉴 복귀 전에 키 해제
+                ClickPauseButton(stagePause, "MenuButtons/Abandon"); // 기존 전투를 포기
+                ClickPauseButton(stagePause, "Confirm/Accept"); // 실제 사용자 승인
+                ClickPauseButton(stagePause, "Confirm/Title"); // 정지에서 메인 화면으로 복귀
+                yield return WaitForActiveScene(titlePath); // 배포 첫 씬의 실제 전환
+                yield return WaitFrames(3); // 이전에 저장한 버튼 상태 연결
+                menu = GameObject.Find("MainMenu").transform; // 새 타이틀 오브젝트
+                ClickPauseButton(menu, "Home/OpenSettings"); // 저장했던 설정을 재진입 후 확인
+                settings = menu.Find("Settings"); // 새 씬의 설정 패널
+                Assert.That(settings.Find("Volume").GetComponent<Slider>().value, Is.EqualTo(0.65f).Within(0.001f)); // 이전에 저장한 실제 음량 복원
+                ClickPauseButton(settings, "Back"); // 이어서하기 확인으로 이동
+                Assert.That(menu.Find("Home/Continue").GetComponent<Button>().interactable, Is.True); // 저장된 출격 가능 상태
+                ClickPauseButton(menu, "Home/NewGame"); // 저장 있는 상태의 새 게임
+                Assert.That(menu.Find("Confirm").gameObject.activeSelf, Is.True); // 기존 출격 교체 확인
+                ClickPauseButton(menu, "Confirm/Cancel"); // 기존 진행 보존
+                Assert.That(menu.Find("Home").gameObject.activeSelf, Is.True); // 메인 화면 복귀
+                ClickPauseButton(menu, "Home/Continue"); // 저장된 출격 불러오기
+                yield return WaitForActiveScene(OuterIslandsPath); // 실전 씬의 비동기 진입
+                Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 계속하기 실제 진입
+            }
+            finally // 다른 시험과 저장 키 분리
+            {
+                PlayerPrefs.DeleteKey(root + ".Volume"); // 시험 음량만 정리
+                PlayerPrefs.DeleteKey(root + ".Sensitivity"); // 시험 감도만 정리
+                PlayerPrefs.DeleteKey(root + ".Screen"); // 시험 화면 설정만 정리
+                PlayerPrefs.DeleteKey(root + ".Resume"); // 시험 출격 표시만 정리
+                PlayerPrefs.Save(); // 남은 독립 시험 상태 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_MENU_TEST_KEY", previous); // 실행 환경 복원
+            }
+        }
+
+        private static IEnumerator WaitForActiveScene(string scenePath) // 프레임 수에 의존하지 않는 씬 전환 확인
+        {
+            float limit = Time.realtimeSinceStartup + 4f; // 허용되는 최대 로딩 시간
+            while (SceneManager.GetActiveScene().path != scenePath && Time.realtimeSinceStartup < limit) // 현재 씬이 새로 바뀔 때까지 대기
+            {
+                yield return null; // 비동기 로드의 다음 프레임
+            }
+            yield return null; // 새 씬에서 메뉴와 버튼의 Start 실행
+        }
+
         private static object BroomAction(Component equipment, string action, string pilot, string slot, string id = null) // 테스트 어셈블리에서 실제 장착 API 호출
         {
             var method = equipment.GetType().GetMethod(action); // 기존 게임 어셈블리 메서드
@@ -1762,7 +1839,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
         private static IEnumerator LoadOuterIslands() // 정상 배포 순서로 새 항로 읽기
         {
             int buildIndex = SceneUtility.GetBuildIndexByScenePath(OuterIslandsPath); // 정식 항로의 빌드 등록
-            Assert.That(buildIndex, Is.EqualTo(0), "하늘섬 외곽 스테이지가 Windows 첫 씬"); // 실제 게임 시작점
+            Assert.That(buildIndex, Is.GreaterThan(0), "메인 화면에서 하늘섬 외곽 스테이지 진입"); // 메인 메뉴 뒤의 정식 출격 씬
             yield return SceneManager.LoadSceneAsync(buildIndex); // 기존 조작과 HUD 진입 경로
             yield return null; // 씬의 첫 프레임 초기화
         }

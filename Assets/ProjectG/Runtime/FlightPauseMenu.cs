@@ -1,5 +1,6 @@
 using UnityEngine; // 게임 시간과 현재 설정
 using UnityEngine.InputSystem; // ESC와 키 변경 입력
+using UnityEngine.SceneManagement; // 포기 후 메인 화면으로 이동
 using UnityEngine.UI; // 기존 씬의 버튼과 수치
 
 namespace ProjectG // 프로젝트 게임 영역
@@ -46,6 +47,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Button broomButton; // 빗자루 조립 화면 입장
         [SerializeField] private FlightCraftedSpellEditor spellEditor; // 제작 마법 시험 화면
         [SerializeField] private Button spellEditorButton; // 제작 마법 편집 화면 입장
+        [SerializeField] private Button titleButton; // 포기한 출격의 메인 화면 복귀
         private int capture = -1; // 설정에서 새 키를 기다리는 동작
         private int closeFrame = -1; // 메뉴 클릭이 전투에 넘어가지 않는 프레임
         private bool abandon; // 이미 포기한 출격
@@ -70,6 +72,10 @@ namespace ProjectG // 프로젝트 게임 영역
             keyTab.onClick.AddListener(ShowKeySettings); // 키 변경 탭
             audioTab.onClick.AddListener(ShowAudioSettings); // 소리와 시점 감도 탭
             resetKeys.onClick.AddListener(bindings.ResetBindings); // 기본값으로 복구
+            if (titleButton != null) // 메인 화면 이동이 연결된 항로
+            {
+                titleButton.onClick.AddListener(ReturnToTitle); // 포기한 출격의 복귀
+            }
             if (broomWorkshop != null) // 조립을 연결한 실전 항로
             {
                 menuButtons = panel.transform.Find("MenuButtons").gameObject; // 씬에 배치한 정지 버튼 열
@@ -274,6 +280,10 @@ namespace ProjectG // 프로젝트 게임 영역
             confirmLabel.text = "현재 출격을 포기할까요?"; // 선택의 확인 문구
             acceptButton.gameObject.SetActive(true); // 포기 확정
             cancelButton.gameObject.SetActive(true); // 게임 유지
+            if (titleButton != null) // 실전의 복귀 버튼 사용
+            {
+                titleButton.gameObject.SetActive(false); // 포기를 확정하기 전에는 비활성
+            }
         }
 
         private void Abandon() // 끝난 출격을 다시 재생할 수 없도록 표시
@@ -286,6 +296,18 @@ namespace ProjectG // 프로젝트 게임 영역
             confirmLabel.text = "출격을 포기했습니다.\n다시하기로 새 출격을 시작하세요."; // 시험 씬의 종료 상태
             acceptButton.gameObject.SetActive(false); // 확정 완료
             cancelButton.gameObject.SetActive(false); // 종료 뒤 이전 출격 복귀 불가
+            if (titleButton != null) // 메인 화면이 연결된 정식 출격
+            {
+                titleButton.gameObject.SetActive(true); // 포기 확인 후 메인 화면 복귀
+            }
+        }
+
+        private void ReturnToTitle() // 종료한 출격에서 메인 화면으로 복귀
+        {
+            if (abandon) // 실제로 포기가 확정된 출격
+            {
+                SceneManager.LoadSceneAsync(FlightTitleMenu.SceneName); // 일시정지를 정리하며 타이틀 씬 진입
+            }
         }
 
         private void BeginBinding(int action) // 다음 키 입력으로 바꿀 동작

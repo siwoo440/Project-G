@@ -66,4 +66,8 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 �
 
 최종 보스전에서는 타이머 아래에 체력과 남은 페이즈가 표시됩니다. 노란 점은 현재 페이즈를 포함하고, 체력 1,000과 500에서 공격이 바뀌며 이전 탄막이 회수됩니다. `전체` 시간에는 일시정지와 레벨업 선택이 포함됩니다. [최종 보스 2페이즈](docs/screenshots/3d-day-18-flight.png) · [3페이즈 교차 나선](docs/screenshots/3d-day-18-crossing.png) · [1024×576 보스 HUD](docs/screenshots/3d-day-18-hud-1024.png) · [중간 보스전](docs/screenshots/3d-day-17-flight.png) · [바다와 해안](docs/screenshots/3d-day-17-surface.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png)
 
+![아리아의 1080p 최종 보스 3페이즈와 HUD](docs/screenshots/3d-day-28-aria-boss.png)
+
+아리아와 리안의 1080p 자동 플레이에서 두 캐릭터의 장비·마법 편성, 성장, 최종 보스, 영구 정산과 재출격을 확인했습니다. 프레임 시간의 측정 조건과 미검증 항목은 28일차 기록에 정리했습니다. [아리아 클리어](docs/screenshots/3d-day-28-aria-result.png) · [리안 보스전](docs/screenshots/3d-day-28-rian-boss.png) · [리안 실패](docs/screenshots/3d-day-28-rian-result.png) · [재실행 복구](docs/screenshots/3d-day-28-recovery.png) · [28일차 기록](docs/development/3d-day-28.md)
+
 [1일차 기록](docs/development/3d-day-01.md) · [2일차 기록](docs/development/3d-day-02.md) · [3일차 기록](docs/development/3d-day-03.md) · [4일차 기록](docs/development/3d-day-04.md) · [5일차 기록](docs/development/3d-day-05.md) · [6일차 기록](docs/development/3d-day-06.md) · [7일차 기록](docs/development/3d-day-07.md) · [8일차 기록](docs/development/3d-day-08.md) · [9일차 기록](docs/development/3d-day-09.md) · [10일차 기록](docs/development/3d-day-10.md) · [11일차 기록](docs/development/3d-day-11.md) · [12일차 기록](docs/development/3d-day-12.md) · [13일차 기록](docs/development/3d-day-13.md) · [14일차 기록](docs/development/3d-day-14.md) · [15일차 기록](docs/development/3d-day-15.md) · [16일차 기록](docs/development/3d-day-16.md) · [17일차 기록](docs/development/3d-day-17.md) · [18일차 기록](docs/development/3d-day-18.md)

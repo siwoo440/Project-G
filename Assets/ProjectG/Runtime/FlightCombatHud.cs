@@ -84,6 +84,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private Rect guardUv; // 기본 E 보호막의 아틀라스 범위
 
         private const int MaxResource = 100; // 초기 시험 자원의 최대값
+        private int manaCapacity = MaxResource; // 빗자루 조합이 반영된 마력 상한
         private int manaPoints = MaxResource; // 시작 시 마력
         private int ultimatePoints; // 시작 시 필살기 에너지
         private int level = 1; // 시작 레벨
@@ -136,9 +137,14 @@ namespace ProjectG // 프로젝트 게임 영역
             slots[2].art.uvRect = active ? new Rect(0.5f, 0f, 0.5f, 1f) : ariaUltimateUv; // 오른쪽 아이콘만 표시
         }
 
+        internal void SetManaCapacity(int capacity) // 현재 출격 장비가 정한 실제 마력 용량
+        {
+            manaCapacity = Mathf.Max(1, capacity); // 게이지의 유효한 표시 상한
+        }
+
         public void SetResources(int currentMana, int currentUltimate) // 전투에서 변경된 자원 상태 전달
         {
-            manaPoints = Mathf.Clamp(currentMana, 0, MaxResource); // 현재 마력 보정
+            manaPoints = Mathf.Clamp(currentMana, 0, manaCapacity); // 현재 마력 보정
             ultimatePoints = Mathf.Clamp(currentUltimate, 0, MaxResource); // 현재 필살기 에너지 보정
         }
 
@@ -165,7 +171,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void LateUpdate() // 현재 전투 화면에 상태 적용
         {
             health.Set(pilot.Health, pilot.MaxHealth, "HP"); // 실제 피격 체력
-            mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
+            mana.Set(manaPoints, manaCapacity, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
             bool nox = currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Nox; // 반격 표식이 있는 실제 출격
@@ -195,7 +201,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             else if (currentWeapon != null && currentWeapon.IsRian) // 리안의 약점 피해 안내
             {
-                rapidLabel.text = "리안  약점 +50%"; // HUD 안에 들어가는 리안 약점 보너스
+                rapidLabel.text = $"리안  약점 +{currentWeapon.WeakPointBonusPercent}%"; // 실제 카드와 같은 리안 약점 보너스
             }
             else if (rapid != null) // 아리아의 누적 값을 사용하는 슬롯
             {

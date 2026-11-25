@@ -47,6 +47,100 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Application.runInBackground = runInBackground; // 시험 전 백그라운드 실행 복원
         }
 
+        [UnityTest] // 일곱 조종사의 출격과 전용 성장, 다시 출격 연결
+        public IEnumerator SevenPilotsKeepEquipmentChoicesAndResultsIsolated() // 같은 외곽 항로에서 실제 조종사별 조건 비교
+        {
+            string[] names = { "Aria", "Rian", "Lumi", "Sera", "Nox", "Vera", "Iris" }; // 실제 선택 버튼과 저장 이름
+            string[] firstNodes = { "SlowDecay", "Weak", "LumiTracking", "SeraApproach", "NoxPrecision", "VeraDuration", "IrisRange" }; // 캐릭터 전용 첫 분기
+            string[] secondNodes = { "Wide", "SniperPierce", "LumiSpread", "SeraWidth", "NoxPierce", "VeraCadence", "IrisFocus" }; // 다른 전용 첫 분기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 게임 카드 목록의 접근 위치
+            for (int index = 0; index < names.Length; index++) // 일곱 조종사에게 같은 실제 화면 경로
+            {
+                string actor = names[index]; // 이번 조종사의 이름
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 현재 플레이어가 쓰는 출격 화면
+                yield return WaitFrames(3); // 씬의 실제 선택과 장비 미리보기
+                Transform ready = GameObject.Find("SortieBriefing").transform; // 실제 캐릭터 선택 하이러키
+                ClickPauseButton(ready, "Ready/Select" + actor); // 일곱 버튼 모두 실제 선택
+                Assert.That(ready.Find("Ready/Portrait").GetComponent<RawImage>().texture.name, Is.EqualTo(actor + "Standing"), actor); // 다른 조종사의 스탠딩 혼입 방지
+                ClickPauseButton(ready, "Ready/Depart"); // 실제 조종사의 바인딩과 슬롯으로 비행
+                yield return WaitForActiveScene(OuterIslandsPath); // 실제 배포 전투에 진입
+                yield return WaitFrames(2); // 첫 전투의 배치와 카드 상태 적용
+                Transform pilot = FindPilot(); // 이 출격의 실제 기체
+                Component weapon = pilot.GetComponent("FlightWeapon"); // 조종사와 공격
+                Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo(actor)); // 결과까지 이어질 실제 조종사
+                Component skills = pilot.GetComponent("FlightSkillController"); // 현재 기체의 장착 마력
+                bool reserve = actor is "Aria" or "Lumi" or "Vera" or "Iris"; // 마력석 또는 장식이 더하는 5점
+                bool recovery = actor is "Aria" or "Lumi" or "Nox" or "Vera"; // 장식이 더하는 초당 0.5점
+                Assert.That(Metric(skills, "MaxMana"), Is.EqualTo(reserve ? 105 : 100), actor); // 실전의 실제 마력 상한
+                Assert.That(Metric(skills, "Mana"), Is.EqualTo(Metric(skills, "MaxMana")), actor); // 출발 시 조합의 마력 최대 충전
+                Assert.That(skills.GetType().GetProperty("ManaRecovery").GetValue(skills), Is.EqualTo(recovery ? 6.5f : 6f), actor); // 실제 초당 회복량
+                Component gear = pilot.GetComponent("FlightBroomEquipment"); // 조종사별 빗자루 여덟 부위
+                Assert.That(gear.GetType().GetProperty("ActivePilot").GetValue(gear).ToString(), Is.EqualTo(actor)); // 각 조종사의 독립 장비
+                Assert.That(BroomAction(gear, "GetEquippedId", actor, "Body").ToString(), Does.StartWith(actor.ToLowerInvariant() + "."), actor); // 다른 조종사의 시작 장비 침범 없음
+                Transform combat = LocateCombatHud().transform; // 씬의 기능별 HUD
+                Component choices = combat.GetComponent("FlightUpgradeChoices"); // 실제 레벨업의 공용·전용 후보
+                choices.GetType().GetMethod("CollectCandidates", hidden).Invoke(choices, null); // 실제 추첨 직전 동일 후보 생성
+                var available = (IEnumerable)choices.GetType().GetField("candidates", hidden).GetValue(choices); // 필터 후 현 출격의 카드 목록
+                var nodes = new System.Collections.Generic.HashSet<string>(); // 공용과 전용 노드를 확인할 실제 목록
+                foreach (object card in available) // 현재 후보가 실제 캐릭터에만 등장하는지 확인
+                {
+                    int family = (int)card.GetType().GetField("pilot").GetValue(card); // 카드의 전용 조종사 식별자
+                    Assert.That(family == 0 || family == index + 1, Is.True, actor); // 다른 조종사 카드 제외
+                    nodes.Add(card.GetType().GetField("reward").GetValue(card).ToString()); // 현재 레벨에서 실제 뽑힐 강화
+                }
+                Assert.That(nodes.Contains(firstNodes[index]) && nodes.Contains(secondNodes[index]) && nodes.Contains("Damage"), Is.True, actor); // 두 전용 첫 분기와 같은 공용 화력
+                Assert.That(nodes.Contains("ChaseSecond") || nodes.Contains("SpreadSecond") || nodes.Contains("WeakSecond"), Is.False, actor); // 같은 가지 첫 노드가 없으면 후속 제한
+                Component items = GameObject.Find("EnhancementDrops").GetComponent("FlightEnhancements"); // 공용 강화 아이템의 실제 수치
+                var applyItem = items.GetType().GetMethod("TryApply", hidden); // 픽업 밖에서도 동일한 강화 규칙
+                object damage = System.Enum.Parse(applyItem.GetParameters()[0].ParameterType, "Damage"); // 단계별 공용 아이템 효과
+                Assert.That(applyItem.Invoke(items, new[] { damage, (object)3 }), Is.True, actor); // 공용 아이템은 일곱 명에서 실제 적용
+                var scale = choices.GetType().GetMethod("DamageScale"); // 공용 아이템의 최종 공격 배율
+                Assert.That((float)scale.Invoke(choices, new object[] { false }), Is.GreaterThan(1f), actor); // 단계가 공격 수치에 연결
+                if (actor == "Rian") // 전용 카드가 실제 HUD 수치를 바꾸는 회귀
+                {
+                    var apply = choices.GetType().GetMethod("Apply", hidden); // 카드 클릭 이후 실제 강화 계산
+                    object reward = System.Enum.Parse(apply.GetParameters()[0].ParameterType, "Weak"); // 약점 사냥 1의 레벨업 카드
+                    apply.Invoke(choices, new[] { reward }); // 실제 피해 배율을 65%로 높임
+                    yield return WaitFrames(2); // 보너스의 화면 갱신
+                    Component display = combat.GetComponent("FlightCombatHud"); // 약점 보너스가 보이는 실제 HUD
+                    Text readout = (Text)display.GetType().GetField("rapidLabel", hidden).GetValue(display); // 공유 패시브 글자
+                    Assert.That(readout.text, Does.Contain("65%"), "리안 약점 사냥의 실제 피해와 같은 안내"); // 잘못된 고정 50% 방지
+                }
+                Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 실제 참여를 기록하는 스테이지
+                yield return new WaitForSeconds(3.3f); // 첫 웨이브와 정상 출격 참여
+                Assert.That(Metric(encounter, "WaveNumber"), Is.GreaterThan(0), actor); // 기록이 생긴 실제 출격만 사용
+                Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 입체 피격을 처리하는 기체
+                var hit = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 상대 경로의 접촉 판정
+                hit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, 0.1f, 40, false, false }); // 정상 피격에서 장착 피해 감소 시험
+                Assert.That(Metric(vitals, "Health"), Is.EqualTo(actor is "Sera" or "Vera" ? 61 : 60), actor); // 장착 조합의 실제 피해량
+                if (actor == "Sera") // 확정한 50% 방어 상한의 별도 경계 확인
+                {
+                    var bonus = gear.GetType().GetMethod("GetBonus"); // 피해 감소 항목의 장착 수치 유형
+                    int type = System.Convert.ToInt32(System.Enum.Parse(bonus.GetParameters()[0].ParameterType, "DamageReduction")); // 확정한 장비의 피해 감소 인덱스
+                    var bonuses = (float[])gear.GetType().GetField("bonuses", hidden).GetValue(gear); // 검증의 인위적인 상한 초과 부품 합계
+                    bonuses[type] = 60f; // 50% 상한을 넘는 합계의 실제 판정
+                    vitals.GetType().GetMethod("ResetRun").Invoke(vitals, null); // 이미 적용된 첫 피격 제거
+                    hit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, 0.1f, 100, false, false }); // 상한이 없으면 40만 소비되는 조건
+                    Assert.That(Metric(vitals, "Health"), Is.EqualTo(50)); // 프로젝트에서 확정한 50% 최대 감소
+                }
+                vitals.GetType().GetMethod("ResetRun").Invoke(vitals, null); // 마지막 종료 시험의 체력과 무적 원상 복구
+                hit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, 0.1f, 500, false, false }); // 실패 정산의 테스트 피해 사용
+                yield return WaitFrames(4); // 결과 오브젝트가 켜지는 실제 프레임
+                ClickPauseButton(combat, "SortieEnd/Open"); // 실제 전투 종료의 별도 결과
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 관련 조종사의 실제 결과
+                Transform result = GameObject.Find("SortieResult").transform; // 오른쪽 기록과 왼쪽 일러스트
+                Assert.That(result.Find("PortraitArea/StandingIllustration").GetComponent<RawImage>().texture.name, Is.EqualTo(actor + "Standing"), actor); // 전투에서 사용한 일곱 캐릭터 표시
+                Assert.That(HudText(result.Find("Panel/Crystals/Amount")), Is.EqualTo("+3"), actor); // 참여 보상이 실제 숫자로 표시
+                ClickPauseButton(result, "Panel/Retry"); // 같은 참가자와 장비로 재출격
+                yield return WaitForActiveScene(OuterIslandsPath); // 결과 뒤 실제 전투의 새 씬
+                yield return WaitFrames(2); // 새 조종사 바인딩이 완료될 시간
+                Component fresh = FindPilot().GetComponent("FlightWeapon"); // 재출격으로 새로 생긴 실제 기체
+                Assert.That(fresh.GetType().GetProperty("ActivePilot").GetValue(fresh).ToString(), Is.EqualTo(actor)); // 재출격에서 현재 조종사 유지
+                Component freshItems = GameObject.Find("EnhancementDrops").GetComponent("FlightEnhancements"); // 새 출격의 실제 임시 성장 상태
+                Assert.That(Metric(freshItems, "ActiveCount"), Is.Zero, actor); // 지난 출격 아이템이 초기 화면에 남지 않음
+            }
+        }
+
         [UnityTest] // 이리스의 실제 파동과 고도가 다른 연쇄 전파
         public IEnumerator IrisSortieTracksDistinctHitsAndChainsToNewTargets() // 중복 공명과 연쇄 대상의 피해 확인
         {
@@ -251,7 +345,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(4); // 실제 10발 생성과 표식 소비
             InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 중복 키 반복 방지
             Assert.That(Metric(counter, "Marks"), Is.Zero); // 표식 전부 소모
-            Assert.That(Metric(skills, "Mana"), Is.LessThan(77)); // 실제 Q 비용과 쿨타임 소비
+            Assert.That(Metric(skills, "Mana"), Is.LessThan(Metric(skills, "MaxMana") - 23)); // 실제 Q 비용과 쿨타임 소비
             int bolts = Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length; // 기본 자동탄을 끈 현재의 반격탄만
             Assert.That(bolts, Is.EqualTo(10)); // 표식마다 실제 반격탄 한 발
             var members = (Component[])skills.GetType().GetField("defeatRewards", hidden).GetValue(skills); // 시험 마물의 실제 모델과 체력
@@ -396,7 +490,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(tracked.GetValue(weapon), Is.EqualTo(45)); // 회전 속도 보너스 상한
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 별빛 추적탄 실제 시전
             yield return WaitFrames(3); // Q 입력과 마력 소모 반영
-            Assert.That(Metric(skills, "Mana"), Is.LessThan(77)); // 25 마력 소비 확인
+            Assert.That(Metric(skills, "Mana"), Is.LessThan(Metric(skills, "MaxMana") - 23)); // 25 마력 소비 확인
             InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 스킬 입력 준비
             yield return new WaitForSeconds(0.95f); // 입체 이동과 실제 충돌 완료 대기
             Assert.That(Metric(low.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(428)); // 낮은 대상에 여섯 발의 실제 피해
@@ -848,7 +942,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Transform ultimate = hud.Find("Ultimate"); // 필살기 게이지
             Transform xp = hud.Find("Experience"); // 경험치 게이지
             Assert.That(HudText(hp.Find("Label")), Is.EqualTo("HP 100 / 100")); // 처음 체력 수치
-            Assert.That(HudText(mana.Find("Label")), Is.EqualTo("MANA 100 / 100")); // 초기 마력 문구
+            Assert.That(HudText(mana.Find("Label")), Is.EqualTo("MANA 100 / 100")); // 기본 비행 씬의 재화 장비 미적용 마력 표시
             Assert.That(HudText(ultimate.Find("Label")), Is.EqualTo("ULT 0 / 100")); // 초기 필살기 게이지
             Assert.That(HudText(xp.Find("Label")), Is.EqualTo("LV. 1   XP 0 / 10")); // 초기 레벨과 경험치
             foreach (Transform meter in new[] { hp, mana, ultimate, xp }) // 실제 채움 이미지 모두 확인
@@ -980,7 +1074,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(HudText(skills.Find("Q/Cooldown")), Is.Empty); // 집중 포화 효과 중에는 쿨타임 이전
             Component weapon = FindPilot().GetComponent("FlightWeapon"); // 아리아의 실제 발사 간격
             Assert.That((float)weapon.GetType().GetProperty("FireIntervalScale").GetValue(weapon), Is.EqualTo(0.7f)); // 30% 짧아진 발사 간격
-            Assert.That(HudText(hud.Find("Mana/Label")), Is.Not.EqualTo("MANA 100 / 100")); // 실제 마력 소모
+            Component magic = FindPilot().GetComponent("FlightSkillController"); // 실제 출격의 현재 마력과 장착 용량
+            Assert.That(Metric(magic, "Mana"), Is.LessThan(Metric(magic, "MaxMana"))); // 장착 용량 대비 실제 마력 소모
             InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // Q 누름 해제
             yield return WaitFrames(181); // 집중 포화 종료 이후
             Assert.That(HudText(skills.Find("Q/Cooldown")), Is.Not.Empty); // 효과 뒤 시작되는 흰색 쿨타임
@@ -2126,7 +2221,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실전 좌클릭 사용
                 yield return WaitFrames(4); // 실제 마법 카드 경로로 발사
                 Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 같은 조합의 첫 실전 시전
-                Assert.That(Metric(FindPilot().GetComponent("FlightSkillController"), "Mana"), Is.InRange(85, 86)); // 실제 보석 비용 15 차감
+                var magic = FindPilot().GetComponent("FlightSkillController"); // 실제 장착 용량을 가진 마력
+                Assert.That(Metric(magic, "Mana"), Is.InRange(Metric(magic, "MaxMana") - 15, Metric(magic, "MaxMana") - 14)); // 실제 보석 비용 15 차감
                 InputSystem.QueueStateEvent(mouse, new MouseState()); // 마법 사용 클릭 해제
                 Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 실제 웨이브 시작 조건
                 var preparing = encounter.GetType().GetProperty("IsPreparing"); // 배포 씬의 실제 출격 준비 판정

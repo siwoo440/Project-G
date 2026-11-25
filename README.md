@@ -35,7 +35,7 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 ---
 ## 출격 결과와 재출격
 
-![프로젝트 G 3D 출격 완료 화면](docs/screenshots/3d-day-25-clear.png)
+![프로젝트 G 3D 아리아 출격 완료 화면](docs/screenshots/3d-day-37-aria-result.png)
 
 최종 보스를 격파하거나 체력을 모두 잃으면 결과 확인 버튼이 켜집니다. 결과 화면은 전투·전체 시간, 점수, 격파 수, 그레이즈, 도달 레벨을 표시합니다. 같은 캐릭터와 저장한 장비·마법으로 다시 출격하거나 메인 화면으로 돌아갈 수 있습니다. [1024×576 실패 결과](docs/screenshots/3d-day-25-failed-1024.png) · [25일차 기록](docs/development/3d-day-25.md)
 
@@ -46,6 +46,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 베라는 Q로 상단 프로펠러가 달린 부유 포대 한 기를 배치하며, 포대에서 R 교차 광선을 발사합니다. 포대가 만료되면 R이 잠기고 에너지는 보존됩니다. [부유 포대](docs/screenshots/3d-day-35-vera-turret.png) · [교차 광선](docs/screenshots/3d-day-35-vera-beam.png) · [35일차 기록](docs/development/3d-day-35.md)
 
 이리스는 서로 다른 적을 맞히면 파동 범위가 넓어집니다. Q 확산 파동은 전방의 적을 공격하고, R 창공의 공명은 직접 적중한 곳에서 다른 적에게 최대 두 번 이어집니다. [일곱 조종사 선택](docs/screenshots/3d-day-36-iris-briefing.png) · [이리스 전투](docs/screenshots/3d-day-36-iris-chain.png) · [36일차 기록](docs/development/3d-day-36.md)
+
+캐릭터별 빗자루 부품의 피해 감소, 최대 마력, 초당 마력 회복이 전투에 반영됩니다. 리안의 약점 보너스는 강화 후 실제 피해에 적용되는 수치를 표시합니다. [최종 보스 3페이즈](docs/screenshots/3d-day-37-aria-final-boss.png) · [37일차 통합 검증 기록](docs/development/3d-day-37.md)
 
 첫 웨이브가 시작된 출격은 영구 정산에 포함됩니다. 결과에서 숙련도와 재료 증가량을, 출격 준비에서 누적 숙련도와 보유량을 확인할 수 있습니다. 전투 도중 종료한 출격은 다음 실행의 메인 화면에서 참여 보상으로 한 번 정산됩니다. [영구 정산 화면](docs/screenshots/3d-day-26-settlement.png) · [재실행 복구 화면](docs/screenshots/3d-day-26-recovery-1024.png) · [26일차 기록](docs/development/3d-day-26.md)
 

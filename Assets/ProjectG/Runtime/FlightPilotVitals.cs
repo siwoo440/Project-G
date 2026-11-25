@@ -10,6 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float grazeRadius = 0.90f; // 구형 근접 회피 반경
         [SerializeField, Min(0f)] private float immuneSeconds = 1f; // 피격 후 시험 무적 시간
         [SerializeField] private FlightUpgradeChoices upgrades; // 장착한 보호 장치
+        private FlightBroomEquipment equipment; // 실제 장착 부품의 피해 감소 퍼센트포인트
         private float immuneUntil; // 다음 피격 가능 시각
         private float guardUntil; // 한 발만 막는 리안 보호막의 종료 시점
         private float slotProtectionUntil; // 교체할 수 있는 E 시간 보호막의 종료 시점
@@ -26,6 +27,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Awake() // 씬 시작 때 체력 초기화
         {
+            TryGetComponent(out equipment); // 장비 없는 시험 기체에서는 피해 감소 0%
             ResetRun(); // 첫 체력과 그레이즈 설정
         }
 
@@ -108,7 +110,10 @@ namespace ProjectG // 프로젝트 게임 영역
                     }
                     else // 보호막 없이 피격
                     {
-                        Health = Mathf.Max(0, Health - damage); // 체력 하한 적용
+                        float guard = equipment != null ? equipment.GetBonus(FlightBroomStat.DamageReduction) : 0f; // 장착한 몸체·마법 장식의 합계
+                        float reduction = Mathf.Clamp(guard, 0f, 50f) * 0.01f; // 문서 확정 피해 감소 상한 50%
+                        int incoming = damage > 0 ? Mathf.Max(1, Mathf.RoundToInt(damage * (1f - reduction))) : 0; // 장착 보너스가 반영된 실제 피격량
+                        Health = Mathf.Max(0, Health - incoming); // 체력 하한 적용
                         immuneUntil = Time.time + immuneSeconds; // 다음 피격 보호
                         if (!IsDefeated && upgrades != null && upgrades.HasProtectionDevice && Time.time >= deviceReadyAt) // 실제 피격 이후의 장치 충전
                         {

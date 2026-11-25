@@ -41,14 +41,30 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightEnhancements enhancements; // 근접 충전에 적용할 아이템 보너스
         [SerializeField] private FlightEnemy[] defeatRewards = System.Array.Empty<FlightEnemy>(); // 실전 스테이지의 처치 에너지 지급 대상
         private readonly float[] readyAt = new float[3]; // Q·E·R 사용 가능 시각
-        private float mana = 100f; // 이번 출격의 실제 마력
+        private const int BaseMana = 100; // 빗자루를 장착하기 전 공통 마력
+        private const float BaseRecovery = 6f; // 빗자루를 장착하기 전 초당 회복
+        private FlightBroomEquipment equipment; // 마력 용량과 장식의 회복 효과
+        private float mana = BaseMana; // 이번 출격의 실제 마력
         private float ultimate; // 소수 단위로 누적하는 필살기 에너지
         private int recordedGrazes; // 마지막으로 자원에 반영한 스침 수
         private float nextWeakReduction; // 실제 약점 적중의 초당 재사용 감소 제한
 
+        public int MaxMana => Mathf.Max(1, BaseMana + Mathf.RoundToInt(equipment != null ? equipment.GetBonus(FlightBroomStat.Mana) : 0f)); // 장착한 마력석과 마법 장식의 용량
+        public float ManaRecovery => Mathf.Max(0f, BaseRecovery + (equipment != null ? equipment.GetBonus(FlightBroomStat.ManaRecovery) : 0f)); // 장착의 증가와 불이익을 합산한 초당 마력
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
         public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
         internal event System.Action<int> SkillActivated; // 안내에서 성공 시전만 확인
+
+        private void Awake() // 실제 출격 기체의 장착 확인
+        {
+            TryGetComponent(out equipment); // 부품이 없는 연습의 공통 마력 유지
+        }
+
+        private void Start() // 출격에서 조종사와 장비를 선택한 뒤 마력 초기화
+        {
+            mana = MaxMana; // 새 빗자루의 실제 마력 상한까지 충전
+            ShowResources(); // 전투와 마력 게이지의 첫 표시
+        }
 
         private void OnEnable() // 실제 스테이지의 처치 에너지 연결
         {
@@ -105,7 +121,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             if (pilot.CanFly) // 실패 전 자원과 스킬만 갱신
             {
-                mana = Mathf.Min(100f, mana + Time.deltaTime * 6f); // 시험 초당 마력 회복
+                mana = Mathf.Min(MaxMana, mana + Time.deltaTime * ManaRecovery); // 실제 장착 용량과 초당 회복 적용
                 float charge = enhancements != null ? enhancements.GrazeScale : 1f; // 근접 충전의 실제 배율
                 ultimate = Mathf.Min(100f, ultimate + (vitals.Grazes - recordedGrazes) * 10f * charge); // 소수도 보존하는 그레이즈 보상
                 recordedGrazes = vitals.Grazes; // 중복 에너지 지급 방지
@@ -154,7 +170,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal void ResetRun() // 새 출격의 자원과 사용 가능 시각
         {
-            mana = 100f; // 새 출격의 마력
+            mana = MaxMana; // 새 출격의 장착 마력으로 초기화
             ultimate = 0; // 새 출격의 필살기 에너지
             recordedGrazes = 0; // 스침 반영 초기화
             nextWeakReduction = 0f; // 이전 출격의 약점 감소 제한 제거
@@ -282,6 +298,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void ShowResources() // 현재 소비한 자원을 전투 HUD에 연결
         {
+            hud.SetManaCapacity(MaxMana); // 장착한 빗자루의 현재 게이지 분모
             hud.SetResources(Mana, Ultimate); // 마력과 필살기 에너지 별도 표시
         }
     }

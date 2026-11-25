@@ -217,7 +217,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Present(); // 현재 유효한 카드 추첨
         }
 
-        private void Present() // 공용·전용·대체 보상에서 선택 후보 준비
+        private void CollectCandidates() // 실제 출격의 공용·전용 카드 선택 조건
         {
             candidates.Clear(); // 직전 선택의 임시 후보 제거
             int profile = (int)weapon.ActivePilot + 1; // 현재 출격 캐릭터
@@ -231,6 +231,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
             }
 
+        }
+
+        private void Present() // 현재 조종사의 후보에서 실제 세 카드 추첨
+        {
+            CollectCandidates(); // 공용 상한과 성장 조건을 통과한 후보 정리
             choiceCount = 0; // 새로 표시할 후보 수
             while (choiceCount < offered.Length && candidates.Count > 0) // 세 장을 중복 없이 추첨
             {

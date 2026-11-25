@@ -46,6 +46,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float nextShot; // 다음 자동 연사 가능 시각
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
+        internal int WeakPointBonusPercent => Mathf.RoundToInt(WeakRatio * 100f); // 실제 약점 피해에 사용한 보너스 표기
         internal FlightIrisCombat Resonance => resonance; // 현재 공명 수치와 파동 스킬
         internal FlightVeraTurret Turret => turret; // 설치 상태와 자동탄 강화의 실제 참조
         internal FlightNoxCombat Counter => counter; // 출격의 실제 반격 컴포넌트

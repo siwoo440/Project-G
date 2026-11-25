@@ -174,7 +174,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             transitioning = true; // 시작 요청 확정
             FlightSortieChoice.Open(resume); // 새 캐릭터 선택 또는 저장 조종사 준비
-            SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 별도의 실제 출격 준비 화면
+            SceneManager.LoadSceneAsync(FlightIslandVillage.SceneName); // 마을의 착륙장부터 실제 출격 동선
         }
     }
 }

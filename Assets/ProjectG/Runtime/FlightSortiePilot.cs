@@ -10,8 +10,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private static FlightBroomPilot? pending; // 출발 승인 후 다음 항로에서 읽을 조종사
 
         internal static FlightBroomPilot Initial => preparing; // 출격 준비의 시작 선택
+        internal static bool ViaVillage { get; private set; } // 준비에서 돌아갈 실제 입장 경로
 
-        internal static void ReturnFromGuide(FlightBroomPilot selected) // 연습을 끝낸 조종사를 출격 준비에 전달
+        internal static void RememberPilot(FlightBroomPilot selected) // 연습과 마을을 오가는 임시 조종사 선택
         {
             preparing = selected; // 저장과 실제 전투 시작 없이 이전 선택 복원
         }
@@ -21,6 +22,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             preparing = FlightBroomPilot.Aria; // 최초 캐릭터의 기본값
             pending = null; // 승인된 출격 없음
+            ViaVillage = false; // 시작하지 않은 마을 동선
         }
 
         internal static void Open(bool resume) // 새 게임 또는 이어서하기 버튼
@@ -28,11 +30,18 @@ namespace ProjectG // 프로젝트 게임 영역
             preparing = resume && FlightTitleSettings.CanStore && PlayerPrefs.GetInt(FlightTitleSettings.Key("Pilot"), 0) == (int)FlightBroomPilot.Rian // 마지막에 확정한 실제 조종사
                 ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 현재 조작 가능한 두 캐릭터
             pending = null; // 새로운 시작 선택의 이전 값 제거
+            ViaVillage = false; // 착륙장에서 출격소를 찾아가는 새 진입
+        }
+
+        internal static void EnterViaVillage() // 그 출격소에서 편성 화면을 연 경우
+        {
+            ViaVillage = true; // 준비 화면의 뒤로가기를 같은 시설에 연결
         }
 
         internal static void Launch(FlightBroomPilot selected) // 출발 확정에서만 저장
         {
             pending = selected; // 실제 출격 시작점까지 전달
+            ViaVillage = false; // 마을과 준비의 임시 방문이 끝난 상태
             if (FlightTitleSettings.CanStore) // 플레이어 또는 독립 시험의 저장 환경
             {
                 PlayerPrefs.SetString(FlightTitleSettings.Key("Resume"), StageScene); // 실제 출발 이후 이어서하기 상태

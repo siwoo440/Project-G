@@ -167,7 +167,13 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 같은 로드 작업만 유지
             }
             moving = true; // 메인 씬 로딩 시작
-            SceneManager.LoadSceneAsync(FlightTitleMenu.SceneName); // 정지 없는 메인 화면 복귀
+            if (FlightSortieChoice.ViaVillage) // 마을 출격소에서 들어온 준비 화면
+            {
+                FlightSortieChoice.RememberPilot(pilot); // 마을 방문 뒤 같은 조종사 유지
+                FlightIslandVillage.ReturnFromBriefing(); // 북쪽 출격소 바로 앞 복귀
+                return; // 일반 타이틀 복귀 제외
+            }
+            SceneManager.LoadSceneAsync(FlightTitleMenu.SceneName); // 직접 진입한 준비의 타이틀 복귀
         }
     }
 }

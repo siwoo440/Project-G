@@ -13,6 +13,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
     {
         private const string ScenePath = "Assets/Scenes/FlightPrototype.unity"; // 검증 대상 씬 경로
         private const string OuterIslandsPath = "Assets/Scenes/OuterIslandsStage.unity"; // Windows 출격용 하늘섬 외곽 항로
+        private const string VillagePath = "Assets/Scenes/FlightIslandVillage.unity"; // 착륙장부터 출격소까지의 마을 씬
         private Keyboard keyboard; // 테스트 전용 가상 키보드
         private Mouse mouse; // 테스트 전용 가상 마우스
         private float previousCaptureStep; // 원래 프레임 시험 시간
@@ -1762,6 +1763,60 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 마을 진입·낭떠러지·출격소
+        public IEnumerator VillageWalksFromLandingPadThroughSortieEntrance() // 실제 시작 버튼과 이동 및 출격 경로
+        {
+            Assert.That(SceneUtility.GetBuildIndexByScenePath(VillagePath), Is.GreaterThan(0)); // 배포에 편집된 마을 씬 포함
+            yield return SceneManager.LoadSceneAsync(0); // Windows와 같은 첫 타이틀
+            yield return WaitFrames(3); // 첫 UI의 실제 클릭 연결 대기
+            ClickPauseButton(GameObject.Find("MainMenu").transform, "Home/NewGame"); // 실제 일반 시작 흐름
+            yield return WaitForActiveScene(VillagePath); // 시작 버튼에서 착륙장 진입
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(VillagePath)); // 출격 준비 전에 실제 마을
+            Transform walker = GameObject.Find("VillageWalker").transform; // 하이러키의 실제 도보 조종사
+            Vector3 landing = walker.position; // 처음 실제 도착점
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.E)); // 착륙장에서는 출격소 조작이 동작하지 않음
+            yield return WaitFrames(8); // 전환이 실행되는지 확인
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(VillagePath)); // 출격소 밖의 입력 무시
+            SetKeys(Key.A); // 마을 연결 다리 밖의 왼쪽 낭떠러지
+            yield return WaitFrames(160); // 실제 섬 끝까지 이동
+            Vector3 edge = walker.position; // 지면이 끝나는 위치
+            yield return WaitFrames(60); // 가장자리를 계속 밀어도 이동 제한
+            Assert.That(landing.x - edge.x, Is.GreaterThan(4f)); // 캐릭터가 실제로 걸어 이동
+            Assert.That(Vector3.Distance(edge, walker.position), Is.LessThan(0.08f)); // 공중으로 걸어나가지 않음
+            Assert.That(walker.position.y, Is.EqualTo(landing.y).Within(0.1f)); // 다리·섬의 높이 유지
+            SetKeys(Key.D); // 중심 보행로로 돌아오기
+            for (int frame = 0; frame < 200 && walker.position.x < -0.10f; frame++) // 다리의 중앙에 맞춤
+            {
+                yield return null; // 현재 마을 위치 확인
+            }
+            SetKeys(); // 옆 이동 해제
+            yield return VillageBoard(); // 북쪽 다리와 출격소를 실제 걸어서 통과
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 마을에서 열린 실제 캐릭터 선택
+            ClickPauseButton(briefing, "Ready/Back"); // 선택을 확정하지 않고 마을로 돌아오기
+            yield return WaitForActiveScene(VillagePath); // 출격소 근처의 마을로 복귀
+            walker = GameObject.Find("VillageWalker").transform; // 복귀한 새 마을 조종사
+            Assert.That(walker.position.z, Is.GreaterThan(25f)); // 착륙장까지 되돌아갈 필요 없는 복귀
+        }
+
+        private IEnumerator VillageBoard() // 마을 북쪽 길에서 캐릭터 준비 진입
+        {
+            yield return WaitForActiveScene(VillagePath); // 시작 지점의 도보 조종사
+            Transform walker = GameObject.Find("VillageWalker").transform; // 씬의 제어 대상
+            Transform station = GameObject.Find("SortieEntrance").transform; // 월드 위치의 실제 출격소
+            SetKeys(Key.W); // 광장을 지나 북쪽 실제 다리 건너기
+            for (int frame = 0; frame < 430 && walker.position.z < station.position.z - 1.5f; frame++) // 이동을 제한하는 물리 경계의 실제 순회
+            {
+                yield return null; // 무한 대기 없이 북쪽 진행 확인
+            }
+            Assert.That(walker.position.z, Is.GreaterThan(station.position.z - 2.0f)); // 출격소 접근 및 다리 연결
+            SetKeys(); // E 입력 전 이동 해제
+            yield return null; // 접근 안내 UI의 활성화
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.E)); // 출격소의 실제 상호작용을 다음 게임 프레임에 전달
+            yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 다음 준비 씬의 실제 진입
+            SetKeys(); // 다음 출격 버튼과 조작 분리
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FlightSortieBriefing")); // 준비 씬을 실제로 여는 동선
+        }
+
         [UnityTest] // 앱 시작 메뉴·기존 출격 확인·설정 보존
         public IEnumerator MainMenuConfirmsNewGameAndSavesDisplayAndSound() // 기본 씬의 실제 저장과 출격 경로
         {
@@ -1791,8 +1846,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Assert.That(PlayerPrefs.HasKey(root + ".Screen"), Is.True); // 화면 설정 저장
                 ClickPauseButton(settings, "Back"); // 실제 메인 화면 유지
                 ClickPauseButton(menu, "Home/NewGame"); // 처음에는 바로 새 출격
-                const string briefingPath = "Assets/Scenes/FlightSortieBriefing.unity"; // 타이틀 뒤의 준비 씬
-                yield return WaitForActiveScene(briefingPath); // 실제 캐릭터 선택과 준비 진입
+                yield return VillageBoard(); // 마을에서 북쪽 출격소를 거쳐 준비 진입
                 ClickPauseButton(GameObject.Find("SortieBriefing").transform, "Ready/Depart"); // 선택한 캐릭터로 출발 확정
                 yield return WaitForActiveScene(OuterIslandsPath); // 비동기 실전 씬 전환 완료 대기
                 Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 실전으로 진입
@@ -1817,7 +1871,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 ClickPauseButton(menu, "Confirm/Cancel"); // 기존 진행 보존
                 Assert.That(menu.Find("Home").gameObject.activeSelf, Is.True); // 메인 화면 복귀
                 ClickPauseButton(menu, "Home/Continue"); // 저장된 출격 불러오기
-                yield return WaitForActiveScene(briefingPath); // 저장한 조종사로 선택 화면 복원
+                yield return VillageBoard(); // 이어서하기도 같은 마을에서 저장한 조종사로 진입
                 ClickPauseButton(GameObject.Find("SortieBriefing").transform, "Ready/Depart"); // 저장된 준비 상태로 실제 비행
                 yield return WaitForActiveScene(OuterIslandsPath); // 실전 씬의 비동기 진입
                 Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(OuterIslandsPath)); // 계속하기 실제 진입

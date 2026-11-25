@@ -235,7 +235,7 @@ namespace ProjectG // 프로젝트 비행 입문
                 return; // 기존 메뉴를 유지
             }
             active = false; // 씬을 열기 전 추가 진행 차단
-            FlightSortieChoice.ReturnFromGuide(selected); // 선택한 연습 조종사를 준비에 바인딩
+            FlightSortieChoice.RememberPilot(selected); // 선택한 연습 조종사를 준비에 바인딩
             SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 영구 보상 없는 연습 종료
         }
     }

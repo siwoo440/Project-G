@@ -31,6 +31,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
         public float TotalSeconds { get; private set; } // 메뉴와 카드 선택을 포함한 소요 시간
         public bool IsStageComplete { get; private set; } // 일반 전투 항로의 종료 상태
+        public bool IsPreparing => IsStage && !stopped && ElapsedSeconds < stageWaves[0].startsAt; // 첫 적 출현 시점 전의 실제 준비 구간
         public bool IsMidBossActive => activeBoss is FlightMidBoss; // 웨이브 HUD의 중간 보스 표시
         public bool IsFinalBossActive => activeBoss is FlightFinalBoss; // 전용 HUD의 최종 보스 표시
         private bool IsStage => stageWaves.Length > 0; // 실전 웨이브의 씬 등록 여부

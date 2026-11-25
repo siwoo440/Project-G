@@ -32,6 +32,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private float flashUntil; // 짧은 코어 강조의 종료 시점
         private bool flashing; // 재질을 변경할 필요가 있는 피격 반응 상태
 
+        [SerializeField] private string defenseElement; // 기획 확인 후 지정할 방어 속성
+        public string DefenseElement => defenseElement; // 미지정 시 중립 상성
         public int Health { get; private set; } // 현재 마물의 시험 체력
         public int MaxHealth => maxHealth; // 보스 HUD가 참조하는 최대값
         public int ExperienceReward => experienceReward; // 처치한 적의 경험치 보상

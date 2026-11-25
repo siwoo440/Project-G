@@ -44,6 +44,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightCombatHud hud; // 실제 스킬 키캡
         [SerializeField] private FlightBroomWorkshop broomWorkshop; // 실제 조립 화면
         [SerializeField] private Button broomButton; // 빗자루 조립 화면 입장
+        [SerializeField] private FlightCraftedSpellEditor spellEditor; // 제작 마법 시험 화면
+        [SerializeField] private Button spellEditorButton; // 제작 마법 편집 화면 입장
         private int capture = -1; // 설정에서 새 키를 기다리는 동작
         private int closeFrame = -1; // 메뉴 클릭이 전투에 넘어가지 않는 프레임
         private bool abandon; // 이미 포기한 출격
@@ -73,6 +75,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 menuButtons = panel.transform.Find("MenuButtons").gameObject; // 씬에 배치한 정지 버튼 열
                 broomWorkshop.Initialize(ShowControls); // 조립에서 조작 안내로 복귀
                 broomButton.onClick.AddListener(ShowWorkshop); // 조립 화면 열기
+            }
+            if (spellEditor != null) // 실전 항로의 제작 마법
+            {
+                spellEditor.Initialize(ShowControls); // 편집에서 조작 안내 복귀
+                spellEditorButton.onClick.AddListener(ShowSpells); // 제작 마법 화면 열기
             }
             for (int index = 0; index < bindingButtons.Length; index++) // 설정에 표시된 실제 조작
             {
@@ -126,7 +133,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             if (opened) // 메뉴가 이미 열린 상태
             {
-                if (broomWorkshop != null && broomWorkshop.gameObject.activeSelf) // 후보를 보고 있는 조립 화면
+                if ((broomWorkshop != null && broomWorkshop.gameObject.activeSelf) || (spellEditor != null && spellEditor.gameObject.activeSelf)) // 조립 또는 마법 편집 화면
                 {
                     ShowControls(); // 확정하지 않은 미리보기 취소
                     return; // 정지 메뉴에 남기
@@ -212,6 +219,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 broomWorkshop.gameObject.SetActive(false); // 후보 미리보기 닫기
                 menuButtons.SetActive(true); // 기존 정지 버튼 열 돌아오기
             }
+            if (spellEditor != null) // 제작 화면을 지원하는 실전 항로
+            {
+                spellEditor.gameObject.SetActive(false); // 별도 미리보기와 투사체 정리
+            }
             controls.SetActive(true); // 키보드와 키 목록 표시
             settings.SetActive(false); // 오른쪽 설정 숨김
             confirm.SetActive(false); // 포기 확인 숨김
@@ -222,6 +233,13 @@ namespace ProjectG // 프로젝트 게임 영역
             controls.SetActive(false); // 조작 설명 패널 전환
             menuButtons.SetActive(false); // 뒤에 비치는 중복 정지 버튼 숨김
             broomWorkshop.Show(); // 현재 장착과 후보 보기
+        }
+
+        private void ShowSpells() // 실전 화면에서 연습과 편집으로 전환
+        {
+            controls.SetActive(false); // 오른쪽 조작 설명 감춤
+            menuButtons.SetActive(false); // 왼쪽 기존 버튼 감춤
+            spellEditor.Show(); // 제작 조합과 시험 표적 표시
         }
 
         private void ShowSettings() // 오른쪽만 환경 설정으로 전환

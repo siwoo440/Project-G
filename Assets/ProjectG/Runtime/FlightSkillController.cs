@@ -143,6 +143,17 @@ namespace ProjectG // 프로젝트 게임 영역
             return true; // 카드 순환 가능 여부
         }
 
+        internal bool CanSpendCraftedMana() // 카드와 같은 조준·생존 조건
+        {
+            return Time.timeScale > 0f && pilot.CanFly && pilot.IsAimView; // 메뉴와 둘러보기에서 실전 제작 마법 차단
+        }
+
+        internal void SpendCraftedMana(int cost) // 성공한 제작 마법의 실제 소비
+        {
+            mana -= cost; // 보석과 같은 마력 비용 반영
+            ShowResources(); // 전투 게이지의 실제 마력 수치
+        }
+
         private void TrySkill(int slot, FlightMagicEffect effect, int cost, float cooldown, bool useUltimate, float startsIn = 0f) // Q·E·R 공통 조건과 효과
         {
             float value = useUltimate ? ultimate : mana; // 해당 자원 선택

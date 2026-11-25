@@ -27,11 +27,13 @@ Windows 빌드는 `Assets/Scenes/OuterIslandsStage.unity`에서 시작합니다.
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
 
-![프로젝트 G 3D 20일차 빗자루 조립과 외형 미리보기](docs/screenshots/3d-day-20-workshop.png)
+![프로젝트 G 3D 22일차 제작 마법과 3D 시험장](docs/screenshots/3d-day-22-editor.png)
 
-하늘섬 외곽 항로에서 `Esc → 빗자루 조립`을 누르면 현재 캐릭터의 8개 부위를 확인할 수 있습니다. 후보를 선택하면 회전하는 3D 외형과 현재 조합에서 바뀌는 능력치가 표시됩니다. 장착 확정으로 저장한 조합은 재실행 후에도 복원됩니다. [1024×576 재실행 화면](docs/screenshots/3d-day-20-reload-1024.png) · [20일차 기록](docs/development/3d-day-20.md)
+하늘섬 외곽 항로에서 `Esc → 마법 제작`을 열면 마법 구성을 편집하고, 3D 시험장에서 피해와 연습 마력을 확인할 수 있습니다. 조합을 저장한 뒤 좌우 칸에 편성하면 실제 마우스 클릭으로 시전합니다. 첫 웨이브가 시작된 뒤 저장한 편성은 다음 출격에서 적용됩니다. [1024×576 제작 화면](docs/screenshots/3d-day-22-editor-1024.png) · [22일차 기록](docs/development/3d-day-22.md)
 
-제작 마법의 구성 ID와 고정 비용, 호환성·탄수 제한, 직선·확산·유도 방향 규칙을 추가했습니다. 실전 제작 화면과 시험 발사는 22일차에 연결합니다. [21일차 제작 마법 규칙](docs/development/3d-day-21.md)
+`Esc → 빗자루 조립`에서는 현재 캐릭터의 8개 부위를 확인합니다. 후보를 고르면 3D 외형과 현재 조합에서 바뀌는 능력치가 표시되고, 장착 확정으로 저장한 조합은 재실행 후에도 복원됩니다. [조립 화면](docs/screenshots/3d-day-20-workshop.png) · [1024×576 재실행 화면](docs/screenshots/3d-day-20-reload-1024.png) · [20일차 기록](docs/development/3d-day-20.md)
+
+제작 마법의 구성 ID와 고정 비용, 호환성·탄수 제한, 직선·확산·유도 방향은 편집기와 전투에서 공유합니다. [21일차 제작 마법 규칙](docs/development/3d-day-21.md)
 
 질풍의 몸체를 장착하면 아리아의 수평 최고 속도가 12.3 m/s에서 12.7 m/s로 바뀝니다. Unity의 `AriaPilot/TrainingBroom/PartMounts`에서 부품 위치를 편집합니다. [기본 몸체](docs/screenshots/3d-day-19-default.png) · [질풍의 몸체](docs/screenshots/3d-day-19-flight.png) · [19일차 기록](docs/development/3d-day-19.md)
 

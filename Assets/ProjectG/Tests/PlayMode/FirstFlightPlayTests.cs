@@ -1571,8 +1571,14 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(45); // 비행 체적과 구름 이동 관찰
             SetKeys(); // 이동 해제
             Assert.That(pilot.position.x, Is.EqualTo(boundary.bounds.max.x).Within(0.01f)); // 씬 경계를 넘지 않는 이동
-            Assert.That(Vector3.Distance(near.position, nearStart), Is.GreaterThan(Vector3.Distance(far.position, farStart))); // 가까운 구름층의 뚜렷한 움직임
-            Assert.That(Vector3.Distance(far.position, farStart), Is.GreaterThan(0.01f)); // 먼 구름층의 완만한 이동
+            Component nearDrift = near.GetComponent("FlightCloudDrift"); // 가까운 구름의 씬 이동 범위
+            Component farDrift = far.GetComponent("FlightCloudDrift"); // 먼 구름의 씬 이동 범위
+            var sweep = nearDrift.GetType().GetField("sweep", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 사인 곡선의 위상과 독립인 실제 편집값
+            Vector3 nearSweep = (Vector3)sweep.GetValue(nearDrift); // 가까운 층의 최대 이동 폭
+            Vector3 farSweep = (Vector3)sweep.GetValue(farDrift); // 먼 층의 최대 이동 폭
+            Assert.That(nearSweep.magnitude, Is.GreaterThan(farSweep.magnitude)); // 가까운 구름층의 더 큰 반복 이동
+            Assert.That(Vector3.Distance(near.position, nearStart), Is.GreaterThan(0.0001f)); // 가까운 층의 실제 이동
+            Assert.That(Vector3.Distance(far.position, farStart), Is.GreaterThan(0.0001f)); // 먼 층의 실제 이동
         }
 
         [UnityTest] // 기본 부품과 시험 부품이 실제 비행에 미치는 변화
@@ -1679,6 +1685,68 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 PlayerPrefs.DeleteKey(key); // 자체 테스트 저장만 삭제
                 PlayerPrefs.Save(); // 저장 검증 키의 제거 확정
                 System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", prior); // 테스트 환경 복귀
+            }
+        }
+
+        [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
+        public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
+        {
+            string key = "ProjectG.Crafted.Test." + System.Guid.NewGuid().ToString("N"); // 독립적인 제작 마법 저장
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 격리 환경 보관
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 값이 다른 사용자의 저장 제외
+            try // 종료 때 시험 저장 반환
+            {
+                yield return LoadOuterIslands(); // 실전 항로의 실제 HUD와 마법 슬롯
+                Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 실전 정지 메뉴
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 ESC 입력
+                yield return WaitFrames(4); // 정지 메뉴 전환
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 중복된 정지 입력 방지
+                ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 마법 편집기 입장
+                Transform editor = pause.Find("CraftedSpellEditor"); // 씬에 저장한 편집 화면
+                Assert.That(editor.gameObject.activeInHierarchy, Is.True); // 실제 편집 패널
+                ClickPauseButton(editor, "TestCast"); // 기본 파이어 볼트의 독립 연습 사격
+                Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 연습용 표적만 확인
+                for (int frame = 0; frame < 180 && Metric(target, "TotalDamage") == 0; frame++) // 실제 비행과 충돌까지 대기
+                {
+                    yield return null; // 게임 정지시간에 영향 없는 연습 진행
+                }
+                Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(60)); // 직격 35와 폭발 25를 한 번씩 적용
+                ClickPauseButton(editor, "Save"); // 같은 제작 ID 보존
+                ClickPauseButton(editor, "EquipLeft"); // 실제 좌클릭 슬롯에 편성
+                Assert.That(PlayerPrefs.HasKey(key), Is.True); // 저장·편성 데이터 존재
+                ClickPauseButton(editor, "Back"); // 기존 조작 안내로 복귀
+                ClickPauseButton(pause, "MenuButtons/Continue"); // 실전 시간 재개
+                yield return WaitFrames(4); // 조립 클릭과 실제 발사 입력 분리
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실전과 연습의 같은 발사 컴포넌트
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실전 좌클릭 사용
+                yield return WaitFrames(4); // 실제 마법 카드 경로로 발사
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 같은 조합의 첫 실전 시전
+                Assert.That(Metric(FindPilot().GetComponent("FlightSkillController"), "Mana"), Is.InRange(85, 86)); // 실제 보석 비용 15 차감
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 마법 사용 클릭 해제
+                Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 실제 웨이브 시작 조건
+                var preparing = encounter.GetType().GetProperty("IsPreparing"); // 배포 씬의 실제 출격 준비 판정
+                for (int frame = 0; frame < 600 && (bool)preparing.GetValue(encounter); frame++) // 첫 웨이브 직전까지만 진행
+                {
+                    yield return null; // 전투 시간 진행
+                }
+                Assert.That(preparing.GetValue(encounter), Is.False); // 실제 전투가 시작된 상태
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 전투 중에 다시 정지
+                yield return WaitFrames(4); // 메뉴의 실제 입력 확인
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 조합 편집 클릭으로 이동
+                ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 같은 저장 조합 불러오기
+                ClickPauseButton(editor, "EquipRight"); // 다음 출격의 우측 편성
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 저장과 현재 편성을 분리하는 도감
+                var activeLane = book.GetType().GetMethod("ActiveSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 현재 출격에서 쓰는 마법
+                Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.Null); // 시작한 전투에서는 이전 편성 유지
+                ClickPauseButton(editor, "Back"); // 출격 제어로 이동
+                ClickPauseButton(pause, "MenuButtons/Restart"); // 다음 출격 시작
+                Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.Not.Null); // 저장된 다음 조합이 적용
+            }
+            finally // 격리된 시험 데이터만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 임시 마법 구성 삭제
+                PlayerPrefs.Save(); // 시험 종료 기록
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 다른 시험과 분리 복구
             }
         }
 

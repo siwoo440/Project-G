@@ -51,6 +51,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 arriveAt = Time.time + 0.18f; // 이동 종료 시점
             }
 
+            public void SetCrafted(string name, int mana, Texture2D element, Card source) // 조립한 마법의 레이어
+            {
+                Set(source); // 같은 속성의 기존 일러스트와 카드 틀
+                symbol.texture = element; // 실제 제작 마법의 속성
+                title.text = name; // 제작한 마법 이름
+                cost.text = mana.ToString(); // 실제 소비하는 마력
+            }
+
             public void Render(bool usable, bool preview) // 레이어의 색과 카드 전환 위치
             {
                 if (available != usable || !initialized) // 자원 색이 바뀌었는지 확인
@@ -71,6 +79,7 @@ namespace ProjectG // 프로젝트 게임 영역
             public CardView next = new CardView(); // 바깥쪽에 있는 작은 다음 카드
             public Card[] cards; // 한쪽의 반복 카드 순서
             public int Index { get; private set; } // 현재 순환 위치
+            private string craftedId; // 지금 그린 제작 마법 식별자
 
             public void Initialize() // 큰 카드와 미리보기 위치 기록
             {
@@ -96,14 +105,45 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
             }
 
-            public void Render(int mana) // 개별 카드와 미리보기 자원 표시
+            public void Render(int mana, CraftedSpellRecipe recipe, FlightCraftedSpellBook book, int slot, Lane opposite) // 기존 순환 또는 직접 편성한 마법
             {
+                if (recipe != null) // 사용자가 직접 저장하여 선택한 칸
+                {
+                    if (craftedId != recipe.Id) // 제작 마법을 새로 편성한 상태
+                    {
+                        craftedId = recipe.Id; // 변경 시 한 번만 이미지 적용
+                        Texture2D symbol = book.Symbol(recipe); // 실제 저장한 속성 이미지
+                        Card art = FindArt(symbol) ?? opposite.FindArt(symbol) ?? cards[Index]; // 같은 원소의 기존 그림 우선
+                        active.SetCrafted(FlightCraftedSpellBook.NameOf(recipe), FlightCraftedSpellCaster.Stats(recipe).Mana, symbol, art); // 저장 조합의 그림·마력·이름
+                        next.root.gameObject.SetActive(false); // 고정 장착 제작 마법은 순환 없이 유지
+                    }
+                    active.Render(book.CanCast(slot), false); // 마력과 재사용 시간의 어둡기
+                    return; // 고정 장착과 이전 시험 덱을 같이 표시하지 않음
+                }
+                if (craftedId != null) // 제작 슬롯을 해제한 상태
+                {
+                    Refresh(); // 시험 카드와 미리보기 복원
+                }
                 active.Render(mana >= cards[Index].manaCost, false); // 현재 카드의 마력 상태
                 next.Render(mana >= cards[(Index + 1) % cards.Length].manaCost, true); // 작은 미리보기의 마력 상태
             }
 
+            private Card FindArt(Texture2D element) // 같은 원소의 이미 그린 카드 일러스트
+            {
+                foreach (Card entry in cards) // 이 줄의 기존 카드
+                {
+                    if (entry.element == element) // 속성 일치
+                    {
+                        return entry; // 원래 레이어를 그대로 재사용
+                    }
+                }
+                return null; // 반대쪽에서 조회할 카드
+            }
+
             private void Refresh() // 실제 순서에서 두 표시 갱신
             {
+                craftedId = null; // 기본 카드의 표시 상태
+                next.root.gameObject.SetActive(true); // 순환 후보를 다시 표시
                 active.Set(cards[Index]); // 지금 사용할 카드
                 next.Set(cards[(Index + 1) % cards.Length]); // 사용 후 올라올 카드
             }
@@ -113,6 +153,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightSkillController magic; // 공유 마력과 실제 효과
         [SerializeField] private Lane left = new Lane(); // 좌클릭 카드
         [SerializeField] private Lane right = new Lane(); // 우클릭 카드
+        [SerializeField] private FlightCraftedSpellBook crafted; // 실전 항로의 선택형 제작 마법
 
         public int LeftIndex => left.Index; // 왼쪽 순환 검증 상태
         public int RightIndex => right.Index; // 오른쪽 순환 검증 상태
@@ -135,19 +176,32 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 if (mouse.leftButton.wasPressedThisFrame) // 왼쪽 현재 카드 선택
                 {
-                    left.TryUse(magic); // 왼쪽 카드만 진행
+                    UseLane(left, 0); // 왼쪽 카드만 사용
                 }
                 if (mouse.rightButton.wasPressedThisFrame) // 오른쪽 현재 카드 선택
                 {
-                    right.TryUse(magic); // 오른쪽 카드만 진행
+                    UseLane(right, 1); // 오른쪽 카드만 사용
                 }
             }
-            left.Render(magic.Mana); // 왼쪽 카드 실시간 표시
-            right.Render(magic.Mana); // 오른쪽 카드 실시간 표시
+            left.Render(magic.Mana, crafted?.ActiveSlot(0), crafted, 0, right); // 왼쪽 카드 실시간 표시
+            right.Render(magic.Mana, crafted?.ActiveSlot(1), crafted, 1, left); // 오른쪽 카드 실시간 표시
+        }
+
+        private void UseLane(Lane lane, int index) // 편성 정보에 맞는 실제 클릭 처리
+        {
+            if (crafted?.ActiveSlot(index) != null) // 직접 편성된 게임의 제작 마법
+            {
+                crafted.Use(index); // 현재 고정 조합을 시전
+            }
+            else // 기존 초기 카드 시험 덱
+            {
+                lane.TryUse(magic); // 지금까지의 독립 카드 순환
+            }
         }
 
         internal void ResetRun() // 새 출격의 카드 순서 복구
         {
+            crafted?.ResetRun(); // 새 출격 이전 제작 마법 정리
             left.Reset(); // 왼쪽 덱 최초 그림
             right.Reset(); // 오른쪽 덱 최초 그림
         }

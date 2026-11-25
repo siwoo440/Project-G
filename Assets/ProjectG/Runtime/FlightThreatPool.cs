@@ -28,6 +28,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public bool TryFire(Vector3 position, Vector3 direction, float speed, int damage = 0) // 지정 방향과 피해의 적탄 한 발
         {
+            return TryFire(position, direction, speed, damage, FlightThreatPattern.Aimed); // 직접 발사와 훈련 공통의 주황 조준탄
+        }
+
+        internal bool TryFire(Vector3 position, Vector3 direction, float speed, int damage, FlightThreatPattern pattern) // 패턴별 에셋을 포함하는 적탄 발사
+        {
             if (target.IsDefeated || ActiveCount >= capacity || speed <= 0f || direction.sqrMagnitude < 0.0001f) // 비행 상태·동시 상한·입력 검사
             {
                 return false; // 초과 탄은 생성하지 않음
@@ -35,7 +40,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
             FlightThreatBolt bolt = idle.Count > 0 ? idle.Pop() : CreateBolt(); // 회수한 객체 우선 사용
             bolt.transform.SetPositionAndRotation(position, Quaternion.LookRotation(direction)); // 탄환 출발 위치와 진행 방향
-            bolt.Begin(this, target, speed, damage); // 수명과 발사별 피해 초기화
+            bolt.Begin(this, target, speed, damage, pattern); // 수명·피해·패턴 외형의 초기화
             ActiveCount++; // 활성 탄 수 증가
             bolt.gameObject.SetActive(true); // 실제 탄환 진행 시작
             return true; // 발사 성공 여부

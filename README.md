@@ -56,6 +56,10 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 항로에 직접 출격할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.
 
+![루미 3D 비행 모형과 하늘섬 항로](docs/screenshots/3d-day-38-lumi-flight.png)
+
+일곱 조종사의 저폴리곤 비행 모형은 `AriaPilot/PilotModels`에서 편집합니다. 비행 방향에 따라 몸과 옷자락이 움직이고, 조종사는 화면 중앙의 조준점 왼쪽 아래에 있습니다. 적탄은 주황 조준 구체, 금빛 부채꼴 사각탄, 분홍 고리 결정, 붉은 나선 결정으로 구분합니다. [네 탄막 비교](docs/screenshots/3d-day-38-bullet-shapes.png) · [1024×576 탄막](docs/screenshots/3d-day-38-bullet-shapes-1024.png) · [일반 마물 실루엣](docs/screenshots/3d-day-38-enemy-shapes.png) · [38일차 기록](docs/development/3d-day-38.md)
+
 타이틀 설정은 16:9 창과 1280×800, 1024×768을 지원합니다. [소형 16:9 전투](docs/screenshots/3d-day-27-hud-1024.png) · [16:10 전투](docs/screenshots/3d-day-27-hud-16x10.png) · [4:3 전투](docs/screenshots/3d-day-27-hud-4x3.png)
 
 | 입력 | 동작 |

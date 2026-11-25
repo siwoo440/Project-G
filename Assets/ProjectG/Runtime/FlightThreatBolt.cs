@@ -5,6 +5,18 @@ namespace ProjectG // 프로젝트 게임 영역
     [DefaultExecutionOrder(110)] // 비행체 이동과 카메라 적용 후 판정
     public sealed class FlightThreatBolt : MonoBehaviour // 3차원 적탄 프리팹
     {
+        [System.Serializable] // 재사용 탄에 입힐 패턴별 에셋
+        private struct Appearance // 프리팹에서 조정하는 형태와 표면
+        {
+            public Mesh mesh; // 미리 만든 삼각형 메시
+            public Material material; // 위협을 구분하는 색과 발광
+            public Vector3 scale; // 판정 반경과 분리된 표시 크기
+        }
+
+        [SerializeField] private MeshFilter renderMesh; // 씬에서 보이는 탄의 메시
+        [SerializeField] private MeshRenderer renderSurface; // 탄의 공유 재질
+        [SerializeField] private Appearance[] appearances = System.Array.Empty<Appearance>(); // 패턴 열거 순서의 에셋
+        private FlightThreatPattern? lastAppearance; // 이전 발사에 적용한 외형
         [SerializeField, Min(0.01f)] private float radius = 0.10f; // 시험 적탄의 실제 반경
         [SerializeField, Min(1)] private int damage = 20; // 시험 적탄의 피해
         [SerializeField, Min(0.01f)] private float range = 130f; // 적탄의 최대 진행 거리
@@ -21,7 +33,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal float Radius => radius; // 적탄 소거의 실제 반경
 
-        internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed, int shotDamage) // 실제 발사된 적탄 초기화
+        internal void Begin(FlightThreatPool pool, FlightPilotVitals target, float travelSpeed, int shotDamage, FlightThreatPattern pattern) // 실제 발사된 적탄 초기화
         {
             owner = pool; // 해당 탄을 관리하는 풀 참조
             vitals = target; // 현재 씬 비행체 참조
@@ -32,6 +44,21 @@ namespace ProjectG // 프로젝트 게임 영역
             previousPilot = vitals.transform.position; // 탄환 출발 때 기체 좌표
             speed = travelSpeed; // 발사 시 지정한 시험 속도
             impactDamage = shotDamage > 0 ? shotDamage : damage; // 새 발사의 지정 피해 또는 원본 피해
+            UpdateAppearance(pattern); // 재사용 탄을 지금 발사한 패턴에 맞게 갱신
+        }
+
+        private void UpdateAppearance(FlightThreatPattern pattern) // 실제 판정과 분리된 공유 외형 적용
+        {
+            int index = (int)pattern; // 프리팹 배열에 대응하는 패턴 순서
+            if (lastAppearance == pattern || (uint)index >= appearances.Length || renderMesh == null || renderSurface == null) // 같은 상태 또는 구형 편집 원본 확인
+            {
+                return; // 재질을 복제하거나 판정을 바꾸지 않는 경로
+            }
+            Appearance look = appearances[index]; // 시각 자식에 적용할 세 속성
+            renderMesh.sharedMesh = look.mesh; // 원본 에셋 참조 그대로 사용
+            renderSurface.sharedMaterial = look.material; // 새 재질 인스턴스 생성 방지
+            renderMesh.transform.localScale = look.scale; // 3D 화면에서 패턴별 다른 폭과 길이
+            lastAppearance = pattern; // 같은 종류로 회수한 탄의 중복 작업 제거
         }
 
         private void LateUpdate() // 이동하는 탄환과 기체의 상대 궤적 검사

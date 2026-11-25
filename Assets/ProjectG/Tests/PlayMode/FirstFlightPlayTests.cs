@@ -68,6 +68,14 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Transform pilot = FindPilot(); // 이 출격의 실제 기체
                 Component weapon = pilot.GetComponent("FlightWeapon"); // 조종사와 공격
                 Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo(actor)); // 결과까지 이어질 실제 조종사
+                Transform models = pilot.Find("PilotModels"); // 씬에 미리 배치된 편집 가능한 조종사 모형
+                Assert.That(models, Is.Not.Null, actor); // 모든 선택의 실제 비행 모형 묶음
+                Assert.That(models.childCount, Is.EqualTo(names.Length), actor); // 배열로 참조할 일곱 3D 변형
+                foreach (Transform model in models) // 다른 캐릭터의 외형 혼입을 방지
+                {
+                    Assert.That(model.gameObject.activeSelf, Is.EqualTo(model.name == actor), model.name); // 출격한 조종사 외형만 렌더
+                }
+                Assert.That(models.Find(actor + "/Mantle/OuterCloth").GetComponent<MeshFilter>().sharedMesh.name, Is.EqualTo("FoldedMantle"), actor); // 실제 메시가 연결된 의상
                 Component skills = pilot.GetComponent("FlightSkillController"); // 현재 기체의 장착 마력
                 bool reserve = actor is "Aria" or "Lumi" or "Vera" or "Iris"; // 마력석 또는 장식이 더하는 5점
                 bool recovery = actor is "Aria" or "Lumi" or "Nox" or "Vera"; // 장식이 더하는 초당 0.5점
@@ -932,6 +940,55 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(88); // 이탈 완료
             Assert.That(aimed.gameObject.activeSelf || fan.gameObject.activeSelf || dive.gameObject.activeSelf, Is.False); // 이탈 후 원본 비활성화
         }
+        [UnityTest] // 비행 연습에서 실제 렌더러와 재사용 적탄 확인
+        public IEnumerator PilotBankAndThreatAppearancesFollowLiveFlight() // 자세와 피격 형상을 별도 검증
+        {
+            yield return LoadFlight(); // 입력과 적탄을 실제로 쓸 수 있는 비행 씬
+            Transform pilot = FindPilot(); // 실제 비행 물리의 부모
+            Transform aria = pilot.Find("PilotModels/Aria"); // 훈련의 초기 조종사 렌더 모형
+            Vector3 center = Camera.main.WorldToViewportPoint(aria.Find("Face").position); // 화면 좌하단의 조종사 얼굴
+            Assert.That(center.x, Is.LessThan(0.5f)); // 화면 중심 조준점을 가리지 않는 왼쪽 배치
+            Assert.That(center.y, Is.LessThan(0.5f)); // 얼굴과 조준점 사이의 세로 분리
+            var original = aria.localRotation; // 출발의 중립 비행 자세
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.D)); // 오른쪽으로 실제 비행 시작
+            yield return WaitFrames(34); // 가속으로 시각 기울기가 누적
+            Assert.That(Quaternion.Angle(original, aria.localRotation), Is.GreaterThan(5f)); // 실제 이동으로 기울어진 메쉬
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 이전 움직임 해제
+            yield return WaitFrames(44); // 관성이 줄어든 중립 자세
+            Assert.That(Quaternion.Angle(original, aria.localRotation), Is.LessThan(3f)); // 출발에서 같은 안정 자세
+            Transform pool = GetThreatPool().transform; // 연습 모드와 보스가 공유하는 실제 적탄 풀
+            Component practice = GameObject.Find("ThreatPractice").GetComponent("FlightThreatPractice"); // 시험 패턴 발사 진입점
+            var emit = practice.GetType().GetMethod("EmitPattern"); // 실제 입력에서 사용하는 패턴 발사
+            var returnAll = GetThreatPool().GetType().GetMethod("ReturnAll"); // 새 패턴 전에 회수 원본
+            string[] patterns = { "Aimed", "Fan", "Ring", "Spiral", "Aimed" }; // 마지막 발로 회수 후 기본 외형 복원 확인
+            string[] materials = { "ThreatEmber", "ThreatFan", "ThreatRing", "ThreatSpiral", "ThreatEmber" }; // 현재 패턴별 공유 파일
+            var shapeMarker = new System.Collections.Generic.HashSet<(Mesh, Vector3)>(); // 형태와 크기가 다른 패턴 확인
+            Transform reused = null; // 되돌려 쓴 탄을 직접 확인할 첫 표본
+            for (int i = 0; i < patterns.Length; i++) // 정식 탄막 네 가지와 첫 탄 재사용
+            {
+                returnAll.Invoke(GetThreatPool(), null); // 이번 발사 전에 같은 풀에서 모두 회수
+                object pattern = System.Enum.Parse(emit.GetParameters()[0].ParameterType, patterns[i]); // 실제 게임의 유형
+                emit.Invoke(practice, new[] { pattern, (object)(pilot.position + pilot.forward * 10f), -pilot.forward }); // 실제 렌더·피격 적탄 생성
+                foreach (Transform bolt in pool) // 활성 탄의 시각 상태 확인
+                {
+                    if (!bolt.gameObject.activeSelf) // 비활성 예비탄 무시
+                    {
+                        continue; // 표시하지 않는 재사용 탄
+                    }
+                    if (i == 0) // 첫 조준 단일발의 대상
+                    {
+                        reused = bolt; // 같은 조회에서 재사용되는지 확인
+                    }
+                    Transform visual = bolt.Find("PatternShape"); // 에디터에서 편집하는 탄막 외형
+                    Assert.That(visual.GetComponent<MeshRenderer>().sharedMaterial.name, Is.EqualTo(materials[i])); // 재사용탄에 이전 색 잔류 금지
+                    shapeMarker.Add((visual.GetComponent<MeshFilter>().sharedMesh, visual.localScale)); // 모양이 달라 색 이외에도 읽기 쉬운지 확인
+                }
+            }
+            Assert.That(shapeMarker.Count, Is.EqualTo(4)); // 색과 함께 바뀌는 기하 네 가지
+            Assert.That(reused, Is.Not.Null); // 실제 회수된 조준탄이 존재
+            Assert.That(reused.Find("PatternShape").GetComponent<MeshRenderer>().sharedMaterial.name, Is.EqualTo("ThreatEmber")); // 같은 탄의 처음 외형으로 정상 복귀
+        }
+
         [UnityTest] // 전투 게이지의 실제 상태와 생성 이미지
         public IEnumerator CombatHudShowsDamageAndKeepsAllGaugesLabeled() // HP와 자원별 표시 검증
         {

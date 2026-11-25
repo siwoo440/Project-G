@@ -32,7 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
             for (int index = 0; index < count; index++) // 기본 배열 순서대로 발사
             {
                 Vector3 local = PatternDirection(pattern, index, count, phase); // 해당 배열의 로컬 방향
-                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f, damage)) // 상한과 피해를 적용한 실제 발사
+                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f, damage, pattern)) // 상한과 피해를 적용한 실제 발사
                 {
                     break; // 상한에 닿으면 남은 발사 중단
                 }

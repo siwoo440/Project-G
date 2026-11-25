@@ -34,6 +34,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public bool IsAimView => !IsFreeLooking && Mathf.Abs(orbitYaw) < 0.1f && Mathf.Abs(orbitPitch) < 0.1f; // 기본 조준 각도로 완전히 복귀한 상태
         public bool HasPointerControl => Application.isBatchMode || Cursor.lockState == CursorLockMode.Locked; // 마우스 제어 상태
         public Quaternion ViewRotation => transform.rotation * Quaternion.Euler(Mathf.Clamp(pitch + orbitPitch, -65f, 65f), orbitYaw, 0f); // 기본 시점과 둘러보기 합성
+        internal Vector3 VisualVelocity => dashRemaining > 0f ? dashVelocity : velocity; // 시각 자세가 따르는 실제 이동 벡터
         public float MaximumSpeed => speed + PartBonus(FlightBroomStat.Speed); // 현재 조합의 수평 최고 속도
 
         private void Awake() // 선택적 비행 체력 참조

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1279869961627029948}
   - component: {fileID: 8151506679422033643}
   m_Layer: 0
-  m_Name: Ember
+  m_Name: PatternShape
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.24, y: 0.42, z: 0.24}
+  m_LocalScale: {x: 0.26, y: 0.26, z: 0.26}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1450521666430596834}
@@ -40,7 +40,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5758991774477995768}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &8151506679422033643
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -49,8 +49,8 @@ MeshRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5758991774477995768}
   m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
@@ -66,7 +66,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: c5d91ab349f644f4c8c5576e1b35a045, type: 2}
+  - {fileID: 2100000, guid: 0ad2f9d17a250784ba1a4e5c87687869, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -135,5 +135,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56ec161926363db498504267851ff54e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightThreatBolt
+  renderMesh: {fileID: 1279869961627029948}
+  renderSurface: {fileID: 8151506679422033643}
+  appearances:
+  - mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    material: {fileID: 2100000, guid: 0ad2f9d17a250784ba1a4e5c87687869, type: 2}
+    scale: {x: 0.26, y: 0.26, z: 0.26}
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    material: {fileID: 2100000, guid: fe9f642f17070d542b3a9267b68195ce, type: 2}
+    scale: {x: 0.23, y: 0.21, z: 0.25}
+  - mesh: {fileID: 4300000, guid: 3d261e76ea4c02d42b2acd9d899cc8f0, type: 2}
+    material: {fileID: 2100000, guid: 32802105f03a23942af299b98fe0486a, type: 2}
+    scale: {x: 0.31, y: 0.25, z: 0.31}
+  - mesh: {fileID: 4300000, guid: 3d261e76ea4c02d42b2acd9d899cc8f0, type: 2}
+    material: {fileID: 2100000, guid: f29892acf2a48cf4898e1f7867c1da6a, type: 2}
+    scale: {x: 0.23, y: 0.45, z: 0.23}
   radius: 0.1
   damage: 20
+  range: 130
+  lifetime: 8

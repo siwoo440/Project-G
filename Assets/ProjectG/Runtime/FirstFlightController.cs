@@ -18,6 +18,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private FlightPilotVitals vitals; // 현재 비행체의 생존 상태
         private FlightBroomEquipment broom; // 실전 비행체의 장착 부품
         private Vector3 velocity; // 관성이 포함된 월드 속도
+        private Vector3 dashVelocity; // 고유기가 사용하는 입체 돌파 속도
+        private float dashRemaining; // 충돌 검사로 이동할 돌파 시간
         private float pitch; // 기본 시점의 상하 각도
         private float orbitYaw; // 둘러보기의 좌우 각도
         private float orbitPitch; // 둘러보기의 상하 각도
@@ -43,6 +45,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public void ResetFlightPose(Vector3 position, Quaternion rotation) // 출격 재시작의 초기 비행 자세
         {
             velocity = Vector3.zero; // 이전 출격 관성 제거
+            dashRemaining = 0f; // 중단한 전투의 돌파 제거
             pitch = 0f; // 기본 시점 각도 복원
             orbitYaw = 0f; // 독립 좌우 시점 초기화
             orbitPitch = 0f; // 독립 상하 시점 초기화
@@ -85,12 +88,26 @@ namespace ProjectG // 프로젝트 게임 영역
             if (!CanFly) // 체력 소진 상태
             {
                 velocity = Vector3.zero; // 실패 이후의 잔류 관성 차단
+                dashRemaining = 0f; // 출격 실패에서 남은 고유기 이동 제한
                 return; // 재시작 전 이동과 선회 차단
             }
             Keyboard keyboard = Keyboard.current; // 현재 키보드
             Mouse mouse = Mouse.current; // 현재 마우스
             UpdateLook(mouse, Time.deltaTime); // 선회와 독립 시점 적용
             IsFocusHeld = keyboard != null && bindings.Held(keyboard, FlightAction.Focus); // 현재 설정의 집중 이동
+            if (dashRemaining > 0f) // 고유기의 짧은 독립 돌파
+            {
+                float interval = Mathf.Min(dashRemaining, Time.deltaTime); // 현재 돌파의 남은 시간
+                Vector3 origin = transform.position; // 벽과 경계에서 실제 이동 가능 거리 측정
+                Vector3 step = dashVelocity * interval; // 고도를 포함한 고유기 추진 벡터
+                MoveWithinBounds(step); // 다른 비행과 같은 지형 및 체적 판정
+                dashRemaining -= interval; // 성공한 프레임의 추진 시간 감소
+                if ((transform.position - origin).sqrMagnitude + 0.0001f < step.sqrMagnitude) // 장해물이나 공중 경계 접촉
+                {
+                    dashRemaining = 0f; // 벽과 경계 바깥으로 밀지 않음
+                }
+                return; // 같은 프레임의 추가 기본 비행 방지
+            }
             Vector3 input = keyboard == null ? Vector3.zero : ReadFlightInput(keyboard); // 현재 비행 방향
             float horizontalSpeed = MaximumSpeed; // 부품 효과가 포함된 수평 속도
             float verticalSpeed = broom == null ? horizontalSpeed : 8f + PartBonus(input.y >= 0f ? FlightBroomStat.Rise : FlightBroomStat.Fall); // 방향별 고도 이동 속도
@@ -100,6 +117,13 @@ namespace ProjectG // 프로젝트 게임 영역
             float rate = slowing ? braking + PartBonus(FlightBroomStat.Braking) : acceleration + PartBonus(FlightBroomStat.Acceleration); // 장착 효과가 포함된 속도 변화율
             velocity = Vector3.MoveTowards(velocity, desired, Mathf.Max(0.01f, rate) * Time.deltaTime); // 가속과 제동 적용
             MoveWithinBounds(velocity * Time.deltaTime); // 지형과 경계 안에서 이동
+        }
+
+        internal void StartSkillDash(Vector3 route, float metersPerSecond, float duration) // 실제 고도와 충돌을 따르는 고유기 돌파
+        {
+            velocity = Vector3.zero; // 돌파 전의 수평·수직 관성 제거
+            dashVelocity = route.normalized * metersPerSecond; // 현재 확정한 입체 추진 방향
+            dashRemaining = duration; // 고유기의 실제 남은 이동 시간
         }
 
         private float PartBonus(FlightBroomStat stat) // 선택적 부품 효과 조회

@@ -47,6 +47,78 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Application.runInBackground = runInBackground; // 시험 전 백그라운드 실행 복원
         }
 
+        [UnityTest] // 3D 검기 범위와 돌파 이동의 물리 판정
+        public IEnumerator SeraSortieChecksCloseDamageHeightAndWall() // 근거리 계수와 높은 표적 제외
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 세라 출격 선택 화면
+            yield return WaitFrames(3); // 편집한 캐릭터 버튼의 준비
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 준비 하이러키
+            Assert.That(briefing.Find("Ready/SelectSera"), Is.Not.Null); // 세라를 네 번째 버튼으로 선택
+            ClickPauseButton(briefing, "Ready/SelectSera"); // 선택한 스탠딩과 실제 조종사 설정
+            Assert.That(briefing.Find("Ready/Portrait").GetComponent<RawImage>().texture.name, Is.EqualTo("SeraStanding")); // 기획서 대표 전신
+            ClickPauseButton(briefing, "Ready/Depart"); // 선택한 세라의 실제 출격
+            yield return WaitForActiveScene(OuterIslandsPath); // 새 항로 로딩
+            Transform pilot = FindPilot(); // 배포에서 움직이는 기체
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 기본 자동사격과 현재 조종사
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력과 에너지
+            Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Sera")); // 선택한 조종사의 적용
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 출격 시험 조건
+            var encounter = (MonoBehaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 무관한 스테이지 자동 웨이브
+            encounter.enabled = false; // 근거리 검기만 독립 시험
+            weapon.GetType().GetField("nextShot", hidden).SetValue(weapon, float.PositiveInfinity); // 자동탄 피해 제외
+            var enemies = (Component[])skills.GetType().GetField("defeatRewards", hidden).GetValue(skills); // 씬에 배치한 원본 마물
+            foreach (Component original in enemies) // 현재 웨이브 밖의 초기 마물
+            {
+                original.gameObject.SetActive(false); // 근거리 표적 피해와 분리
+            }
+            Vector3 start = pilot.position; // 검기와 이동 거리의 기준
+            Vector3 forward = pilot.forward; // 처음 조준 방향
+            Vector3 right = pilot.right; // 검기 너비의 가로 기준
+            Component template = enemies[0]; // 일반 마물의 물리와 체력바 원본
+            GameObject close = CloneStationaryTarget(template, start + forward * 1.2f + right * 0.2f, 500); // 근거리 결의 적용 범위 안
+            GameObject farther = CloneStationaryTarget(template, start + forward * 5f + right * 1.7f, 500); // 근거리 밖이나 검기 안
+            GameObject higher = CloneStationaryTarget(template, start + forward * 3.3f + Vector3.up * 3.4f, 500); // 높이 차이로 놓치는 적
+            Physics.SyncTransforms(); // 세 입체 표적의 배치 반영
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 실제 돌파 검기 입력
+            yield return WaitFrames(5); // 발동과 피해 반영
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 물리 키 해제
+            Assert.That(Metric(close.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(412)); // 70 피해에 근거리 25% 적용
+            Assert.That(Metric(farther.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(430)); // 한 번만 적용되는 전방 피해
+            Assert.That(Metric(higher.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(500)); // 더 높은 적 제외
+            yield return new WaitForSeconds(0.4f); // 첫 돌파의 가속 이동 완료
+            Assert.That(Vector3.Dot(pilot.position - start, forward), Is.InRange(3.7f, 4.4f)); // 돌파의 실제 이동 거리
+            Component flight = pilot.GetComponent("FirstFlightController"); // 월드 지형 접촉을 처리하는 비행체
+            flight.GetType().GetMethod("ResetFlightPose").Invoke(flight, new object[] { start, pilot.rotation }); // 같은 시작점에서 벽 시험
+            skills.GetType().GetMethod("ResetRun", hidden).Invoke(skills, null); // 실제 새 출격의 스킬 재사용 준비
+            weapon.GetType().GetField("nextShot", hidden).SetValue(weapon, float.PositiveInfinity); // 자동탄과 검기 통계 분리
+            GameObject barrier = GameObject.CreatePrimitive(PrimitiveType.Cube); // 독립 검증의 지형 벽 생성
+            barrier.layer = 8; // 배포의 실제 3D 지형 충돌 레이어
+            barrier.transform.SetPositionAndRotation(start + forward * 2.1f, pilot.rotation); // 첫 검기 안의 장애물
+            barrier.transform.localScale = new Vector3(6f, 6f, 0.35f); // 높이와 넓이가 충분한 얇은 벽
+            Physics.SyncTransforms(); // 실제 지형 검사에 적용
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 같은 돌파를 벽 앞에서 시행
+            yield return WaitFrames(4); // 검기와 이동 시작
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 접촉 시험 후 키 해제
+            yield return new WaitForSeconds(0.4f); // 실제 벽에서 멈출 때까지 대기
+            Assert.That(Vector3.Dot(pilot.position - start, forward), Is.LessThan(1.8f)); // 벽과 충돌해 넘지 않는 돌파
+            Assert.That(Metric(farther.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(430)); // 지형 너머의 적은 추가 피해 없음
+            barrier.SetActive(false); // 연참에서 지형 효과 제거
+            flight.GetType().GetMethod("ResetFlightPose").Invoke(flight, new object[] { start, pilot.rotation }); // 두 연속 스킬을 독립 시험
+            skills.GetType().GetMethod("AddUltimate").Invoke(skills, new object[] { 100 }); // 필살기에 필요한 에너지 충전
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 천공 연참의 실제 키 입력
+            yield return WaitFrames(4); // 첫 연참 발생 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 입력 반복 제거
+            Assert.That(Metric(farther.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(390)); // 첫 40 피해와 남은 네 참격
+            Assert.That(Metric(skills, "Ultimate"), Is.Zero); // 연참 발동의 실제 에너지 100 차감
+            yield return new WaitForSeconds(0.75f); // 나머지 연참이 끝나도록 대기
+            Assert.That(Metric(farther.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(230)); // 총 5회의 독립 40 피해
+            Assert.That(Metric(higher.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(500)); // 검기와 연참 둘 다 고도 경계 밖
+            Object.Destroy(barrier); // 독립 검증용 벽 정리
+            Object.Destroy(close); // 낮은 표적 정리
+            Object.Destroy(farther); // 먼 표적 정리
+            Object.Destroy(higher); // 높은 표적 정리
+        }
+
         [UnityTest] // 실제 출격 준비에서 두 재화 표시 검증
         public IEnumerator SortieBalanceUsesCurrencyArtForNumericLabels() // 투명 아이콘과 별도 수치
         {
@@ -89,8 +161,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 original.gameObject.SetActive(false); // 회귀에 등장한 두 표적만 남김
             }
             Component template = enemies[0]; // 낮고 높은 표적이 쓰는 동일한 일반 마물
-            GameObject low = CloneLumiTarget(template, muzzle.position + muzzle.forward * 17f + muzzle.right * 6f - muzzle.up * 3f, 500); // 낮은 고도의 가까운 표적
-            GameObject high = CloneLumiTarget(template, muzzle.position + muzzle.forward * 24f - muzzle.right * 8f + muzzle.up * 5f, 500); // 높은 고도의 두 번째 표적
+            GameObject low = CloneStationaryTarget(template, muzzle.position + muzzle.forward * 17f + muzzle.right * 6f - muzzle.up * 3f, 500); // 낮은 고도의 가까운 표적
+            GameObject high = CloneStationaryTarget(template, muzzle.position + muzzle.forward * 24f - muzzle.right * 8f + muzzle.up * 5f, 500); // 높은 고도의 두 번째 표적
             Physics.SyncTransforms(); // 두 마물의 시험 좌표를 물리에 반영
             var tracked = weapon.GetType().GetProperty("LumiTrackingBonus", hidden); // 실전 HUD의 추적 회전력
             yield return new WaitForSeconds(3.25f); // 같은 표적을 유지해 최대치 도달
@@ -117,7 +189,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             high.SetActive(false); // 다음 검증은 단일 보스만 배치
             Component midBoss = System.Array.Find(enemies, enemy => enemy.GetType().GetProperty("LootTier").GetValue(enemy).ToString() == "MidBoss"); // 실제 씬의 중간 보스
             Assert.That(midBoss, Is.Not.Null); // 실전 보스 원본의 물리와 체력 확인
-            GameObject single = CloneLumiTarget(midBoss, muzzle.position + muzzle.forward * 25f + muzzle.up * 5f, 1000); // 공격 가능한 단일 중간 보스
+            GameObject single = CloneStationaryTarget(midBoss, muzzle.position + muzzle.forward * 25f + muzzle.up * 5f, 1000); // 공격 가능한 단일 중간 보스
             Physics.SyncTransforms(); // 보스의 입체 위치 반영
             var cast = weapon.GetType().GetMethod("CastLumiStars", hidden); // 필살기가 실제 자원 검사 뒤 호출하는 발사 경로
             Assert.That(cast.Invoke(weapon, new object[] { true }), Is.True); // 모든 유도탄을 단일 보스에 배정
@@ -129,7 +201,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Object.Destroy(high); // 높은 시험 마물 정리
         }
 
-        private static GameObject CloneLumiTarget(Component template, Vector3 location, int health) // 실제 마물의 정지 충돌 표적
+        private static GameObject CloneStationaryTarget(Component template, Vector3 location, int health) // 실제 마물의 정지 충돌 표적
         {
             GameObject target = Object.Instantiate(template.gameObject); // 전장 원본의 충돌과 렌더링
             foreach (MonoBehaviour behavior in target.GetComponents<MonoBehaviour>()) // 경로와 사격을 분리한 정적 표적
@@ -1564,6 +1636,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 기존 전투와 분리한 결과
             Transform result = GameObject.Find("SortieResult").transform; // 실제 결과 하이러키
             Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 완료")); // 실패와 다른 실제 성공 표시
+            Assert.That(result.Find("PortraitArea/StandingIllustration").GetComponent<RawImage>().texture.name, Is.EqualTo("AriaStanding")); // 클리어에서도 실제 조종사 일러스트 적용
             Assert.That(long.Parse(HudText(result.Find("Panel/Score")), System.Globalization.NumberStyles.Number), Is.GreaterThan(0)); // 최종 격파의 실제 점수 전달
             ClickPauseButton(result, "Panel/Title"); // 결과에서 메인 화면 복귀
             yield return WaitForActiveScene("Assets/Scenes/FlightMainMenu.unity"); // 메인 씬의 정상 전환
@@ -2056,6 +2129,12 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(resultPath)); // 다른 씬으로 이동 확인
             Transform result = GameObject.Find("SortieResult").transform; // 실제 편집한 결과 오브젝트
             Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 실패")); // 실패와 승리 구분
+            var standing = result.Find("PortraitArea/StandingIllustration"); // 출격한 캐릭터의 실제 결과 그림
+            Assert.That(standing, Is.Not.Null); // 결과 씬에서 편집할 왼쪽 일러스트
+            Assert.That(standing.GetComponent<RawImage>().texture.name, Is.EqualTo("RianStanding")); // 기본 조종사와 다른 실제 출격 캐릭터
+            var left = (RectTransform)standing.parent; // 인물 전신의 왼쪽 부모
+            var right = (RectTransform)result.Find("Panel"); // 전투 기록의 오른쪽 프레임
+            Assert.That(left.anchoredPosition.x + left.rect.width * 0.5f, Is.LessThan(right.anchoredPosition.x - right.rect.width * 0.5f)); // 인물과 수치가 겹치지 않는 좌우 구도
             Assert.That(HudText(result.Find("Panel/Pilot")), Does.Contain("리안")); // 끝난 같은 캐릭터
             ClickPauseButton(result, "Panel/Retry"); // 기존 조합으로 즉시 재출격
             yield return WaitForActiveScene(OuterIslandsPath); // 같은 항로를 새로운 런으로 시작

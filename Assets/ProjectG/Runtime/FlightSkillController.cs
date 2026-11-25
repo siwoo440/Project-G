@@ -17,7 +17,9 @@ namespace ProjectG // 프로젝트 게임 영역
         SingleHitGuard, // 리안의 1회 피해 방어
         SlotGuard, // 아리아 E가 주는 교체 가능한 시간 보호
         StarlightSeekers, // 루미의 별빛 추적탄
-        ConstellationRoute // 루미의 별무리 항로
+        ConstellationRoute, // 루미의 별무리 항로
+        BreakthroughBlade, // 세라의 돌파 검기와 비행
+        SkyChainSlash // 세라의 천공 연참
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -107,7 +109,13 @@ namespace ProjectG // 프로젝트 게임 영역
                     {
                         float scale = upgrades != null ? upgrades.CooldownScale : 1f; // 선택 카드의 고유기 순환
                         bool lumi = weapon.ActivePilot == FlightBroomPilot.Lumi; // 별빛 추적탄의 전용 발사
-                        FlightMagicEffect effect = lumi ? FlightMagicEffect.StarlightSeekers : weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle; // 고유기 효과 분리
+                        FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 고유기
+                        {
+                            FlightBroomPilot.Lumi => FlightMagicEffect.StarlightSeekers, // 별빛 추적탄
+                            FlightBroomPilot.Sera => FlightMagicEffect.BreakthroughBlade, // 돌파 검기
+                            FlightBroomPilot.Rian => FlightMagicEffect.PiercingShot, // 관통 사격
+                            _ => FlightMagicEffect.RapidCycle // 집중 포화
+                        };
                         TrySkill(0, effect, 25, (lumi ? 9f : weapon.IsRian ? 10f : 8f) * scale, false, effect == FlightMagicEffect.RapidCycle ? 3f : 0f); // 조종사별 실제 대기시간
                     }
                     if (bindings.Pressed(keyboard, FlightAction.Common)) // 설정한 공용기 입력
@@ -120,6 +128,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     {
                         FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 필살기
                         {
+                            FlightBroomPilot.Sera => FlightMagicEffect.SkyChainSlash, // 천공 연참
                             FlightBroomPilot.Lumi => FlightMagicEffect.ConstellationRoute, // 별무리 항로
                             FlightBroomPilot.Rian => FlightMagicEffect.SniperBeam, // 천공 관측선
                             _ => FlightMagicEffect.Meteor // 유성 탄막
@@ -224,6 +233,10 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastPiercingShot(); // 발사 성공 후 마력 소비
                 case FlightMagicEffect.SniperBeam: // 리안의 천공 관측선
                     return weapon.CastSniperBeam(threatPool); // 광선 적중과 경로의 적탄 소거
+                case FlightMagicEffect.BreakthroughBlade: // 세라의 전방 검기와 고속 돌파
+                    return weapon.Sword != null && weapon.Sword.Cast(false); // 돌파와 실제 범위 타격
+                case FlightMagicEffect.SkyChainSlash: // 세라의 다섯 회 연참
+                    return weapon.Sword != null && weapon.Sword.Cast(true); // 같은 방향으로 독립 참격 다섯 회
                 case FlightMagicEffect.StarlightSeekers: // 루미의 여섯 발 유도탄
                     return weapon.CastLumiStars(false); // 단일 추적 또는 현재 분산 노드
                 case FlightMagicEffect.ConstellationRoute: // 루미의 열두 발 필살기

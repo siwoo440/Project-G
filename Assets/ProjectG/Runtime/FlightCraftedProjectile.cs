@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float remaining; // 남은 사거리
         private bool practice; // 시험과 실전의 독립된 시간
         private bool pierces; // 관통 선택 여부
+        private FlightSeraCombat meleeSource; // 피격 시점의 세라와 적 사이 거리 계산
         private bool explodes; // 폭발 선택 여부
 
         internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice) // 장착 마법을 실제 탄환에 적용
@@ -38,6 +39,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 _ => Vector3.one // 실제 충돌 반경을 기준으로 한 구체
             };
             transform.localScale = silhouette * (stats.Radius * 2f); // 판정 수치와 구분한 메시 표시
+        }
+
+        internal void SetMeleeSource(FlightSeraCombat source) // 실전에서 세라가 발사한 직접 마법
+        {
+            meleeSource = source; // 제작 연습에 없고 실전 적중에 쓰는 참조
         }
 
         private void Update() // 탄환의 실제 비행과 충돌
@@ -140,7 +146,8 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             if (target is FlightEnemy enemy) // 실제 전투의 마물
             {
-                enemy.ReceiveHit(Mathf.RoundToInt(raw * CraftedSpellRules.DamageMultiplier(recipe.Element, enemy.DefenseElement))); // 전투와 동일한 피해 상성
+                float close = meleeSource != null ? meleeSource.DamageMultiplier(enemy.transform.position) : 1f; // 실제 적 중심과의 근거리 결의
+                enemy.ReceiveHit(Mathf.RoundToInt(raw * close * CraftedSpellRules.DamageMultiplier(recipe.Element, enemy.DefenseElement))); // 전투와 동일한 피해 상성
             }
             else if (target is FlightCraftedTarget practiceTarget) // 정산에 영향을 주지 않는 표적
             {

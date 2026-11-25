@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa85873d25a1bc54d8cfb12ea5e51c64, type: 3}
+  m_Name: PilotStandingArt
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectG.FlightPilotPortraits
+  standing:
+  - {fileID: 2800000, guid: dde68f77b74417b4db256665bdff28c7, type: 3}
+  - {fileID: 2800000, guid: 010abf6eee5d8604bb79e4ba042b83ae, type: 3}
+  - {fileID: 2800000, guid: ad7b6fc2384eeba4b9214f68b8f17e68, type: 3}
+  - {fileID: 2800000, guid: 2e7307a4ff38dc449ad88ac9aa5e6274, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}

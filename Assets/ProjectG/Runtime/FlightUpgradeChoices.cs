@@ -10,7 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread // 단계와 보조 슬롯 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread, SeraApproach, SeraWidth // 단계와 보조 슬롯 구분
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -57,7 +57,9 @@ namespace ProjectG // 프로젝트 게임 영역
             new Card(Reward.SpreadSecond, "확산 포화 2", "집중 포화 중 0.5초마다\n가까운 적에게 피해 5 추가탄", 1, 1, 2, 0), // 고유기 지속 시간의 추가 사격
             new Card(Reward.WeakSecond, "약점 사냥 2", "약점 적중 시 Q 대기 -0.2초\n초당 한 번", 1, 2, 1, 4), // 약점 타격과 실제 스킬 시간의 연결
             new Card(Reward.LumiTracking, "집중 추적 1", "유도탄 회전 속도 +20%", 1, 3, 1, 4), // 루미의 집중 유도 강화
-            new Card(Reward.LumiSpread, "별빛 분산 1", "별빛 추적탄을 다른 적에게 우선 배정", 1, 3, 2, 4) // 루미의 다중 추적 강화
+            new Card(Reward.LumiSpread, "별빛 분산 1", "별빛 추적탄을 다른 적에게 우선 배정", 1, 3, 2, 4), // 루미의 다중 추적 강화
+            new Card(Reward.SeraApproach, "근거리 돌파 1", "근거리 결의 범위 1.5→2.0m", 1, 4, 1, 3), // 세라의 근거리 판정 확대
+            new Card(Reward.SeraWidth, "검기 확장 1", "돌파 검기 너비 +25%", 1, 4, 2, 3) // 세라의 돌파 검기 너비
         };
 
         private static readonly Card[] Fallback = // 유효 후보가 부족할 때만 쓰는 보상
@@ -103,6 +105,8 @@ namespace ProjectG // 프로젝트 게임 영역
         public bool HasProtectionDevice => Rank(Reward.ProtectionDevice) > 0; // 패시브 보호 장치 슬롯
         internal bool ChaseSecond => Rank(Reward.ChaseSecond) > 0; // 아리아의 현재 출격 후속 탄
         internal bool SpreadSecond => Rank(Reward.SpreadSecond) > 0; // 고유기 지속 중 추가 사격
+        internal float SeraCloseRange => Rank(Reward.SeraApproach) > 0 ? 2f : 1.5f; // 근거리 결의 노드의 실제 범위
+        internal float SeraBladeWidth => Rank(Reward.SeraWidth) > 0 ? 1.25f : 1f; // 돌파 검기의 가로 범위 강화
         internal bool LumiSpread => Rank(Reward.LumiSpread) > 0; // Q 추적탄의 대상 분산
         internal float LumiTurnScale => Rank(Reward.LumiTracking) > 0 ? 1.2f : 1f; // 기획의 기본 회전 속도 강화
         internal bool WeakSecond => Rank(Reward.WeakSecond) > 0; // 리안 약점 적중의 재사용 효과

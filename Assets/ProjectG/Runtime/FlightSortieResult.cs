@@ -9,6 +9,9 @@ namespace ProjectG // 프로젝트 게임 영역
     public sealed class FlightSortieResult : MonoBehaviour // 완료 또는 실패 결과와 재도전
     {
         public const string SceneName = "FlightSortieResult"; // 배포 결과 씬
+        [SerializeField] private FlightPilotPortraits portraits; // 출격 준비와 공유하는 캐릭터별 원본
+        [SerializeField] private RawImage standing; // 왼쪽 전신을 편집할 실제 씬 그림
+        [SerializeField] private AspectRatioFitter standingRatio; // 스탠딩의 원래 가로세로를 유지
         [SerializeField] private Text outcome; // 출격 완료 또는 실패 문구
         [SerializeField] private Text pilotName; // 이번 출격에서 조작한 이름
         [SerializeField] private Text combatTime; // 자동으로 멈춘 전투 시간
@@ -48,6 +51,7 @@ namespace ProjectG // 프로젝트 게임 영역
             title.onClick.AddListener(Return); // 메인 씬으로 복귀
             retry.onClick.AddListener(Retry); // 같은 조합으로 다시
             retry.interactable = report != null; // 직접 열었을 때의 안전한 편집 상태
+            ShowPortrait(report != null && portraits != null ? portraits.For(report.Pilot) : null); // 이번 출격의 실제 조종사
             if (report == null) // 편집기에서 독립으로 씬을 실행
             {
                 outcome.text = "출격 기록 없음"; // 정상 경로에서 결과가 표시되는 상태
@@ -68,6 +72,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 : FlightProgress.Current.Error ?? "전투 참여 보상 없음"; // 실패한 저장 또는 참여 전 종료
             crystals?.Show(receipt?.Crystals, true); // 실제 확정한 출격 결정 증가량
             gold?.Show(receipt?.Gold, true); // 실제 확정한 출격 골드 증가량
+        }
+
+        private void ShowPortrait(Texture2D art) // 출격 캐릭터의 화면 왼쪽 스탠딩
+        {
+            standing.gameObject.SetActive(art != null); // 결과 기록이 없는 직접 실행에서 가짜 인물 숨김
+            standing.texture = art; // 전투가 끝날 때 저장한 스탠딩 참조 적용
+            if (art != null) // 원본 파일이 연결된 실제 캐릭터
+            {
+                standingRatio.aspectRatio = (float)art.width / art.height; // 체형과 장비의 원래 비율 유지
+            }
         }
 
         private void Update() // 마우스와 같은 결과 조작 키

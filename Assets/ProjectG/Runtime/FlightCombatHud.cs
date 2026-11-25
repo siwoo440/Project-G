@@ -120,11 +120,12 @@ namespace ProjectG // 프로젝트 게임 영역
         public void SetPilot(FlightWeapon weapon) // 조종사의 Q·R 아이콘과 패시브 전환
         {
             currentWeapon = weapon; // 패시브 숫자를 계산하는 실제 무기
-            if (weapon.ActivePilot == FlightBroomPilot.Lumi && trackedSkillAtlas != null && trackedUltimateAtlas != null) // 세 번째 조종사의 제작 아이콘
+            int artIndex = (int)weapon.ActivePilot - (int)FlightBroomPilot.Lumi; // 아틀라스에 배치한 추가 조종사의 순서
+            if (artIndex >= 0 && trackedSkillAtlas != null && trackedUltimateAtlas != null) // 추가 조종사의 두 전용 아이콘
             {
                 slots[0].art.texture = trackedSkillAtlas; // 별빛 추적탄 아이콘 아틀라스
                 slots[2].art.texture = trackedUltimateAtlas; // 별무리 항로 아이콘 아틀라스
-                slots[0].art.uvRect = new Rect(0f, 0.5f, 1f / 3f, 0.5f); // 첫 칸의 전용 Q 그림
+                slots[0].art.uvRect = new Rect((artIndex % 3) / 3f, artIndex < 3 ? 0.5f : 0f, 1f / 3f, 0.5f); // 현재 조종사의 전용 Q 그림
                 slots[2].art.uvRect = slots[0].art.uvRect; // 같은 위치의 전용 R 그림
                 return; // 기본 조종사의 그림을 적용하지 않음
             }
@@ -167,7 +168,11 @@ namespace ProjectG // 프로젝트 게임 영역
             mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
-            if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Lumi) // 루미의 실제 추적 성능 표시
+            if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 근거리 효과 정보
+            {
+                rapidLabel.text = "근거리 결의 +25%"; // 검기와 직접 공격에 적용할 패시브 수치
+            }
+            else if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Lumi) // 루미의 실제 추적 성능 표시
             {
                 rapidLabel.text = $"표적 추적 +{currentWeapon.LumiTrackingBonus}%"; // 적을 유지한 실제 초 단위 보너스
             }

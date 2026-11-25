@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
         private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
         private FlightBroomEquipment broom; // 캐릭터별 빗자루 조합
+        private FlightSeraCombat sword; // 세라의 검기 모션과 근거리 피해 판정
         private FlightSkillController skills; // 약점 적중의 고유기 재사용 조정
         private System.Action<FlightEnemy, bool> ariaHit; // 기본·집중 사격을 관찰할 아리아의 발사 콜백
         private System.Action<FlightEnemy, bool> rianHit; // 실제 약점의 리안 발사 콜백
@@ -42,6 +43,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float nextShot; // 다음 자동 연사 가능 시각
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
+        internal FlightSeraCombat Sword => sword; // 고유기와 필살기의 실제 검기 구성
         public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
         public FlightBroomPilot ActivePilot { get; private set; } // 출격에서 실제 조작하는 캐릭터
         public bool IsRian => ActivePilot == FlightBroomPilot.Rian; // 저격형 프로필 확인
@@ -87,6 +89,7 @@ namespace ProjectG // 프로젝트 게임 영역
             rapidUntil = 0f; // 이전 집중 포화 제거
             nextShot = Time.time; // 새 첫 발 시각
             rapid?.ResetRun(); // 아리아 적중 보너스 초기화
+            sword?.ResetRun(); // 이전 출격에 예약했던 연참과 검기 화면 제거
             lumiTarget = null; // 출격과 전환 뒤 추적 누적 제거
             lumiTargets.Clear(); // 이전 웨이브의 후보 제거
             trackingSince = Time.time; // 새 표적의 기본 누적 시각
@@ -105,6 +108,7 @@ namespace ProjectG // 프로젝트 게임 영역
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
             TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
             TryGetComponent(out broom); // 실전 씬의 장착 구성
+            TryGetComponent(out sword); // 씬에 배치한 세라의 검기와 돌파
             TryGetComponent(out skills); // 현재 조종사의 시전과 재사용 시간
             ariaHit = OnAriaHit; // 아리아 기본·집중의 실제 적중 처리
             rianHit = OnRianHit; // 리안의 실제 약점 사격 처리
@@ -303,6 +307,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 Quaternion direction = basis * Quaternion.Euler(pitch, yaw, 0f); // 화면 중앙 방향에서 분산
                 FlightSpellBolt bolt = Instantiate(focused ? focusedBolt : standardBolt, muzzle.position, direction); // 기존 마법탄 프리팹 재사용
                 bolt.Begin(aimLayers, aimRange, isAutomatic && IsAria ? rapid : null, WeakRatio, 0, damage, width, pierce); // 발사 때 확정한 피해와 폭
+                if (ActivePilot == FlightBroomPilot.Sera) // 세라가 사용한 기본·집중·공용탄
+                {
+                    bolt.SetMeleeSource(sword); // 실제 피격 위치에서 근거리 결의 판정
+                }
                 if (isAutomatic && (IsAria || IsRian)) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
                 {
                     bolt.Observe(IsRian ? rianHit : ariaHit); // 시작 시점 조종사의 직접 공격 확인

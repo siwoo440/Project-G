@@ -32,6 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private LayerMask hitLayers = (1 << 8) | (1 << 9); // 지형과 표적 레이어
         [SerializeField] private bool practice; // 일시정지 속에서 독립적인 연습 시간
         [SerializeField] private FirstFlightCamera aimCamera; // 실전 화면의 조준 기준
+        private FlightWeapon weapon; // 전투에서 처음 시전한 조종사의 근거리 판정
         private readonly Queue<float> emissions = new(); // 최근 1초의 생성 시간
         private readonly List<FlightCraftedProjectile> active = new(); // 살아 있는 발사체
         private readonly Dictionary<string, float> readyAt = new(); // 같은 조합 두 장이 공유하는 대기시간
@@ -41,6 +42,11 @@ namespace ProjectG // 프로젝트 게임 영역
         internal int PracticeMana => Mathf.FloorToInt(practiceMana); // 연습 화면의 현재 실제 마력
         private float Clock => practice ? practiceTime : Time.time; // 발사기별 독립 시계
         internal static float PracticeDelta => Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime; // 검증과 실제 연습의 렌더 시간
+
+        private void Awake() // 발사기와 같은 실제 전투 비행체
+        {
+            TryGetComponent(out weapon); // 독립 제작 시험장에서는 비어 있는 실제 무기
+        }
 
         private void Update() // 실전이 멈춰도 독립적으로 흐르는 연습
         {
@@ -116,6 +122,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 Vector3 direction = CraftedSpellVectors.Direction(recipe, aim, i, profile.Spread); // 재현 가능한 3D 배열
                 FlightCraftedProjectile shot = Instantiate(projectile, muzzle.position, Quaternion.LookRotation(direction, aim * Vector3.up), practice ? transform : null); // 월드 비행을 유지하는 공용 발사 프리팹
                 shot.Begin(recipe, profile, hitLayers, practice); // 같은 탄속·피해·접촉 처리
+                if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라가 실전에서 발사한 직접 마법
+                {
+                    shot.SetMeleeSource(weapon.Sword); // 실제 적과의 거리로 제작 마법 피해 조정
+                }
                 active.Add(shot); // 동시 활성 개수 검사에 반영
                 emissions.Enqueue(now); // 초당 생성 검사에 반영
             }

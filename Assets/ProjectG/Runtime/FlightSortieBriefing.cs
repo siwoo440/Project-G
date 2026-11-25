@@ -26,6 +26,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Button depart; // 오른쪽 아래 실제 출발
         [SerializeField] private Button editGear; // 장착 부품의 선택
         [SerializeField] private Button editMagic; // 실제 좌우 제작 마법 변경
+        [SerializeField] private Button firstSortieGuide; // 선택형 첫 비행 안내
         private FlightBroomPilot pilot; // 선택 화면의 현재 조종사
         private bool moving; // 중복 씬 전환 방지
 
@@ -45,6 +46,7 @@ namespace ProjectG // 프로젝트 게임 영역
             depart.onClick.AddListener(Depart); // 선택한 조합으로 출격
             editGear.onClick.AddListener(OpenWorkshop); // 기존 빗자루 조립기 연결
             editMagic.onClick.AddListener(OpenMagic); // 기존 제작 마법 화면 연결
+            firstSortieGuide.onClick.AddListener(OpenGuide); // 독립된 비행 연습 연결
             Choose(FlightSortieChoice.Initial == FlightBroomPilot.Rian && rian.interactable ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
         }
 
@@ -70,6 +72,11 @@ namespace ProjectG // 프로젝트 게임 영역
             if (!ready.activeSelf) // 세부 화면에서 캐릭터와 출발 입력 차단
             {
                 return; // 편집 중인 상태 보존
+            }
+            if (keyboard.f1Key.wasPressedThisFrame) // 마우스 없이 첫 비행 안내 열기
+            {
+                OpenGuide(); // 버튼과 같은 격리 연습 경로
+                return; // 같은 프레임의 출격 키와 중복 방지
             }
             if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame) // 왼쪽 캐릭터
             {
@@ -140,6 +147,17 @@ namespace ProjectG // 프로젝트 게임 영역
             moving = true; // 다른 버튼과 키 입력 차단
             FlightSortieChoice.Launch(pilot); // 출발을 확정하고 플레이어에 전달
             SceneManager.LoadSceneAsync(FlightSortieChoice.StageScene); // 실제 하늘섬 외곽 항로
+        }
+
+        private void OpenGuide() // 실제 출격과 분리한 비행 훈련
+        {
+            if (moving) // 이미 화면을 바꾸는 중
+            {
+                return; // 씬 로드 한 번 유지
+            }
+            moving = true; // 중복 입력 차단
+            FlightFirstSortieGuide.Request(pilot); // 현재 조종사로 안내 준비
+            SceneManager.LoadSceneAsync(FlightFirstSortieGuide.SceneName); // 기존에 편집한 연습 항로로 이동
         }
 
         private void Return() // 출발을 확정하지 않고 제목으로 복귀

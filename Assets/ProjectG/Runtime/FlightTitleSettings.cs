@@ -6,7 +6,7 @@ namespace ProjectG // 프로젝트 게임 영역
 {
     public sealed class FlightTitleSettings : MonoBehaviour // 메인 화면의 화면 및 음량 설정
     {
-        private static readonly Vector2Int[] Resolutions = { new(1920, 1080), new(1600, 900), new(1280, 720), new(1024, 576) }; // 16대9 지원 화면 크기
+        private static readonly Vector2Int[] Resolutions = { new(1920, 1080), new(1600, 900), new(1280, 720), new(1024, 576), new(1280, 800), new(1024, 768) }; // 저장 순서를 보존한 16대9·16대10·4대3
         [SerializeField] private Slider volume; // 실제 마스터 음량 값
         [SerializeField] private Slider sensitivity; // 비행 마우스 감도 값
         [SerializeField] private Button displayMode; // 창 모드와 전체 화면 전환
@@ -86,7 +86,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void UpdateLabels() // 화면에 보이는 조작값
         {
-            Vector2Int size = Resolutions[selectedResolution]; // 현재 선택한 16대9 크기
+            Vector2Int size = Resolutions[selectedResolution]; // 현재 선택한 화면 크기
             resolutionLabel.text = $"{size.x} × {size.y}"; // 해상도 수치
             modeLabel.text = full ? "전체 화면" : "창 모드"; // 표시 유형
             volumeLabel.text = $"{Mathf.RoundToInt(volume.value * 100f)}%"; // 마스터 음량 백분율

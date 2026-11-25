@@ -37,6 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
         public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
+        internal event System.Action<int> SkillActivated; // 안내에서 성공 시전만 확인
 
         private void OnEnable() // 실제 스테이지의 처치 에너지 연결
         {
@@ -171,6 +172,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             readyAt[slot] = Time.time + startsIn + cooldown; // 재사용 시간 시작
             hud.SetDelayedCooldown(slot, cooldown, startsIn); // 슬롯 안 흰 숫자 갱신
+            SkillActivated?.Invoke(slot); // 실제 마력을 쓴 스킬 완료 알림
         }
 
         private bool Activate(FlightMagicEffect effect, bool empowered = false) // 카드와 스킬이 공유하는 실제 효과

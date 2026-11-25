@@ -17,6 +17,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 `Assets/Scenes/FlightSortieBriefing.unity`에서 아리아·리안을 선택하고, 빗자루 조립과 마법 편성을 조정합니다. 오른쪽 아래 출발 버튼으로 선택한 조합이 실제 항로에 반영됩니다. [아리아 준비 화면](docs/screenshots/3d-day-24-aria.png) · [1024×576 준비 화면](docs/screenshots/3d-day-24-briefing-1024.png) · [24일차 기록](docs/development/3d-day-24.md)
 
+출격 준비에서 **첫 비행 안내** 또는 F1을 누르면 이동·집중·자동 사격·그레이즈·스킬을 연습합니다. Enter로 출격 준비에 돌아갈 수 있고, Tab으로 마우스 포인터를 전환해 안내 버튼을 클릭할 수 있습니다. [1024×576 첫 비행 안내](docs/screenshots/3d-day-27-guide-1024.png) · [4:3 출격 준비](docs/screenshots/3d-day-27-briefing-4x3.png) · [27일차 기록](docs/development/3d-day-27.md)
+
 ---
 ## 출격 결과와 재출격
 
@@ -30,6 +32,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 ## 3D 하늘섬 외곽 항로
 
 Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 항로에 직접 출격할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.
+
+타이틀 설정은 16:9 창과 1280×800, 1024×768을 지원합니다. [소형 16:9 전투](docs/screenshots/3d-day-27-hud-1024.png) · [16:10 전투](docs/screenshots/3d-day-27-hud-16x10.png) · [4:3 전투](docs/screenshots/3d-day-27-hud-4x3.png)
 
 | 입력 | 동작 |
 |---|---|

@@ -11,6 +11,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal static FlightBroomPilot Initial => preparing; // 출격 준비의 시작 선택
 
+        internal static void ReturnFromGuide(FlightBroomPilot selected) // 연습을 끝낸 조종사를 출격 준비에 전달
+        {
+            preparing = selected; // 저장과 실제 전투 시작 없이 이전 선택 복원
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] // 도메인 재시작이 없는 플레이도 정리
         private static void Reset() // 이전 플레이의 임시 씬 전달값 삭제
         {

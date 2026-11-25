@@ -1921,6 +1921,38 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(LocateCombatHud().transform.Find("SortieEnd").gameObject.activeSelf, Is.False); // 이전 결과 화면 제거
         }
 
+        [UnityTest] // 선택형 첫 출격 훈련과 실제 입력
+        public IEnumerator FirstSortieGuideSupportsActualControlsAndSkip() // 실제 훈련에서 건너뛰고 준비로 복귀
+        {
+            const string briefingPath = "Assets/Scenes/FlightSortieBriefing.unity"; // 정식 출격 준비
+            yield return SceneManager.LoadSceneAsync(SceneUtility.GetBuildIndexByScenePath(briefingPath)); // 실제 안내 진입의 기본 화면
+            yield return null; // 장비와 조종사 버튼의 연결 완료
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 준비 화면 하이러키
+            Assert.That(briefing.Find("Ready/FirstSortieGuide"), Is.Not.Null); // 독립된 첫 비행 연습 메뉴
+            ClickPauseButton(briefing, "Ready/SelectRian"); // 저격형도 같은 실전 사격 판정을 사용하는 훈련
+            ClickPauseButton(briefing, "Ready/FirstSortieGuide"); // 실제 안내 선택
+            yield return WaitForActiveScene(ScenePath); // 정식 출격 대신 연습 항로
+            Transform guide = LocateCombatHud().transform.Find("FirstSortieGuide"); // 연습 안에서만 보이는 설명
+            Assert.That(guide.gameObject.activeSelf, Is.True); // 선택한 경우에만 안내 표시
+            Assert.That(HudText(guide.Find("Step")), Does.Contain("이동")); // 조작 전 첫 연습
+            SetKeys(Key.W); // 실제 전진 조작
+            yield return WaitFrames(32); // 움직인 거리에 따라 다음 연습 진행
+            SetKeys(); // 이동 관성 정리
+            Assert.That(HudText(guide.Find("Step")), Does.Contain("집중")); // 키 설명만 표시하는 흐름과 구분
+            SetKeys(Key.LeftShift); // 기본 저장 키의 실제 집중 비행
+            yield return WaitFrames(33); // 집중 유지 기준 통과
+            SetKeys(); // 다음 사격 연습 진행
+            Assert.That(HudText(guide.Find("Step")), Does.Match("자동 사격|그레이즈|스킬")); // 자동 사격 또는 이후 연습 진입
+            yield return WaitFrames(270); // 자동 마법탄과 그레이즈의 물리적 판정 확인
+            Assert.That(HudText(guide.Find("Step")), Does.Contain("스킬")); // 실제 적중과 그레이즈를 거쳐 마지막 안내
+            ClickPauseButton(guide, "Skip"); // 안내를 건너뛰고 안전한 준비 화면으로
+            yield return WaitForActiveScene(briefingPath); // 이전 선택 조종사의 준비 복원
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(briefingPath)); // 전투와 섞이지 않은 독립 훈련
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 이전 훈련의 시간과 UI 상태 제거
+            yield return LoadOuterIslands(); // 실제 출격 경로도 다시 확인
+            Assert.That(LocateCombatHud().transform.Find("FirstSortieGuide"), Is.Null); // 실전의 조작 설명 패널 삭제 요구 유지
+        }
+
         private static IEnumerator WaitForActiveScene(string scenePath) // 프레임 수에 의존하지 않는 씬 전환 확인
         {
             float limit = Time.realtimeSinceStartup + 4f; // 허용되는 최대 로딩 시간

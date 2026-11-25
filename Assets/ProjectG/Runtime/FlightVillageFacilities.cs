@@ -26,6 +26,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         [SerializeField] private Text part; // 공방에 올린 장착 부품과 강화 단계
         [SerializeField] private Text price; // 다음 강화의 결정과 골드 비용
         [SerializeField] private Button close; // 마을 현재 위치로 복귀
+        [SerializeField] private Button nox; // 녹스의 장착·강화 선택
         [SerializeField] private Button sera; // 근접 조종사의 장착·강화 선택
         [SerializeField] private Button lumi; // 별빛 빗자루와 공용기 선택
         [SerializeField] private Button aria; // 아리아의 장착을 편집하는 선택
@@ -50,6 +51,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         private void Start() // 에디터에 배치한 시설 UI를 버튼과 연결
         {
             close.onClick.AddListener(Close); // Esc와 같은 마을 복귀
+            nox.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Nox)); // 녹스 전용 장비와 공용기
             sera.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Sera)); // 세라의 독립 조합과 공용기
             lumi.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Lumi)); // 루미의 장착과 재화 화면
             aria.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Aria)); // 해당 조종사의 현재 장착
@@ -179,6 +181,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             wallet.text = viewingGrowth ? $"조율의 증표 {profile.GetMarks(selected):N0}" : string.Empty; // 후속 성장의 별도 증표 이름
             walletCrystals?.Show(profile.SharedCrystals); // 모든 시설에 표시하는 공용 보유량
             walletGold?.Show(viewingGrowth ? null : profile.Gold); // 골드를 쓰는 화면의 공용 보유량
+            nox.interactable = selected != FlightBroomPilot.Nox; // 현재 감시자 선택 표시
             sera.interactable = selected != FlightBroomPilot.Sera; // 현재 검사 선택 상태
             lumi.interactable = selected != FlightBroomPilot.Lumi; // 현재 탐색자의 선택 상태
             aria.interactable = selected != FlightBroomPilot.Aria; // 선택된 아리아가 표시되도록 잠금

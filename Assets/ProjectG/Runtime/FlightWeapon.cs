@@ -23,6 +23,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
         private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
         private FlightBroomEquipment broom; // 캐릭터별 빗자루 조합
+        private FlightNoxCombat counter; // 녹스의 실제 반격 표식과 필살기
         private FlightSeraCombat sword; // 세라의 검기 모션과 근거리 피해 판정
         private FlightSkillController skills; // 약점 적중의 고유기 재사용 조정
         private System.Action<FlightEnemy, bool> ariaHit; // 기본·집중 사격을 관찰할 아리아의 발사 콜백
@@ -43,6 +44,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float nextShot; // 다음 자동 연사 가능 시각
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
+        internal FlightNoxCombat Counter => counter; // 출격의 실제 반격 컴포넌트
         internal FlightSeraCombat Sword => sword; // 고유기와 필살기의 실제 검기 구성
         public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
         public FlightBroomPilot ActivePilot { get; private set; } // 출격에서 실제 조작하는 캐릭터
@@ -90,6 +92,7 @@ namespace ProjectG // 프로젝트 게임 영역
             nextShot = Time.time; // 새 첫 발 시각
             rapid?.ResetRun(); // 아리아 적중 보너스 초기화
             sword?.ResetRun(); // 이전 출격에 예약했던 연참과 검기 화면 제거
+            counter?.ResetRun(); // 이전 출격과 다른 캐릭터의 스침 표식 제거
             lumiTarget = null; // 출격과 전환 뒤 추적 누적 제거
             lumiTargets.Clear(); // 이전 웨이브의 후보 제거
             trackingSince = Time.time; // 새 표적의 기본 누적 시각
@@ -108,6 +111,7 @@ namespace ProjectG // 프로젝트 게임 영역
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
             TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
             TryGetComponent(out broom); // 실전 씬의 장착 구성
+            TryGetComponent(out counter); // 씬의 실제 반격 판정과 경계 시각 효과
             TryGetComponent(out sword); // 씬에 배치한 세라의 검기와 돌파
             TryGetComponent(out skills); // 현재 조종사의 시전과 재사용 시간
             ariaHit = OnAriaHit; // 아리아 기본·집중의 실제 적중 처리
@@ -225,6 +229,23 @@ namespace ProjectG // 프로젝트 게임 영역
                 lumiTargets.Remove(lumiTarget); // 가까이 온 다른 대상으로 자동 교체 방지
                 lumiTargets.Insert(0, lumiTarget); // 단일 추적탄의 실제 우선 표적
             }
+        }
+
+        internal bool CastNoxCounter(int marks, int pierce) // 표식에 비례해 실제 전방 반격탄 발사
+        {
+            Ray aim = AttackRay(); // 실제 카메라의 발사 방향
+            if (!TryDirection(aim, GetAimPoint(aim, out _), out Vector3 route)) // 총구 뒤나 벽에 닿은 잘못된 조준
+            {
+                return false; // 표식과 비용을 소비하지 않는 종료
+            }
+            Quaternion heading = Quaternion.LookRotation(route); // 총구에서 정면 조준을 잇는 방향
+            for (int index = 0; index < marks; index++) // 현재 표식 하나당 실제 반격탄
+            {
+                float yaw = marks > 1 ? Mathf.Lerp(-10f, 10f, (float)index / (marks - 1)) : 0f; // 표식 수에 맞춘 전방 펼침
+                FlightSpellBolt bolt = Instantiate(focusedBolt, muzzle.position, heading * Quaternion.Euler(0f, yaw, 0f)); // 실제 충돌과 수명이 있는 반격탄
+                bolt.Begin(aimLayers, aimRange, null, 0f, extraPierces: pierce, assistDamage: 15); // 발당 피해 15와 반격 카드의 관통
+            }
+            return true; // 탄환 수가 확정된 유효 반격
         }
 
         public bool CastPiercingShot() // 리안 Q 관통 사격

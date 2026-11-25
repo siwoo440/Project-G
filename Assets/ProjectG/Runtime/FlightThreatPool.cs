@@ -79,6 +79,21 @@ namespace ProjectG // 프로젝트 게임 영역
             return count; // 실제 소거 결과
         }
 
+        public int ClearWithin(Vector3 origin, float radius) // 반경 안에 있는 소거 가능한 일반 적탄 회수
+        {
+            float limit = radius * radius; // 고도를 포함한 실제 탄 중심의 제곱 거리
+            int count = 0; // 이번에 실제 소거한 탄
+            foreach (FlightThreatBolt bolt in all) // 풀에서 회수할 수 있는 일반 탄환
+            {
+                if (bolt.gameObject.activeSelf && (bolt.transform.position - origin).sqrMagnitude <= limit) // 현재 3D 범위만 확인
+                {
+                    Return(bolt); // 같은 적탄의 중복 판정 전에 회수
+                    count++; // 보이는 수치와 후속 효과의 소거 결과
+                }
+            }
+            return count; // 이번 경계 효과로 사라진 탄 수
+        }
+
         public void ClearAlongBeam(Vector3 start, Vector3 direction, float length, float radius) // 광선의 지형 앞 범위만 소거
         {
             foreach (FlightThreatBolt bolt in all) // 재사용 중인 모든 적탄 검사

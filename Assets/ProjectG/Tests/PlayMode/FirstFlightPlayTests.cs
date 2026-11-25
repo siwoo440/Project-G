@@ -47,6 +47,71 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Application.runInBackground = runInBackground; // 시험 전 백그라운드 실행 복원
         }
 
+        [UnityTest] // 녹스의 스침·표식과 실제 3D 탄 소거 판정
+        public IEnumerator NoxSortieCapsGrazeMarksAndClearsOnlyNearbyThreats() // 표식 0·상한·소비와 주변 소거
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 녹스 출격 준비
+            yield return WaitFrames(3); // 현재 씬의 캐릭터 선택을 활성화
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 선택과 출발 하이러키
+            Assert.That(briefing.Find("Ready/SelectNox"), Is.Not.Null); // 다섯 번째 캐릭터 선택 버튼
+            ClickPauseButton(briefing, "Ready/SelectNox"); // 실제 녹스 장비와 그림 선택
+            ClickPauseButton(briefing, "Ready/Depart"); // 선택한 녹스의 실제 전투
+            yield return WaitForActiveScene(OuterIslandsPath); // 실제 외곽 항로 진입
+            Transform pilot = FindPilot(); // 실제 3D 비행체
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 현재 조종사와 자동탄 설정
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 탄과 상대 궤적의 그레이즈
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력과 필살기
+            Component counter = pilot.GetComponent("FlightNoxCombat"); // 현재 반격 표식과 소거
+            Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Nox")); // 실제 출격한 조종사 기록
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 검증용 상태 접근
+            ((MonoBehaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 시험용 적만 남김
+            weapon.GetType().GetField("nextShot", hidden).SetValue(weapon, float.PositiveInfinity); // 실제 반격과 자동 공격 피해 분리
+            var boltType = weapon.GetType().Assembly.GetType("ProjectG.FlightSpellBolt"); // 현재 씬이 사용한 아군 탄환 타입
+            foreach (Component existing in Object.FindObjectsByType(boltType, FindObjectsSortMode.None)) // 조종사 초기화 전에 남은 자동탄
+            {
+                Object.Destroy(existing.gameObject); // 실제 반격탄 개수만 확인하도록 기존 탄 제외
+            }
+            Vector3 center = pilot.position; // 조종사 중심의 스침·소거 범위
+            Vector3 ahead = pilot.forward; // 실제 앞뒤 방향
+            Vector3 right = pilot.right; // 몸 옆과 빗겨 가는 적탄 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 표식이 전혀 없을 때 실제 Q 사용
+            yield return WaitFrames(4); // Q 조건의 실제 처리
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다시 누르기 전 해제
+            Assert.That(Metric(skills, "Mana"), Is.EqualTo(100)); // 자원이 소비되지 않는 표식 부족
+            for (int shot = 0; shot < 12; shot++) // 상한을 넘는 12발의 실제 적탄
+            {
+                EmitThreat(center + ahead * 8f + right * (0.65f + shot * 0.009f), -ahead, 110f); // 피격 구체 밖의 정상 그레이즈 거리
+            }
+            yield return WaitFrames(19); // 모든 적탄이 스침 거리 밖으로 통과
+            Assert.That(Metric(vitals, "Grazes"), Is.EqualTo(12)); // 같은 탄당 한 번만 그레이즈
+            Assert.That(Metric(counter, "Marks"), Is.EqualTo(10)); // 자원이 올라가도 표식은 10개 제한
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 기록한 10표식으로 실제 반격
+            yield return WaitFrames(4); // 실제 10발 생성과 표식 소비
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 중복 키 반복 방지
+            Assert.That(Metric(counter, "Marks"), Is.Zero); // 표식 전부 소모
+            Assert.That(Metric(skills, "Mana"), Is.LessThan(77)); // 실제 Q 비용과 쿨타임 소비
+            int bolts = Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length; // 기본 자동탄을 끈 현재의 반격탄만
+            Assert.That(bolts, Is.EqualTo(10)); // 표식마다 실제 반격탄 한 발
+            var members = (Component[])skills.GetType().GetField("defeatRewards", hidden).GetValue(skills); // 시험 마물의 실제 모델과 체력
+            GameObject near = CloneStationaryTarget(members[0], center + Vector3.up * 2.4f, 500); // 3D 소거 반경에 있는 높은 적
+            GameObject outside = CloneStationaryTarget(members[0], center + Vector3.up * 3.4f + right * 0.4f, 500); // 범위 밖의 더 높은 적
+            Physics.SyncTransforms(); // 3D 적의 충돌 좌표 적용
+            Component pool = GetThreatPool(); // 실제 적탄 풀
+            pool.GetType().GetMethod("ReturnAll").Invoke(pool, null); // 두 개의 소거 범위를 독립 검증
+            EmitThreat(center + Vector3.up * 2.6f, right, 0.1f); // 위쪽의 소거 반경 안 적탄
+            EmitThreat(center + Vector3.up * 3.3f, right, 0.1f); // 같은 방향으로 범위 밖의 적탄
+            skills.GetType().GetMethod("AddUltimate").Invoke(skills, new object[] { 100 }); // 검증용 실제 필살기 에너지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 경계 역전 실제 시전
+            yield return WaitFrames(4); // 적탄 회수와 마물의 범위 피해
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 입력 정리
+            Assert.That(Metric(skills, "Ultimate"), Is.Zero); // 실제 에너지 100 소비
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(1)); // 반경 밖 탄환이 유지됨
+            Assert.That(Metric(near.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(350)); // 반경 안 마물에게 피해 150
+            Assert.That(Metric(outside.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(500)); // 높은 외부 마물에게 피해 없음
+            Object.Destroy(near); // 물리에 등록한 실제 시험 마물 정리
+            Object.Destroy(outside); // 외부 3D 시험 마물 정리
+        }
+
         [UnityTest] // 3D 검기 범위와 돌파 이동의 물리 판정
         public IEnumerator SeraSortieChecksCloseDamageHeightAndWall() // 근거리 계수와 높은 표적 제외
         {

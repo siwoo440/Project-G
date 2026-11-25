@@ -22,6 +22,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightCurrencyLabel gold; // 현재 공용 골드 보유량
         [SerializeField] private Text progression; // 누적 숙련도와 실제 보유 재료
         [SerializeField] private Button aria; // 조사팀 속사형 선택
+        [SerializeField] private Button nox; // 조사팀 회피·반격형 선택
         [SerializeField] private Button sera; // 수호팀 근접형 선택
         [SerializeField] private Button lumi; // 조사팀 유도형 선택
         [SerializeField] private Button rian; // 수호팀 저격형 선택
@@ -43,6 +44,8 @@ namespace ProjectG // 프로젝트 게임 영역
             editor.Initialize(ShowSummary); // 마법 조합도 같은 화면으로 복귀
             aria.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Aria); // 저장된 아리아 선택 자격
             rian.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Rian); // 저장된 리안 선택 자격
+            nox.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Nox); // 녹스의 실제 반격 출격 자격
+            nox.onClick.AddListener(() => Choose(FlightBroomPilot.Nox)); // 녹스의 스탠딩과 장비 미리보기
             sera.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Sera); // 세라의 시험 출격 자격
             sera.onClick.AddListener(() => Choose(FlightBroomPilot.Sera)); // 세라로 미리보기
             lumi.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Lumi); // 루미의 시험 출격 자격
@@ -120,6 +123,7 @@ namespace ProjectG // 프로젝트 게임 영역
             portrait.texture = portraits != null ? portraits.For(pilot) : null; // 캐릭터 결과와 같은 기획서 원본
             (title.text, details.text) = pilot switch // 선택한 캐릭터의 현재 스킬과 역할
             {
+                FlightBroomPilot.Nox => ("녹스 · 회피·반격형 감시자", $"조사팀   ·   스친 적탄의 표식을 모아 반격합니다.\nQ  그림자 반격    E  {common}    R  경계 역전"), // 녹스 표식과 3D 소거
                 FlightBroomPilot.Sera => ("세라 · 근접 돌파형 검사", $"수호팀   ·   가까운 적에게 더 큰 피해를 줍니다.\nQ  돌파 검기    E  {common}    R  천공 연참"), // 세라의 수호 역할과 검기
                 FlightBroomPilot.Lumi => ("루미 · 유도형 탐색자", $"조사팀   ·   같은 적을 추적할수록 유도가 강해집니다.\nQ  별빛 추적탄    E  {common}    R  별무리 항로"), // 루미의 유도와 공용기
                 FlightBroomPilot.Rian => ("리안 · 저격형 수호자", $"수호팀   ·   노출된 약점을 정확하게 노립니다.\nQ  관통 사격    E  {common}    R  천공 관측선"), // 리안의 약점 공격
@@ -139,6 +143,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 FlightBroomPilot.Rian => rian, // 리안 선택 위치
                 FlightBroomPilot.Lumi => lumi, // 루미 선택 위치
                 FlightBroomPilot.Sera => sera, // 세라 선택 위치
+                FlightBroomPilot.Nox => nox, // 녹스의 실제 선택 위치
                 _ => aria // 기본 아리아 선택 위치
             };
         }

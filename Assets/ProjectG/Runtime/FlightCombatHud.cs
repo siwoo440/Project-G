@@ -52,10 +52,10 @@ namespace ProjectG // 프로젝트 게임 영역
             [System.NonSerialized] public float readyAt; // 런타임 재사용 가능 시각
             private int previousSeconds = -1; // 숫자의 갱신 필요 상태
 
-            public void Render(int resource) // 최신 자원과 쿨타임 시각화
+            public void Render(int resource, bool blocked) // 최신 자원과 쿨타임 시각화
             {
                 int left = Time.time >= countdownFrom ? Mathf.CeilToInt(Mathf.Max(0f, readyAt - Time.time)) : 0; // 올림된 남은 초
-                art.color = resource < cost || Time.time < readyAt ? new Color(0.28f, 0.28f, 0.35f, 1f) : Color.white; // 부족·대기 중 어두운 실루엣
+                art.color = blocked || resource < cost || Time.time < readyAt ? new Color(0.28f, 0.28f, 0.35f, 1f) : Color.white; // 부족·대기 중 어두운 실루엣
                 if (left != previousSeconds) // 숫자가 실제 바뀐 프레임
                 {
                     cooldown.text = left > 0 ? left.ToString() : string.Empty; // 흰색 숫자 또는 빈 슬롯
@@ -168,7 +168,13 @@ namespace ProjectG // 프로젝트 게임 영역
             mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
-            if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 근거리 효과 정보
+            bool nox = currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Nox; // 반격 표식이 있는 실제 출격
+            int marks = nox && currentWeapon.Counter != null ? currentWeapon.Counter.Marks : 0; // 현재 사용 가능한 녹스 표식
+            if (nox) // 표시할 녹스의 수치를 세 스킬과 공유
+            {
+                rapidLabel.text = $"반격 표식 {marks} / {FlightNoxCombat.MarkLimit}"; // 현재 출격에서 모은 실제 표식
+            }
+            else if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 근거리 효과 정보
             {
                 rapidLabel.text = "근거리 결의 +25%"; // 검기와 직접 공격에 적용할 패시브 수치
             }
@@ -184,9 +190,10 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 rapidLabel.text = $"연속 적중 +{Mathf.FloorToInt(rapid.BonusPercent + 0.003f)}%{(rapid.IsDecaying ? " 감소" : "")}"; // 감소하는 연속 적중 정보
             }
-            foreach (SkillSlot slot in slots) // 편집된 세 슬롯 표시
+            for (int index = 0; index < slots.Length; index++) // 편집된 세 슬롯 표시
             {
-                slot.Render(slot.usesUltimate ? ultimatePoints : manaPoints); // 스킬별로 해당 자원 적용
+                SkillSlot slot = slots[index]; // Q·E·R 순서의 실제 슬롯
+                slot.Render(slot.usesUltimate ? ultimatePoints : manaPoints, nox && index == 0 && marks == 0); // 표식 또는 자원 부족의 어두운 그림
             }
         }
     }

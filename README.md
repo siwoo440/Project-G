@@ -68,6 +68,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 Steam용 도전 조건의 로컬 저장과 모의 어댑터 재시도는 검증했습니다. 실제 Steam App ID, 도전 과제 등록, Steam Cloud는 연동 대기 상태입니다. [44일차 연동 기록](docs/development/3d-day-44.md)
 
+[46일차 Windows 배포 후보 검증](docs/development/3d-day-46.md) · [메인 화면](docs/screenshots/3d-day-46-title.png) · [중단 출격 복구 화면](docs/screenshots/3d-day-46-recovered.png) · [출격 안내원 대화](docs/screenshots/3d-day-46-village-sortie-dialogue.png) · [리안 결과 화면](docs/screenshots/3d-day-46-result.png)
+
 Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 항로에 직접 출격할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.
 
 ![루미 3D 비행 모형과 하늘섬 항로](docs/screenshots/3d-day-38-lumi-flight.png)

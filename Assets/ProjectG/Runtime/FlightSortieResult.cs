@@ -58,6 +58,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 이전 씬의 결과가 아직 없음
             }
 
+            FlightAudio.ShowResult(report.Cleared); // 실제 클리어와 실패의 다른 결과곡
             outcome.text = report.Cleared ? "출격 완료" : "출격 실패"; // 실제 최종 결과 구분
             pilotName.text = $"{FlightPilotRoster.Name(report.Pilot)}  ·  하늘섬 외곽 항로"; // 종료한 캐릭터 확인
             combatTime.text = FormatTime(report.CombatSeconds); // 실제 전투 시계의 분과 초

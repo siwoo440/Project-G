@@ -129,6 +129,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void ShowSettings() // 저장한 화면 및 음량 설정 열기
         {
+            FlightAudio.Play(FlightSfx.UiConfirm); // 메뉴 안의 실제 환경 설정 선택
             home.SetActive(false); // 메인 버튼 뒤에 숨김
             settings.SetActive(true); // 실제 환경 설정 페이지
             dialog.SetActive(false); // 확인창 비활성

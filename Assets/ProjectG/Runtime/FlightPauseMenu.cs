@@ -174,12 +174,14 @@ namespace ProjectG // 프로젝트 게임 영역
             settingsButton.interactable = true; // 오른쪽 환경 설정 표시 가능
             ShowControls(); // 먼저 키보드 설명 표시
             panel.SetActive(true); // 전체 화면 표시
+            FlightAudio.Play(FlightSfx.UiConfirm); // 전투가 정지해도 들리는 메뉴 진입
         }
 
         private void RequestResume() // 문 닫기와 같은 프레임의 카드 사용 방지
         {
             if (opened && !abandon) // 포기한 출격은 다시하기 필요
             {
+                FlightAudio.Play(FlightSfx.UiBack); // 버튼 또는 키로 전투에 돌아가는 신호
                 closeFrame = Time.frameCount; // 다음 프레임으로 재생 예약
             }
         }
@@ -250,6 +252,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void ShowSettings() // 오른쪽만 환경 설정으로 전환
         {
+            FlightAudio.Play(FlightSfx.UiConfirm); // 멈춘 소리 위에서 설정 버튼 신호
             controls.SetActive(false); // 키보드 설명에서 전환
             settings.SetActive(true); // 설정 제목과 탭 표시
             confirm.SetActive(false); // 포기 확인 숨김

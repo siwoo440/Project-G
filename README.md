@@ -8,7 +8,7 @@
 
 ![프로젝트 G 3D 메인 화면](docs/screenshots/3d-day-23-title.png)
 
-Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. 새 게임과 이어서하기는 하늘섬 마을 착륙장으로 이어집니다. 이어서하기는 마지막 조종사와 저장된 장비·마법을 불러옵니다. 설정에서 화면 모드·해상도·음량·마우스 감도를 적용할 수 있습니다. [설정 화면](docs/screenshots/3d-day-23-settings.png) · [1024×576 시작 화면](docs/screenshots/3d-day-23-title-1024.png) · [23일차 기록](docs/development/3d-day-23.md)
+Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. 새 게임과 이어서하기는 하늘섬 마을 착륙장으로 이어집니다. 이어서하기는 마지막 조종사와 저장된 장비·마법을 불러옵니다. 설정에서 화면 모드·해상도·음량·마우스 감도를 적용할 수 있습니다. [설정 화면](docs/screenshots/3d-day-39-master-volume.png) · [1024×576 시작 화면](docs/screenshots/3d-day-23-title-1024.png) · [23일차 기록](docs/development/3d-day-23.md)
 
 ---
 ## 하늘섬 마을
@@ -37,7 +37,7 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 ![프로젝트 G 3D 아리아 출격 완료 화면](docs/screenshots/3d-day-37-aria-result.png)
 
-최종 보스를 격파하거나 체력을 모두 잃으면 결과 확인 버튼이 켜집니다. 결과 화면은 전투·전체 시간, 점수, 격파 수, 그레이즈, 도달 레벨을 표시합니다. 같은 캐릭터와 저장한 장비·마법으로 다시 출격하거나 메인 화면으로 돌아갈 수 있습니다. [1024×576 실패 결과](docs/screenshots/3d-day-25-failed-1024.png) · [25일차 기록](docs/development/3d-day-25.md)
+최종 보스를 격파하거나 체력을 모두 잃으면 결과 확인 버튼이 켜지고 결과에 맞는 음악이 한 번 재생됩니다. 결과 화면은 전투·전체 시간, 점수, 격파 수, 그레이즈, 도달 레벨을 표시합니다. 같은 캐릭터와 저장한 장비·마법으로 다시 출격하거나 메인 화면으로 돌아갈 수 있습니다. [1024×576 실패 결과](docs/screenshots/3d-day-25-failed-1024.png) · [25일차 기록](docs/development/3d-day-25.md)
 
 결과 화면 왼쪽에는 출격한 조종사의 전신 일러스트, 오른쪽에는 전투 기록·보상·다시 출격 버튼을 표시합니다. 세라는 근거리 적에게 더 큰 피해를 주며, Q 돌파 검기와 R 천공 연참으로 전방을 공격합니다. [세라 결과](docs/screenshots/3d-day-33-sera-result.png) · [루미 결과 1024×768](docs/screenshots/3d-day-33-lumi-result-4x3.png) · [세라 전투](docs/screenshots/3d-day-33-sera-blade.png) · [33일차 기록](docs/development/3d-day-33.md)
 
@@ -80,6 +80,8 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 �
 | 1~4 | 비행 시험 씬에서만 조준·부채꼴·고리·나선 연습 탄막 선택 |
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
+
+타이틀·마을·외곽 항로에 각 배경곡이 있으며 중간·최종 보스 진입에는 보스곡으로 바뀝니다. Esc로 전투 음악과 효과음을 멈춰도 정지 메뉴 버튼음이 들립니다. 마스터 음량은 메인 설정과 전투 설정에서 조절할 수 있습니다. [전투 음량 설정](docs/screenshots/3d-day-39-paused-audio.png) · [39일차 기록](docs/development/3d-day-39.md) · [정식 음원 제작 브리프](https://docs.google.com/document/d/11SYgjADf-6TG3s7-TG01_Ue1nwgq3DP6-zUa63HLyig/edit?tab=t.p64gk563fhsh)
 
 ![프로젝트 G 3D 22일차 제작 마법과 3D 시험장](docs/screenshots/3d-day-22-editor.png)
 

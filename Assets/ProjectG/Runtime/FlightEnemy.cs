@@ -82,6 +82,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Health = nextHealth; // 실제로 반영한 마물 체력
             if (Health == 0) // 처치로 마물 활동이 끝난 상태
             {
+                FlightAudio.Play(FlightSfx.EnemyDown); // 실제로 끝난 마물 전투의 소리
                 gameObject.SetActive(false); // 마물 모델과 피격 오브젝트 숨김
                 Defeated?.Invoke(this); // 같은 처치에만 한 번 보상 지급
                 return; // 처치 뒤 체력 표시 생략

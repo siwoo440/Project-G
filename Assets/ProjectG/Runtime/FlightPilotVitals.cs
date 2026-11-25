@@ -114,6 +114,10 @@ namespace ProjectG // 프로젝트 게임 영역
                         float reduction = Mathf.Clamp(guard, 0f, 50f) * 0.01f; // 문서 확정 피해 감소 상한 50%
                         int incoming = damage > 0 ? Mathf.Max(1, Mathf.RoundToInt(damage * (1f - reduction))) : 0; // 장착 보너스가 반영된 실제 피격량
                         Health = Mathf.Max(0, Health - incoming); // 체력 하한 적용
+                        if (incoming > 0) // 장비와 보호막의 실제 피해가 남은 경우
+                        {
+                            FlightAudio.Play(FlightSfx.PilotHit); // 충돌과 피격 무적의 구분 신호
+                        }
                         immuneUntil = Time.time + immuneSeconds; // 다음 피격 보호
                         if (!IsDefeated && upgrades != null && upgrades.HasProtectionDevice && Time.time >= deviceReadyAt) // 실제 피격 이후의 장치 충전
                         {
@@ -131,6 +135,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 grazeAwarded = true; // 같은 탄환에서 한 번만 인정
                 Grazes++; // 현재 출격의 그레이즈 증가
+                FlightAudio.Play(FlightSfx.Graze); // 한 번 확정된 스침 신호
                 Grazed?.Invoke(); // 이번 탄환의 그레이즈 전달
             }
 

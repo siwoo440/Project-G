@@ -1512,6 +1512,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(4); // 정지 프레임
             Assert.That(pause.gameObject.activeSelf, Is.True); // 메뉴 표시
             Assert.That(Time.timeScale, Is.Zero); // 전투 시간 정지
+            Assert.That(AudioListener.pause, Is.True); // 실제 전투 음향 채널 정지
             Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Timer")), Is.EqualTo(HudText(hud.Find("WaveReadout/Timer")))); // 정지 순간의 실제 시간
             Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Wave")), Is.EqualTo("Wave : 1")); // 현재 웨이브 번호
             Assert.That(HudText(pause.Find("MenuButtons/RunStatus/Remaining")), Is.EqualTo(": 1")); // 첫 마물 수
@@ -1556,6 +1557,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 누른 전투 키 해제
             yield return WaitFrames(4); // 재생 상태 복구
             Assert.That(Time.timeScale, Is.EqualTo(1f)); // 전투 다시 진행
+            Assert.That(AudioListener.pause, Is.False); // 전투 음악과 효과 다시 진행
             Assert.That(pause.gameObject.activeSelf, Is.False); // 메뉴 닫힘
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 다시 정지
             yield return WaitFrames(4); // 새 메뉴 표시
@@ -1959,6 +1961,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Component phases = boss.GetComponent("FlightFinalBoss"); // 체력 단계별 실제 공격
             Component pool = GetThreatPool(); // 공유하는 모든 실제 적탄
             var hit = life.GetType().GetMethod("ReceiveHit"); // 일반 사격과 관통탄의 공통 피해 경로
+            Assert.That(GameObject.Find("FlightAudio/Music").GetComponent<AudioSource>().clip.name, Is.EqualTo("BossSquall")); // 실제 최종 보스의 전용곡
             Assert.That(Metric(life, "Health"), Is.EqualTo(1500)); // 최종 보스 시험 체력
             Assert.That(Metric(phases, "Phase"), Is.EqualTo(1)); // 첫 조준 페이즈
             Assert.That(Metric(pool, "ActiveCount"), Is.GreaterThan(0)); // 실제 1페이즈 적탄
@@ -2014,6 +2017,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             ClickPauseButton(completed, "Open"); // 클리어한 출격 결과 이동
             yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 기존 전투와 분리한 결과
             Transform result = GameObject.Find("SortieResult").transform; // 실제 결과 하이러키
+            Assert.That(GameObject.Find("FlightAudio/Music").GetComponent<AudioSource>().clip.name, Is.EqualTo("StageClear")); // 실제 완료 결과곡
             Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 완료")); // 실패와 다른 실제 성공 표시
             Assert.That(result.Find("PortraitArea/StandingIllustration").GetComponent<RawImage>().texture.name, Is.EqualTo("AriaStanding")); // 클리어에서도 실제 조종사 일러스트 적용
             Assert.That(long.Parse(HudText(result.Find("Panel/Score")), System.Globalization.NumberStyles.Number), Is.GreaterThan(0)); // 최종 격파의 실제 점수 전달
@@ -2362,6 +2366,28 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FlightSortieBriefing")); // 준비 씬을 실제로 여는 동선
         }
 
+        [UnityTest] // 장소별 배경 곡과 실제 편집 가능 음향 소스
+        public IEnumerator SceneAudioOwnsOneMusicSourceAndSeparatesPauseEffects() // 기존 마스터와 소리 재생 상태 확인
+        {
+            string[] scenes = { "FlightMainMenu", "FlightIslandVillage", "FlightSortieBriefing", "OuterIslandsStage", "FlightPrototype", "FlightSortieResult" }; // 실제 배포와 훈련의 오디오 씬
+            string[] music = { "TitleAirship", "VillageWind", "VillageWind", "OuterIslands", "OuterIslands", null }; // 위치별 기본곡 또는 정산 대기
+            for (int index = 0; index < scenes.Length; index++) // 각 화면을 실제 비동기로 열기
+            {
+                yield return SceneManager.LoadSceneAsync(scenes[index]); // Unity에서 실제 화면 전환
+                yield return WaitFrames(4); // 오디오 참조와 시작 곡 설정
+                Transform root = GameObject.Find("FlightAudio").transform; // 하이러키에서 편집 가능한 오디오 묶음
+                var sources = root.GetComponentsInChildren<AudioSource>(); // 실제 세 가지 소리 재생 소스
+                Assert.That(sources.Length, Is.EqualTo(3), scenes[index]); // 배경과 두 효과 소스
+                Assert.That(Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None).Length, Is.EqualTo(3), scenes[index]); // 이전 씬에서 중복으로 남는 오디오 없음
+                Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length, Is.EqualTo(1), scenes[index]); // 현재 카메라의 단일 청취자
+                var theme = root.Find("Music").GetComponent<AudioSource>(); // 현재 씬의 실제 음악
+                Assert.That(theme.clip != null ? theme.clip.name : null, Is.EqualTo(music[index]), scenes[index]); // 메뉴·마을·실전·결과 구분
+                Assert.That(theme.loop, Is.EqualTo(music[index] != null), scenes[index]); // 결과를 기다리는 씬엔 반복 음악 없음
+                Assert.That(root.Find("CombatSfx").GetComponent<AudioSource>().ignoreListenerPause, Is.False); // 전투 소리는 실제 Esc 정지에 연동
+                Assert.That(root.Find("InterfaceSfx").GetComponent<AudioSource>().ignoreListenerPause, Is.True); // 메뉴 소리는 정지된 상태에서도 재생
+            }
+        }
+
         [UnityTest] // 앱 시작 메뉴·기존 출격 확인·설정 보존
         public IEnumerator MainMenuConfirmsNewGameAndSavesDisplayAndSound() // 기본 씬의 실제 저장과 출격 경로
         {
@@ -2508,6 +2534,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitForActiveScene(resultPath); // 실제 씬을 완전히 열기
             Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(resultPath)); // 다른 씬으로 이동 확인
             Transform result = GameObject.Find("SortieResult").transform; // 실제 편집한 결과 오브젝트
+            Assert.That(GameObject.Find("FlightAudio/Music").GetComponent<AudioSource>().clip.name, Is.EqualTo("StageFailed")); // 실제 실패 결과곡
             Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("출격 실패")); // 실패와 승리 구분
             var standing = result.Find("PortraitArea/StandingIllustration"); // 출격한 캐릭터의 실제 결과 그림
             Assert.That(standing, Is.Not.Null); // 결과 씬에서 편집할 왼쪽 일러스트

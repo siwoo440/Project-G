@@ -80,6 +80,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 PlayerPrefs.Save(); // 다음 실행에 즉시 반영
             }
             ApplyAudio(); // 해당 화면과 다음 출격의 실제 음량
+            FlightAudio.Play(FlightSfx.UiConfirm); // 적용한 음량으로 설정 저장 신호
             ApplyDisplay(); // 실제 실행의 화면 설정
             feedback.text = "설정을 저장했습니다."; // 적용 메시지
         }

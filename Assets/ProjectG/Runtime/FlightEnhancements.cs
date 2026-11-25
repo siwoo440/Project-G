@@ -291,6 +291,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     counts[index]++; // 아이템 종류별 최대 3회
                     break; // 이후 실제 공격과 마력 처리에 반영
             }
+            FlightAudio.Play(FlightSfx.Pickup); // 강화 적용이 완료된 획득 소리
             LastPickup = $"{Names[index]} {Grades[grade - 1]}"; // 실제 획득한 종류와 등급
             announceUntil = Time.time + 2.4f; // 전투 HUD에 잠시 표시
             pickupLabel.text = $"{LastPickup} 획득"; // 현재 전투에서 올라간 강화

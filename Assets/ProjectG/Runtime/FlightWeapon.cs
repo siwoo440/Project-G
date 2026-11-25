@@ -166,6 +166,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (TryDirection(aim, point, out Vector3 travel)) // 총구 앞에 있는 조준 위치
             {
                 FireSpread(travel, pilot.IsFocusHeld, 1, 0f, true); // 기본 또는 집중탄 자동 발사
+                FlightAudio.Play(FlightSfx.AutoShot); // 실제 자동 사격에만 저음 효과
             }
             float interval = pilot.IsFocusHeld ? 0.27f : 0.18f; // 아리아의 기본 연사 간격
             if (IsRian) // 저격형은 샷 사이 조준 시간이 더 긴 시험 설정

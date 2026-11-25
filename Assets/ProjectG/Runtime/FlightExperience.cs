@@ -172,6 +172,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Grant(int reward) // 초과 경험치를 다음 전투 레벨에 이월
         {
+            FlightAudio.Play(FlightSfx.Pickup); // 실제 경험치 조각 회수 소리
             long total = (long)experience + reward; // 한 조각의 큰 보상도 누락 없이 합산
             int previousLevel = level; // 이번 획득 전 레벨
             while (total >= RequiredExperience) // 한 번에 여러 레벨을 넘는 경우
@@ -183,6 +184,7 @@ namespace ProjectG // 프로젝트 게임 영역
             ShowProgress(); // 현 레벨과 게이지를 함께 갱신
             if (level > previousLevel) // 실제로 레벨이 오른 횟수
             {
+                FlightAudio.Play(FlightSfx.LevelUp); // 선택 화면이 열리기 전의 성장 소리
                 LeveledUp?.Invoke(level - previousLevel, level); // 오른 레벨별 선택 하나
             }
         }

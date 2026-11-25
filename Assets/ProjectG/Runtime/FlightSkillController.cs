@@ -189,6 +189,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return false; // 카드 순서와 마력을 보존
             }
+            FlightAudio.Play(FlightSfx.MagicCard); // 실제 성공 소비에서만 카드 소리
             mana -= cost; // 해당 카드 보석에 표시한 마력 비용
             ShowResources(); // 클릭 다음 프레임에 실제 자원 갱신
             return true; // 카드 순환 가능 여부
@@ -212,6 +213,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal void SpendCraftedMana(int cost) // 성공한 제작 마법의 실제 소비
         {
+            FlightAudio.Play(FlightSfx.MagicCard); // 제작 조합을 실제로 발사한 소리
             mana -= cost; // 보석과 같은 마력 비용 반영
             ShowResources(); // 전투 게이지의 실제 마력 수치
         }
@@ -233,6 +235,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             readyAt[slot] = Time.time + startsIn + cooldown; // 재사용 시간 시작
             hud.SetDelayedCooldown(slot, cooldown, startsIn); // 슬롯 안 흰 숫자 갱신
+            FlightAudio.Play(slot == 2 ? FlightSfx.Ultimate : FlightSfx.Skill); // 승인된 시전마다 일반·필살기 신호
             SkillActivated?.Invoke(slot); // 실제 마력을 쓴 스킬 완료 알림
         }
 

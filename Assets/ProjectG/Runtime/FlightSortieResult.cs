@@ -25,6 +25,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Text rewards; // 이번 출격의 영구 보상
         [SerializeField] private Button retry; // 같은 조합으로 재출격
         [SerializeField] private Button title; // 실제 메인 타이틀 복귀
+        [SerializeField] private FlightFirstIncident incident; // 정확한 결과에 연동하는 첫 사건 기록 창
         private static FlightSortieReport staged; // 이전 씬으로부터 한 번 전달되는 결과
         private FlightSortieReport report; // 현재 보이는 결과
         private bool moving; // 버튼 중복 클릭과 씬 이동 보호
@@ -59,6 +60,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             FlightAudio.ShowResult(report.Cleared); // 실제 클리어와 실패의 다른 결과곡
+            incident?.ShowResult(report.Cleared); // 같은 작전 기록에 현재 결과만 표시
             outcome.text = report.Cleared ? "출격 완료" : "출격 실패"; // 실제 최종 결과 구분
             pilotName.text = $"{FlightPilotRoster.Name(report.Pilot)}  ·  하늘섬 외곽 항로"; // 종료한 캐릭터 확인
             combatTime.text = FormatTime(report.CombatSeconds); // 실제 전투 시계의 분과 초
@@ -91,6 +93,10 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 이미 화면 이동 중인 상태
             {
                 return; // 물리 키 입력 처리 없음
+            }
+            if (incident != null && incident.HandleArchiveKey(keyboard, true)) // 기록 창을 먼저 닫거나 열기
+            {
+                return; // 같은 키로 메인·재출격에 진입하지 않음
             }
             if (keyboard.escapeKey.wasPressedThisFrame) // 메인으로 복귀
             {

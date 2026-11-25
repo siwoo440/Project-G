@@ -2515,6 +2515,73 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 첫 사건 기록, 실제 보스 조우, 건너뛰기와 재출격
+        public IEnumerator FirstIncidentArchiveAndBroadcastDoNotRepeatDuringRetry() // 기술과 장비 화면의 기존 입력 유지
+        {
+            var kind = System.Type.GetType("ProjectG.FlightFirstIncident, Assembly-CSharp"); // 실제 기록 패널 클래스
+            var reset = kind.GetMethod("ResetOpening", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 평소 새 실행의 상태
+            reset.Invoke(null, null); // 다른 출격을 먼저 실행한 테스트와 분리
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 현재 배포의 출격 준비
+            yield return WaitFrames(4); // 열린 메뉴의 버튼 연결
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 준비 정보와 스탠딩
+            Transform archive = briefing.Find("FirstIncident/Archive"); // 편집 가능한 기록 창
+            ClickPauseButton(briefing, "Ready/FirstIncidentOpen"); // 화면 버튼으로 기록 열기
+            Assert.That(archive.gameObject.activeSelf, Is.True); // 실제 팝업 표시
+            Canvas.ForceUpdateCanvases(); // 글자 줄 나눔과 화면 크기 먼저 계산
+            Text copy = archive.Find("Card/Body").GetComponent<Text>(); // 실제 본문이 들어가는 표시 영역
+            Assert.That(copy.preferredHeight, Is.LessThanOrEqualTo(copy.rectTransform.rect.height + .1f)); // 마지막 문장까지 잘리지 않는 높이
+            string content = copy.text; // 문서와 같은 첫 사건 사실
+            Assert.That(content, Does.Contain("천공 수호조사단").And.Contain("아리아와 리안").And.Contain("마물 습격")); // 기획서에 확정된 조직·사건
+            Assert.That(archive.Find("Card/AriaPortrait").GetComponent<RawImage>().texture.name, Is.EqualTo("AriaStanding")); // 실제 기획 이미지
+            Assert.That(archive.Find("Card/RianPortrait").GetComponent<RawImage>().texture.name, Is.EqualTo("RianStanding")); // 두 번째 실제 조종사
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Enter)); // 열린 기록에서 기존 출발 키를 눌러 비교
+            yield return WaitFrames(4); // 같은 화면 유지 확인
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FlightSortieBriefing")); // 열람 중 출격 금지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 기록에서 되돌아가기
+            yield return WaitFrames(3); // 현재 기록 창만 숨김
+            Assert.That(archive.gameObject.activeSelf, Is.False); // 메뉴가 사라지지 않고 기록만 종료
+            SetKeys(); // 다음 입력 준비
+            ClickPauseButton(briefing, "Ready/SelectAria"); // 첫 사건의 실제 조종사 선택
+            ClickPauseButton(briefing, "Ready/Depart"); // 정상적인 행동으로 실전 진입
+            yield return WaitForActiveScene(OuterIslandsPath); // 배포 항로의 현재 HUD
+            Transform hud = LocateCombatHud().transform; // 정식 스테이지의 전투 정보
+            Transform transmission = hud.Find("FirstIncidentBroadcast/Transmission"); // 실제 화면의 통신
+            Component timeline = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 보스 조우 확인
+            Assert.That(transmission.gameObject.activeSelf, Is.True); // 최초 출격에서만 표시
+            Assert.That(HudText(transmission.Find("Title")), Does.Contain("첫 사건")); // 첫 만남의 일반 서술
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F3)); // 전투 중 통신 건너뛰기
+            yield return WaitFrames(4); // 선택은 시계에 영향을 주지 않음
+            SetKeys(); // 중간 보스 안내를 다시 건너뛸 준비
+            Assert.That(transmission.gameObject.activeSelf, Is.False); // 실제 통신이 닫힘
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 닫으면서 전투가 멈추지 않음
+            Component vitals = FindPilot().GetComponent("FlightPilotVitals"); // 보스까지 생존하는 실제 비행체
+            ((Behaviour)FindPilot().GetComponent("FlightWeapon")).enabled = false; // 이 시험의 보스 조우를 자동 사격과 분리
+            vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 130f }); // 이 테스트에서 조우까지 살아 있기
+            Time.captureDeltaTime = .1f; // 80초의 실제 일정 진행
+            yield return AdvanceStageTo(timeline, 80.35f); // 실제 중간 보스 등장
+            Assert.That(transmission.gameObject.activeSelf, Is.True); // 조우 직후에만 나오는 안내
+            Assert.That(HudText(transmission.Find("Title")), Does.Contain("중간 보스")); // 도입 문구가 남지 않는 상태
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F3)); // 진행 중 보스 안내 닫기
+            yield return WaitFrames(4); // 같은 보스에 다시 켜지지 않는지 확인
+            SetKeys(); // 이 다음 단계는 조작하지 않음
+            Assert.That(transmission.gameObject.activeSelf, Is.False); // 같은 보스에 대면 기록 중복 없음
+            vitals.GetType().GetMethod("ResetRun").Invoke(vitals, null); // 시험 보호 제거
+            var hit = vitals.GetType().GetMethod("ResolveThreat", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 실제 피격 처리
+            hit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, .1f, 125, false, false }); // 빠른 실패 정산에 필요한 통제 피격
+            yield return WaitFrames(3); // 기존 결과 진입 버튼이 열리는 시점
+            ClickPauseButton(hud.Find("SortieEnd"), "Open"); // 실제 결과 씬 이동
+            yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 전투 끝난 조종사와 현재 정산
+            Transform result = GameObject.Find("SortieResult").transform; // 기존 결과가 존재하는 오른쪽 패널
+            ClickPauseButton(result, "FirstIncidentOpen"); // 정산에서도 같은 기록 열람
+            Transform ending = result.Find("FirstIncident/Archive/Card/Result"); // 이번 출격에만 추가하는 한 줄
+            Assert.That(HudText(ending), Does.Contain("임무를 완료하지 못했습니다")); // 실패와 세계관의 사실을 서로 분리
+            ClickPauseButton(result, "FirstIncident/Archive/Card/Close"); // 원래 재출격 버튼으로 복귀
+            ClickPauseButton(result, "Panel/Retry"); // 정상적인 실제 재시작
+            yield return WaitForActiveScene(OuterIslandsPath); // 새 항로의 현재 안내
+            Assert.That(LocateCombatHud().transform.Find("FirstIncidentBroadcast/Transmission").gameObject.activeSelf, Is.False); // 같은 실행에서 첫 사건을 다시 띄우지 않음
+            reset.Invoke(null, null); // 다음 검증의 독립성 복구
+        }
+
         [UnityTest] // 실패 결과와 같은 캐릭터의 새 출격
         public IEnumerator SortieResultRetriesSamePilotAndClearsOldCombatState() // 전투 → 결과 → 재출격
         {

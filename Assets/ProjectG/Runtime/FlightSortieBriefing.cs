@@ -33,6 +33,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Button editGear; // 장착 부품의 선택
         [SerializeField] private Button editMagic; // 실제 좌우 제작 마법 변경
         [SerializeField] private Button firstSortieGuide; // 선택형 첫 비행 안내
+        [SerializeField] private FlightFirstIncident incident; // 출격 준비에서 읽는 첫 사건 기록
         private FlightBroomPilot pilot; // 선택 화면의 현재 조종사
         private bool moving; // 중복 씬 전환 방지
 
@@ -72,6 +73,10 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 마우스 단독 또는 씬 전환 중
             {
                 return; // 추가 출발 없음
+            }
+            if (incident != null && incident.HandleArchiveKey(keyboard, ready.activeSelf)) // 첫 사건 창 열람에 우선 키 전달
+            {
+                return; // 기록 표시 중 출발·장비 키 처리하지 않음
             }
             if (keyboard.escapeKey.wasPressedThisFrame) // 메뉴에서 뒤로
             {

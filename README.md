@@ -30,6 +30,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 루미는 같은 적을 추적할수록 유도탄 회전력이 높아집니다. Q는 별빛 추적탄, R은 서로 다른 고도의 적에게 분산되는 별무리 항로를 발사합니다. 천공 결정은 파란 결정 다발 아이콘, 골드는 금빛 동전 아이콘으로 상점·강화·출격과 정산의 수치에 표시합니다. [루미 준비 화면](docs/screenshots/3d-day-32-lumi-briefing.png) · [전투](docs/screenshots/3d-day-32-lumi-combat.png) · [상점](docs/screenshots/3d-day-32-market.png) · [결과](docs/screenshots/3d-day-32-result.png) · [32일차 기록](docs/development/3d-day-32.md)
 
+출격 준비와 정산에서 **첫 사건 기록** 또는 F3으로 균열 조사와 아리아·리안의 첫 만남을 읽을 수 있습니다. 실전에서는 F3으로 현재 작전 통신만 닫습니다. [첫 사건 기록](docs/screenshots/3d-day-40-archive.png) · [조우 통신](docs/screenshots/3d-day-40-midboss.png) · [40일차 기록](docs/development/3d-day-40.md)
+
 출격 준비에서 **첫 비행 안내** 또는 F1을 누르면 이동·집중·자동 사격·그레이즈·스킬을 연습합니다. Enter로 출격 준비에 돌아갈 수 있고, Tab으로 마우스 포인터를 전환해 안내 버튼을 클릭할 수 있습니다. [1024×576 첫 비행 안내](docs/screenshots/3d-day-27-guide-1024.png) · [4:3 출격 준비](docs/screenshots/3d-day-27-briefing-4x3.png) · [27일차 기록](docs/development/3d-day-27.md)
 
 ---

@@ -22,6 +22,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private const float BeamRadius = 0.55f; // 광선 판정 반경
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
         private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
+        private FlightBroomEquipment broom; // 캐릭터별 빗자루 조합
         private Color normalReticleColor; // 기존 조준점 색
         private float beamUntil; // 광선 표시 종료 시각
         private float rapidUntil; // Q 효과의 종료 시각
@@ -34,6 +35,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public void TogglePilot() // 아리아와 리안의 전투 설정 전환
         {
             IsRian = !IsRian; // 다음 시험 캐릭터 선택
+            broom?.SelectPilot(IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 캐릭터에 맞는 부품 조합 복원
             ResetCadence(); // 이전 속사 효과와 광선 표시 제거
         }
 
@@ -57,6 +59,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
             TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
+            TryGetComponent(out broom); // 실전 씬의 장착 구성
             normalReticleColor = reticle.color; // 편집한 기본 조준점 색 설정
         }
 

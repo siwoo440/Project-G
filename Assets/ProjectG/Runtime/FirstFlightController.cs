@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private BoxCollider flightVolume; // 실전 씬에 배치한 축 정렬 전투 구역
         [SerializeField] private LayerMask environmentLayer = 1 << 8; // 비행 지형 충돌 대상
         private FlightPilotVitals vitals; // 현재 비행체의 생존 상태
+        private FlightBroomEquipment broom; // 실전 비행체의 장착 부품
         private Vector3 velocity; // 관성이 포함된 월드 속도
         private float pitch; // 기본 시점의 상하 각도
         private float orbitYaw; // 둘러보기의 좌우 각도
@@ -30,10 +31,12 @@ namespace ProjectG // 프로젝트 게임 영역
         public bool IsAimView => !IsFreeLooking && Mathf.Abs(orbitYaw) < 0.1f && Mathf.Abs(orbitPitch) < 0.1f; // 기본 조준 각도로 완전히 복귀한 상태
         public bool HasPointerControl => Application.isBatchMode || Cursor.lockState == CursorLockMode.Locked; // 마우스 제어 상태
         public Quaternion ViewRotation => transform.rotation * Quaternion.Euler(Mathf.Clamp(pitch + orbitPitch, -65f, 65f), orbitYaw, 0f); // 기본 시점과 둘러보기 합성
+        public float MaximumSpeed => speed + PartBonus(FlightBroomStat.Speed); // 현재 조합의 수평 최고 속도
 
         private void Awake() // 선택적 비행 체력 참조
         {
             TryGetComponent(out vitals); // 현재 씬의 기체 상태
+            TryGetComponent(out broom); // 씬에 배치한 빗자루 부품
         }
 
         public void ResetFlightPose(Vector3 position, Quaternion rotation) // 출격 재시작의 초기 비행 자세
@@ -83,10 +86,19 @@ namespace ProjectG // 프로젝트 게임 영역
             UpdateLook(mouse, Time.deltaTime); // 선회와 독립 시점 적용
             IsFocusHeld = keyboard != null && bindings.Held(keyboard, FlightAction.Focus); // 현재 설정의 집중 이동
             Vector3 input = keyboard == null ? Vector3.zero : ReadFlightInput(keyboard); // 현재 비행 방향
-            Vector3 desired = transform.rotation * input * (speed * (IsFocusHeld ? focusSpeed : 1f)); // 정량화된 비행 목표 속도
+            float horizontalSpeed = MaximumSpeed; // 부품 효과가 포함된 수평 속도
+            float verticalSpeed = broom == null ? horizontalSpeed : 8f + PartBonus(input.y >= 0f ? FlightBroomStat.Rise : FlightBroomStat.Fall); // 방향별 고도 이동 속도
+            Vector3 axisSpeeds = new Vector3(horizontalSpeed, verticalSpeed, horizontalSpeed); // 정규화된 입력의 축별 배율
+            Vector3 desired = transform.rotation * Vector3.Scale(input, axisSpeeds) * (IsFocusHeld ? focusSpeed : 1f); // 집중 이동을 포함한 목표 속도
             bool slowing = desired.sqrMagnitude < velocity.sqrMagnitude || Vector3.Dot(desired, velocity) < 0f; // 감속과 반대 방향의 제동
-            velocity = Vector3.MoveTowards(velocity, desired, (slowing ? braking : acceleration) * Time.deltaTime); // 가속과 제동 적용
+            float rate = slowing ? braking + PartBonus(FlightBroomStat.Braking) : acceleration + PartBonus(FlightBroomStat.Acceleration); // 장착 효과가 포함된 속도 변화율
+            velocity = Vector3.MoveTowards(velocity, desired, Mathf.Max(0.01f, rate) * Time.deltaTime); // 가속과 제동 적용
             MoveWithinBounds(velocity * Time.deltaTime); // 지형과 경계 안에서 이동
+        }
+
+        private float PartBonus(FlightBroomStat stat) // 선택적 부품 효과 조회
+        {
+            return broom != null ? broom.GetBonus(stat) : 0f; // 시험 씬의 기존 수치 보존
         }
 
         private Vector3 ReadFlightInput(Keyboard keyboard) // 키보드의 축별 방향
@@ -115,7 +127,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 비행 방향과 기본 각도 보존
             }
 
-            transform.Rotate(0f, look.x, 0f, Space.World); // 마우스 선회와 수평 진행 방향
+            float yaw = look.x; // 현재 프레임의 좌우 선회 입력
+            if (broom != null) // 실전 씬의 장착 효과
+            {
+                float yawLimit = (360f + PartBonus(FlightBroomStat.Turn)) * seconds; // 초당 최대 선회 속도
+                yaw = Mathf.Clamp(yaw, -yawLimit, yawLimit); // 프레임 길이 기준 회전 제한
+            }
+
+            transform.Rotate(0f, yaw, 0f, Space.World); // 마우스 선회와 수평 진행 방향
             pitch = Mathf.Clamp(pitch - look.y, -45f, 45f); // 위아래 조준 각도
             orbitYaw = Mathf.MoveTowards(orbitYaw, 0f, 250f * seconds); // 좌우 시점 복귀
             orbitPitch = Mathf.MoveTowards(orbitPitch, 0f, 180f * seconds); // 상하 시점 복귀

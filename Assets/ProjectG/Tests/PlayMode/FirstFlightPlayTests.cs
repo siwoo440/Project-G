@@ -1575,6 +1575,73 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(Vector3.Distance(far.position, farStart), Is.GreaterThan(0.01f)); // 먼 구름층의 완만한 이동
         }
 
+        [UnityTest] // 기본 부품과 시험 부품이 실제 비행에 미치는 변화
+        public IEnumerator OuterIslandsBroomSwapUpdatesMountedArtAndFlightSpeed() // 정상 출격과 장착 API를 통한 교체
+        {
+            yield return LoadOuterIslands(); // 배포하는 실제 항로 로드
+            Transform pilot = FindPilot(); // 입력과 부품을 함께 쓰는 출격 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 게임 어셈블리에 배치한 실제 장착 상태
+            Assert.That(equipment, Is.Not.Null, "빗자루 부품 컴포넌트"); // 정상 시작 경로의 장비 연결
+            Transform mounts = pilot.Find("TrainingBroom/PartMounts"); // 에디터에서 편집하는 실제 장착 지점
+            Assert.That(mounts.childCount, Is.EqualTo(8)); // 하이러키에 저장한 여덟 부품 슬롯
+            var body = mounts.Find("Body/Visual").GetComponent<MeshRenderer>(); // 조립 부품의 실제 렌더러
+            Material defaultArt = body.sharedMaterial; // 아리아의 시작 외형
+            pilot.position = new Vector3(0f, 22f, -23f); // 장애물과 분리된 시험 비행 위치
+            SetKeys(Key.W); // 실제 기본 빗자루 전진
+            yield return WaitFrames(38); // 정격 속도에 도달할 때까지 가속
+            float start = pilot.position.z; // 기본 장비의 이동 시작점
+            yield return WaitFrames(15); // 0.25초의 실제 이동
+            float baseline = (pilot.position.z - start) * 4f; // 실제 기본 비행 속도
+            Assert.That(baseline, Is.EqualTo(12.3f).Within(0.08f)); // 기본 몸체의 +0.3 가산
+            Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Body", "trial.storm-body:1"), Is.True); // 별개 시험 몸체 장착
+            Assert.That(body.sharedMaterial, Is.Not.SameAs(defaultArt)); // 같은 3D 지점에서 외형 변경
+            yield return WaitFrames(8); // 변경된 장비의 가속 적용
+            start = pilot.position.z; // 다른 몸체로 비행할 시작점
+            yield return WaitFrames(15); // 동일한 0.25초의 실제 이동
+            SetKeys(); // 실제 비행 입력 해제
+            Assert.That((pilot.position.z - start) * 4f, Is.EqualTo(12.7f).Within(0.08f)); // 이전 +0.3 제거와 새 +0.7 적용
+            Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Body", "aria.body:1"), Is.True); // 시작 부품을 다시 장착
+            Assert.That(body.sharedMaterial, Is.SameAs(defaultArt)); // 교체 후 기존 외형 복원
+            Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Propulsion", "trial.storm-drive:1"), Is.True); // 가속형 추진부로 교체
+            var getBonus = equipment.GetType().GetMethod("GetBonus"); // 게임 어셈블리의 비행 계수 조회
+            var stat = getBonus.GetParameters()[0].ParameterType; // 실제 부품 효과의 열거형
+            Assert.That(getBonus.Invoke(equipment, new[] { System.Enum.Parse(stat, "Acceleration") }), Is.EqualTo(1.5f)); // 추진부의 가속 이득
+            Assert.That(getBonus.Invoke(equipment, new[] { System.Enum.Parse(stat, "Braking") }), Is.EqualTo(-1f)); // 추진부의 제동 불이익
+        }
+
+        [UnityTest] // 공용 인벤토리의 개별 부품 소유와 캐릭터 전환
+        public IEnumerator OuterIslandsBroomRejectsDuplicateItemsAndRestoresPilotLoadout() // 같은 종류와 개별 부품 구분
+        {
+            yield return LoadOuterIslands(); // 실제 항로의 기본 장착 상태
+            Transform pilot = FindPilot(); // 두 캐릭터의 시험 조작체
+            Component gear = pilot.GetComponent("FlightBroomEquipment"); // 게임 어셈블리의 공용 인벤토리
+            Assert.That(gear, Is.Not.Null, "빗자루 부품 컴포넌트"); // 실제 시작 장비 연결
+            Assert.That(Metric(gear, "OwnedCount"), Is.EqualTo(59)); // 시작 부품 56개와 시험용 3개
+            Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("aria.body:1")); // 기본 몸체의 보유 ID
+            Assert.That(BroomAction(gear, "TryEquip", "Aria", "Grip", "trial.storm-body:1"), Is.False); // 잘못된 슬롯에 교체 거부
+            Assert.That(BroomAction(gear, "TryEquip", "Aria", "Body", "trial.storm-body:1"), Is.True); // 아리아에 첫 개별 부품 사용
+            Assert.That(BroomAction(gear, "TryEquip", "Rian", "Body", "trial.storm-body:1"), Is.False); // 동일한 개별 부품 동시 장착 금지
+            Assert.That(BroomAction(gear, "TryEquip", "Rian", "Body", "trial.storm-body:2"), Is.True); // 같은 종류의 다른 개별 부품 장착
+            Assert.That(BroomAction(gear, "Unequip", "Aria", "Body"), Is.True); // 첫 부품을 공용 인벤토리로 반환
+            Assert.That(BroomAction(gear, "TryEquip", "Rian", "Body", "trial.storm-body:1"), Is.True); // 해제한 개별 부품을 다른 캐릭터로 이동
+            Assert.That(BroomAction(gear, "TryEquip", "Aria", "Body", "aria.body:1"), Is.True); // 아리아는 기본 조합 복원
+            var art = pilot.Find("TrainingBroom/PartMounts/Body/Visual").GetComponent<MeshRenderer>(); // 실제 조작체의 몸체 표시
+            Material ariaArt = art.sharedMaterial; // 아리아 시작 몸체의 재질 기준
+            yield return SelectRian(); // 실제 F2 입력으로 캐릭터 전환
+            Assert.That(art.sharedMaterial, Is.Not.SameAs(ariaArt)); // 리안 자신의 장착 조합 표시
+            yield return SelectRian(); // 아리아로 돌아가는 실제 조작
+            Assert.That(art.sharedMaterial, Is.SameAs(ariaArt)); // 아리아의 장착 상태 복원
+        }
+
+        private static object BroomAction(Component equipment, string action, string pilot, string slot, string id = null) // 테스트 어셈블리에서 실제 장착 API 호출
+        {
+            var method = equipment.GetType().GetMethod(action); // 기존 게임 어셈블리 메서드
+            var parameters = method.GetParameters(); // 메서드의 캐릭터와 슬롯 열거형
+            object pilotValue = System.Enum.Parse(parameters[0].ParameterType, pilot); // 실제 캐릭터 인수
+            object slotValue = System.Enum.Parse(parameters[1].ParameterType, slot); // 실제 슬롯 인수
+            return method.Invoke(equipment, id == null ? new[] { pilotValue, slotValue } : new[] { pilotValue, slotValue, id }); // 장착 또는 조회 결과
+        }
+
         private static IEnumerator LoadOuterIslands() // 정상 배포 순서로 새 항로 읽기
         {
             int buildIndex = SceneUtility.GetBuildIndexByScenePath(OuterIslandsPath); // 정식 항로의 빌드 등록

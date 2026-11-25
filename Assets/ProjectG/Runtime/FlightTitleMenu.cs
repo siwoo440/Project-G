@@ -14,6 +14,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private GameObject settings; // 화면·음량 설정 보기
         [SerializeField] private GameObject dialog; // 새 게임 또는 종료 확인
         [SerializeField] private Text prompt; // 확인해야 하는 실제 상황
+        [SerializeField] private Text recoveredSortie; // 중단된 출격의 실제 복구 안내
         [SerializeField] private FlightTitleSettings options; // 화면과 음량의 저장
         [SerializeField] private Button newGame; // 새 게임 버튼
         [SerializeField] private Button continueGame; // 저장한 출격 이어서하기
@@ -36,6 +37,10 @@ namespace ProjectG // 프로젝트 게임 영역
             Cursor.visible = true; // 처음부터 버튼을 선택할 수 있는 커서
             EventSystem.current.sendNavigationEvents = false; // 키보드의 메뉴 클릭 중복 방지
             options.Initialize(); // 현재 환경 설정 읽기
+            FlightProgressReceipt recovered = FlightProgress.Current.Recover(); // 이번 실행에서 미정산 출격만 한 번 복구
+            recoveredSortie.text = recovered != null ? $"중단 출격 정산\n숙련도 +{recovered.Mastery}   ·   천공 결정 +{recovered.Crystals}   ·   조율의 증표 +{recovered.Marks}" // 제목과 새로 지급한 참여 보상
+                : FlightProgress.Current.Error ?? string.Empty; // 저장 문제만 별도로 안내
+            recoveredSortie.transform.parent.gameObject.SetActive(recoveredSortie.text.Length > 0); // 실제 복구 기록이나 저장 오류가 있을 때만 표시
             newGame.onClick.AddListener(NewGame); // 저장 여부에 따른 새 출격
             continueGame.onClick.AddListener(() => Begin(true)); // 저장한 출격을 계속
             openSettings.onClick.AddListener(ShowSettings); // 화면 및 소리 설정
@@ -142,7 +147,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             if (HasHistory()) // 기존 출격 기록이 있는 사용자
             {
-                Confirm("기존 출격 대신 새 출격을 시작할까요?\n저장한 장비와 마법은 보존됩니다.", () => Begin(false)); // 현재 작업 흐름 교체 확인
+                Confirm("기존 출격 대신 새 출격을 시작할까요?\n저장한 장비·마법과 영구 성장은 보존됩니다.", () => Begin(false)); // 현재 작업 흐름 교체 확인
             }
             else // 게임 사용 이력이 없는 최초 실행
             {

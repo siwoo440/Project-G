@@ -17,6 +17,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Text defeats; // 격파한 적
         [SerializeField] private Text grazes; // 유효한 그레이즈 수
         [SerializeField] private Text level; // 마지막 레벨
+        [SerializeField] private Text rewards; // 이번 출격의 영구 보상
         [SerializeField] private Button retry; // 같은 조합으로 재출격
         [SerializeField] private Button title; // 실제 메인 타이틀 복귀
         private static FlightSortieReport staged; // 이전 씬으로부터 한 번 전달되는 결과
@@ -59,6 +60,9 @@ namespace ProjectG // 프로젝트 게임 영역
             defeats.text = report.Defeats.ToString(); // 최종 보스를 포함한 격파 수
             grazes.text = report.Grazes.ToString(); // 실제 스침 수
             level.text = $"LV. {report.Level}"; // 종료 시에 확정된 레벨
+            FlightProgressReceipt receipt = report.Receipt; // 실제로 저장을 끝낸 출격 영수증
+            rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   천공 결정 +{receipt.Crystals}   ·   조율의 증표 +{receipt.Marks}" // 지급된 보상
+                : FlightProgress.Current.Error ?? "전투 참여 보상 없음"; // 실패한 저장 또는 참여 전 종료
         }
 
         private void Update() // 마우스와 같은 결과 조작 키

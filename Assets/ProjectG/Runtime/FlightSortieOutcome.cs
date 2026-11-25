@@ -15,8 +15,9 @@ namespace ProjectG // 프로젝트 게임 영역
         internal readonly int Defeats; // 실제 격파한 마물 수
         internal readonly int Grazes; // 인정한 근접 회피 수
         internal readonly int Level; // 이번 출격에서 도달한 레벨
+        internal readonly FlightProgressReceipt Receipt; // 같은 출격 ID의 실제 정산 영수증
 
-        internal FlightSortieReport(bool cleared, FlightBroomPilot pilot, float combat, float total, long score, int defeats, int grazes, int level) // 결과로 전달할 동결 값
+        internal FlightSortieReport(bool cleared, FlightBroomPilot pilot, float combat, float total, long score, int defeats, int grazes, int level, FlightProgressReceipt receipt) // 결과로 전달할 동결 값
         {
             Cleared = cleared; // 승리와 실패 표시
             Pilot = pilot; // 같은 조종사로 다시 출격
@@ -26,6 +27,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Defeats = defeats; // 전투 중 발생한 격파만 집계
             Grazes = grazes; // 전투의 실제 스침
             Level = level; // 마지막 성장 상태
+            Receipt = receipt; // 영구 보상과 정산 완료 여부
         }
     }
 
@@ -81,7 +83,8 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             bool cleared = stage.IsStageComplete && !pilot.IsDefeated; // 실제 전투 성공 여부
             FlightBroomPilot current = weapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 스킬·장비의 실제 조종사
-            snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level); // 결과에 복제할 확정값
+            FlightProgressReceipt receipt = stage.Conclude(cleared); // 결과 보기 전에 보상과 완료 ID를 함께 저장
+            snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt); // 결과에 복제할 확정값
             heading.text = cleared ? "출격 완료" : "출격 실패"; // 전투에 표시할 실제 결과
             flight.SetSortieEnded(true); // 결과 확인에 쓸 클릭이 비행으로 넘어가지 않도록 분리
             priorLock = Cursor.lockState; // 현재 전투의 커서 제어 기록

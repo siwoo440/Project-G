@@ -85,7 +85,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 시간 정지 중 발동 불가
             }
             Keyboard keyboard = Keyboard.current; // 실제 입력 장치
-            if (keyboard != null && bindings.Pressed(keyboard, FlightAction.Pilot)) // 설정한 시험 캐릭터 전환
+            if (keyboard != null && bindings.Pressed(keyboard, FlightAction.Pilot) && FindFirstObjectByType<FlightEnemyEncounter>()?.CanSwitchPilot != false) // 연습과 참여 전 캐릭터 시험 전환
             {
                 weapon.TogglePilot(); // 기존 자원을 유지한 전투 설정 변경
                 hud.SetSniper(weapon.IsRian); // 전용 아이콘과 패시브 전환

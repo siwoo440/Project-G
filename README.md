@@ -64,6 +64,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 ---
 ## 3D 하늘섬 외곽 항로
 
+적탄 풀은 실제 활성 탄만 갱신하고 비활성 탄을 다시 사용합니다. 128발을 유지한 Windows 비교에서 3회 중앙 프레임 시간이 0.820ms에서 0.714ms로 바뀌었습니다. [측정 조건과 결과](docs/development/3d-day-45.md)
+
 Steam용 도전 조건의 로컬 저장과 모의 어댑터 재시도는 검증했습니다. 실제 Steam App ID, 도전 과제 등록, Steam Cloud는 연동 대기 상태입니다. [44일차 연동 기록](docs/development/3d-day-44.md)
 
 Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 항로에 직접 출격할 수 있습니다. `FlightVolume`, `SpawnPoints`, `EnemyEncounter`, `CloudLayers`에서 비행 체적·적 경로·출현 시각·구름 배치를 편집합니다. 개별 조작과 탄막은 `Assets/Scenes/FlightPrototype.unity`에서 시험합니다.

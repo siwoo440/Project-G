@@ -49,13 +49,29 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             if (!vitals.IsDefeated && active && Time.time >= nextTrial) // 시험 간격에 따른 적탄 발생
             {
-                Transform body = pilot.transform; // 현재 비행체의 좌표와 방향
-                bool aimed = pattern == FlightThreatPattern.Aimed; // 조준탄의 스침 테스트 활성 여부
-                Vector3 lateral = aimed && offset ? body.right * 0.7f : Vector3.zero; // 조준탄의 명중과 스침 비교
-                EmitPattern(pattern, body.position + body.forward * 18f + lateral, -body.forward); // 정면 기준 입체 탄막
-                offset = !offset; // 조준 모드의 근접탄 교대
+                EmitCurrentPattern(); // 원래 시험과 실제 한 번 훈련에 사용하는 발사
                 nextTrial = Time.time + (pattern == FlightThreatPattern.Spiral ? 0.32f : 1.8f); // 나선이 이어질 간격
             }
+        }
+
+        internal void ConfigureTrainingPattern(FlightThreatPattern selection, bool repeat) // 자유 훈련에서 선택한 실제 패턴
+        {
+            pattern = selection; // 다음 발사의 입체 형태
+            active = repeat; // 반복의 기본 간격을 사용하는 상태
+            nextTrial = Time.time; // 첫 화면에서 즉시 발사 예약
+            if (!repeat) // 한 번만 쏘고 추가 반복 없는 훈련
+            {
+                EmitCurrentPattern(); // 기본 궤적과 같은 실제 탄막
+            }
+        }
+
+        private void EmitCurrentPattern() // 기본 시험과 자유 훈련이 공유하는 발사
+        {
+            Transform body = pilot.transform; // 실제 기체 위치와 방향
+            bool aimed = pattern == FlightThreatPattern.Aimed; // 한 발 조준에서 명중과 스침 비교
+            Vector3 lateral = aimed && offset ? body.right * 0.7f : Vector3.zero; // 기체를 조금 비키는 같은 실제 시험 값
+            EmitPattern(pattern, body.position + body.forward * 18f + lateral, -body.forward); // 정면의 입체 발사
+            offset = !offset; // 현재 조준탄과 다음 스침탄의 교대
         }
 
         private void LateUpdate() // 진행 중 설명 패널 없이 출격 실패만 표시

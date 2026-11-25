@@ -2582,6 +2582,142 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             reset.Invoke(null, null); // 다음 검증의 독립성 복구
         }
 
+        [UnityTest] // 정식 출격과 분리된 자유 훈련의 판정, 회수와 복귀
+        public IEnumerator FreeTrainingSelectsPatternsAndTargetsWithoutProgressRewards() // 실제 준비의 해당 조종사와 반복 조건
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 선택 화면
+            yield return WaitFrames(4); // 훈련 버튼의 연결
+            Transform ready = GameObject.Find("SortieBriefing").transform; // 출격과 학습을 나란히 고르는 화면
+            ClickPauseButton(ready, "Ready/SelectLumi"); // 정식 선택과 같은 루미 조종사
+            ClickPauseButton(ready, "Ready/FreeTraining"); // 새 연습 모드의 실제 버튼
+            yield return WaitForActiveScene(ScenePath); // 기존 조작 연습과 같은 물리 씬
+            Transform hud = LocateCombatHud().transform; // 현재 실제 연습 화면
+            Transform options = hud.Find("FreeTraining/Options"); // 하이러키에 배치된 자유 훈련
+            Transform card = options.Find("Card"); // 현재 반복과 시작 옵션
+            Transform pilot = FindPilot(); // 연습에서 쓰는 실제 조종사
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 루미 기술
+            Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Lumi")); // 준비에서 선택한 조종사 유지
+            Assert.That(options.gameObject.activeSelf && Time.timeScale == 0f, Is.True); // 첫 화면에서 선택 시간을 제공
+            ClickPauseButton(card, "Repeat"); // 한 번만 발사하도록 전환
+            Assert.That(HudText(card.Find("Repeat/Label")), Does.Contain("꺼짐")); // 상태와 실제 단추 연결
+            ClickPauseButton(card, "Ring"); // 실제 입체 고리 선택
+            yield return WaitFrames(5); // 풀에서 한 번 발사
+            Assert.That(options.gameObject.activeSelf, Is.False); // 전투 시작과 하이러키 표시
+            Assert.That(Metric(GetThreatPool(), "ActiveCount"), Is.EqualTo(12)); // 고리 한 번에 실제 탄막 열두 발
+            Component practice = GameObject.Find("ThreatPractice").GetComponent("FlightThreatPractice"); // 실제 연습의 일정
+            var active = practice.GetType().GetField("active", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 반복 발사를 결정하는 상태
+            Assert.That(active.GetValue(practice), Is.False); // 꺼짐으로 시작한 고리에는 추가 발사 없음
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F4)); // 실제 조작으로 다시 설정
+            yield return WaitFrames(4); // 잠겨 있던 커서와 시계가 설정에 전달
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키를 놓아 다음 입력과 분리
+            Assert.That(options.gameObject.activeSelf && Time.timeScale == 0f, Is.True); // 사용 중인 훈련의 재설정
+            ClickPauseButton(card, "Target"); // 조준점의 실제 표적 선택
+            yield return WaitFrames(4); // 기존 탄막과 초기 시점 정리
+            Assert.That(Metric(GetThreatPool(), "ActiveCount"), Is.Zero); // 이전 고리 탄막 제거
+            var mode = options.parent.GetComponent("FlightTrainingMode"); // 실제 설정이 연결한 연습 목표
+            const System.Reflection.BindingFlags fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 씬에서 연결한 실제 값
+            var target = (Component)mode.GetType().GetField("target", fields).GetValue(mode); // 원래 조준 연습 표적
+            Assert.That(target.gameObject.activeInHierarchy, Is.True); // 실제 판정과 체력을 가진 표적 등장
+            target.GetType().GetMethod("ReceiveHit").Invoke(target, new object[] { 5000 }); // 실제 드롭 진입을 검사할 통제 적중
+            yield return WaitFrames(4); // 보상 상태가 바뀌지 않는지 관찰
+            var experience = (Behaviour)mode.GetType().GetField("experience", fields).GetValue(mode); // 씬의 경험치 공급 통제
+            var equipment = (Behaviour)mode.GetType().GetField("enhancements", fields).GetValue(mode); // 씬의 강화 공급 통제
+            Assert.That(experience.enabled || equipment.enabled, Is.False); // 모드에서 두 드롭과 보상 공급이 정지
+            Assert.That(Metric(experience, "Level"), Is.EqualTo(1)); // 적 격파로 실전 카드 재화가 생기지 않음
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F4)); // 현재 훈련을 다시 시작할 화면
+            yield return WaitFrames(4); // 다시 시작 단추로 이동
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 프레스와 UI 조작 분리
+            ClickPauseButton(card, "Reset"); // 현재 연습에 같은 조준 표적 복원
+            yield return WaitFrames(4); // 실제 풀과 표적 공개
+            Assert.That(target.gameObject.activeInHierarchy, Is.True); // 현재 모드를 유지한 다시 시작
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F4)); // 자유 훈련 메뉴 재진입
+            yield return WaitFrames(4); // 다음 키의 대상
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 설정만 닫기
+            yield return WaitFrames(4); // 같은 ESC가 기존 정지 메뉴에 전달되는지 검사
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 누름 이벤트 정리
+            yield return WaitFrames(2); // 가상 키가 해제된 프레임
+            Assert.That(options.gameObject.activeSelf || hud.Find("PauseMenu").gameObject.activeSelf, Is.False); // ESC를 중복 처리하지 않음
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F4)); // 출격 준비로 되돌아갈 선택
+            yield return WaitFrames(4); // 실제 복귀 버튼 연결
+            ClickPauseButton(card, "Return"); // 현재 캐릭터와 상태 끊기
+            yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 같은 실제 준비 메뉴
+            Transform restored = GameObject.Find("SortieBriefing").transform; // 새로 열린 조종사 정보
+            Assert.That(restored.Find("Ready/Portrait").GetComponent<RawImage>().texture.name, Is.EqualTo("LumiStanding")); // 연습에서 선택한 캐릭터 복원
+        }
+
+        [UnityTest] // 마을에서 거리 입력과 선택형 대화, 실제 시설 이용
+        public IEnumerator VillageNpcDialogueBranchesAndUsesExistingServices() // 기존 보행과 따로 세 NPC 확인
+        {
+            yield return SceneManager.LoadSceneAsync("FlightIslandVillage"); // 실제 배포 마을
+            yield return WaitFrames(5); // 준비한 3D 오브젝트와 키 입력 연결
+            Transform hud = GameObject.Find("VillageHUD").transform; // 마을의 기존 장비 시설과 대화
+            Transform display = hud.Find("NPCDialogue/Display"); // 실제 화면 하단 대사
+            Transform walker = GameObject.Find("VillageWalker").transform; // 사용자의 3D 보행 조종사
+            Transform world = GameObject.Find("VillageWorld").transform; // 실제 편집 가능한 마을 계층
+            var photo = world.Find("NPCDialogueCamera").GetComponent<Camera>(); // 대화에 쓰는 별도의 실제 화면
+            var overhead = GameObject.Find("Village Camera").GetComponent<Camera>(); // 기존 보행 카메라
+            yield return TapVillage(Key.F); // 멀리서 주민과 상호작용 시도
+            Assert.That(display.gameObject.activeSelf, Is.False); // 가까이 가지 않으면 대화 불가
+
+            string[] residents = { "MarketKeeper", "ForgeAttendant", "SortieGuide" }; // 서쪽·동쪽·북쪽 실제 주민
+            string[] speakers = { "상점 주인", "공방 담당자", "출격 안내원" }; // 원래 설정을 유지한 역할 이름
+            for (int i = 0; i < residents.Length; i++) // F로 실제 대화를 세 장소에서 검증
+            {
+                Transform npc = world.Find("VillageNPCs/" + residents[i]); // 각 NPC의 실제 월드 배치
+                Assert.That(npc.Find("StandingModel/Head").GetComponent<MeshRenderer>(), Is.Not.Null); // 3D 캐릭터 렌더러
+                var movement = walker.GetComponent<CharacterController>(); // 검증할 위치에서 기존 충돌 정리
+                movement.enabled = false; // 검증 위치 지정 전 캐릭터 제어기 잠시 끄기
+                walker.position = npc.position - Vector3.forward * 2.1f; // 입구 쪽 실제 대화 반경의 위치
+                movement.enabled = true; // 정상 도보·지형 입력 복원
+                yield return WaitFrames(3); // 거리와 실제 F 안내 갱신
+                Assert.That(HudText(hud.Find("TalkPrompt/Label")), Does.Contain(speakers[i])); // 가장 가까운 F 상호작용만 표시
+                yield return TapVillage(Key.F); // 실제 키로 대사 시작
+                Assert.That(display.gameObject.activeSelf && photo.enabled && !overhead.enabled, Is.True); // 확대된 3D NPC 시점
+                Assert.That(Physics.Linecast(photo.transform.position, npc.Find("StandingModel/Head").position, 1 << 8, QueryTriggerInteraction.Ignore), Is.False); // 건물이나 지면이 얼굴을 가리지 않는 시점
+                Assert.That(hud.Find("Walking keys").gameObject.activeSelf, Is.False); // 대화창에 기본 조작 설명이 비치지 않음
+                Assert.That(HudText(display.Find("Speech/SpeakerPlate/Speaker")), Is.EqualTo(speakers[i])); // 현재 정확한 화자 이름
+                Vector3 still = walker.position; // 대화 동안 기존 걷기가 잠긴 위치
+                yield return TapVillage(Key.W); // 대사를 보면서 도보 키를 누름
+                Assert.That(walker.position, Is.EqualTo(still)); // 마을 이동과 대화 입력의 분리
+                Transform choices = display.Find("Choices"); // 다음과 선택 방식이 바뀌는 창
+                Assert.That(choices.gameObject.activeSelf, Is.False); // 첫 인사의 여러 문장 진행
+                for (int j = 0; j < 4 && !choices.gameObject.activeSelf; j++) // 타자 공개와 다음 대사의 실제 F
+                {
+                    yield return TapVillage(Key.F); // 글자 펼치기 또는 다음
+                }
+                Assert.That(choices.gameObject.activeSelf, Is.True); // 선택지가 실제로 열리는 상태
+                if (i == 0) // 상점 주인의 분기형 이용 설명을 먼저 확인
+                {
+                    yield return TapVillage(Key.Digit2); // 이용 방법 바로 선택
+                    yield return TapVillage(Key.F); // 새 문장의 나머지 공개
+                    Assert.That(HudText(display.Find("Speech/Body")), Does.Contain("공용 스킬")); // 첫 인사와 다른 안내 문장
+                    yield return TapVillage(Key.Escape); // 대화를 종료하고 실제 도보로 돌아가기
+                    Assert.That(!display.gameObject.activeSelf && overhead.enabled && !photo.enabled, Is.True); // 기존 시점과 키 복원
+                    yield return TapVillage(Key.F); // 같은 주민과 새 인사로 다시 시작
+                    for (int j = 0; j < 4 && !choices.gameObject.activeSelf; j++) // 선택지를 다시 실제 입력으로 열기
+                    {
+                        yield return TapVillage(Key.F); // 대사의 타자 효과 건너뛰기
+                    }
+                }
+                yield return TapVillage(Key.Digit1); // 실제 시설을 열기
+                if (i < 2) // 마을 안의 두 시설
+                {
+                    Assert.That(GameObject.Find(i == 0 ? "Market" : "Forge"), Is.Not.Null); // 기존 재고·강화 UI가 실제로 열림
+                    Assert.That(display.gameObject.activeSelf, Is.False); // 시설을 열면 대화 닫기
+                    yield return TapVillage(Key.Escape); // 시설을 닫고 그대로 다음 마을 위치로
+                }
+            }
+            yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 안내원의 실제 준비 화면 이동
+        }
+
+        private IEnumerator TapVillage(Key key) // 실제 Unity 프레임에 정상 전달하는 단축키
+        {
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(key)); // 사용자 OS와 다른 가상 키 상태
+            yield return WaitFrames(3); // 이번 화면의 Update
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 해제
+            yield return WaitFrames(3); // 다음 대사로 들어갈 수 있는 별도 입력
+        }
+
         [UnityTest] // 실패 결과와 같은 캐릭터의 새 출격
         public IEnumerator SortieResultRetriesSamePilotAndClearsOldCombatState() // 전투 → 결과 → 재출격
         {

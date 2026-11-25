@@ -17,6 +17,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 착륙장에서 이동 키로 광장을 지나 북쪽 다리를 건넙니다. 출격소에 접근하면 **E** 또는 출격 준비 버튼으로 캐릭터와 장비를 선택할 수 있습니다. 준비에서 뒤로가기를 누르면 출격소 앞으로 돌아갑니다. 마을에서 Esc는 메인 화면으로 돌아갑니다. [착륙장](docs/screenshots/3d-day-29-landing.png) · [장비 상점](docs/screenshots/3d-day-29-market.png) · [강화 공방](docs/screenshots/3d-day-29-workshop.png) · [1024×576 출격소](docs/screenshots/3d-day-29-sortie-1024.png) · [29일차 기록](docs/development/3d-day-29.md)
 
+상점 주인, 공방 담당자, 출격 안내원에게 가까이 가서 **F**를 누르면 대화가 열립니다. F로 대사를 펼치거나 다음 문장으로 넘어갑니다. 선택지는 **1–3**, 방향키와 Enter, 마우스로 고릅니다. 이용 방법을 묻거나 기존 상점·공방·출격 준비를 열 수 있습니다. [상점 주인 대화](docs/screenshots/3d-day-41-market-dialogue.png) · [공방 담당자](docs/screenshots/3d-day-41-forge-dialogue.png) · [41일차 기록](docs/development/3d-day-41.md)
+
 서쪽 장비 상점에서는 골드로 빗자루 부품을 사고 장착하거나 캐릭터별 E 스킬을 보호막·산탄으로 바꿀 수 있습니다. 동쪽 강화 공방에서는 장착 부품에 천공 결정과 골드를 사용해 최대 +5까지 강화합니다. 두 시설은 가까이에서 E로 열고 Esc로 닫습니다. [상점 UI](docs/screenshots/3d-day-30-market.png) · [공방 UI](docs/screenshots/3d-day-30-forge.png) · [1024×576 재실행 확인](docs/screenshots/3d-day-30-forge-1024.png) · [30일차 기록](docs/development/3d-day-30.md)
 
 강화 공방의 **후속 성장**에서 조종사별 첫 과제와 카드 해금을 확인합니다. 최초 과제 정산으로 해당 조종사의 조율의 증표를 한 번 받고, 천공 결정 18개와 증표 1개로 노드를 해금합니다. 해금한 2단계 카드는 출격 중 같은 분기 1단계를 골라야 후보에 들어갑니다. [아리아 첫 과제](docs/screenshots/3d-day-31-aria-task.png) · [리안 첫 과제](docs/screenshots/3d-day-31-rian-task.png) · [1024×576 후속 성장 복원](docs/screenshots/3d-day-31-restore-growth.png) · [31일차 기록](docs/development/3d-day-31.md)
@@ -31,6 +33,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 루미는 같은 적을 추적할수록 유도탄 회전력이 높아집니다. Q는 별빛 추적탄, R은 서로 다른 고도의 적에게 분산되는 별무리 항로를 발사합니다. 천공 결정은 파란 결정 다발 아이콘, 골드는 금빛 동전 아이콘으로 상점·강화·출격과 정산의 수치에 표시합니다. [루미 준비 화면](docs/screenshots/3d-day-32-lumi-briefing.png) · [전투](docs/screenshots/3d-day-32-lumi-combat.png) · [상점](docs/screenshots/3d-day-32-market.png) · [결과](docs/screenshots/3d-day-32-result.png) · [32일차 기록](docs/development/3d-day-32.md)
 
 출격 준비와 정산에서 **첫 사건 기록** 또는 F3으로 균열 조사와 아리아·리안의 첫 만남을 읽을 수 있습니다. 실전에서는 F3으로 현재 작전 통신만 닫습니다. [첫 사건 기록](docs/screenshots/3d-day-40-archive.png) · [조우 통신](docs/screenshots/3d-day-40-midboss.png) · [40일차 기록](docs/development/3d-day-40.md)
+
+출격 준비에서 **자유 훈련** 또는 F4를 누르면 선택한 조종사로 자유 비행, 표적 사격, 마물 경로와 네 가지 탄막을 연습합니다. 설정에서 한 번 또는 반복을 고르고 같은 연습을 초기화할 수 있습니다. 경험치·강화 아이템·영구 보상 지급은 본편에서 진행합니다. [자유 훈련 메뉴](docs/screenshots/3d-day-41-training.png) · [고리 탄막 훈련](docs/screenshots/3d-day-41-ring.png)
 
 출격 준비에서 **첫 비행 안내** 또는 F1을 누르면 이동·집중·자동 사격·그레이즈·스킬을 연습합니다. Enter로 출격 준비에 돌아갈 수 있고, Tab으로 마우스 포인터를 전환해 안내 버튼을 클릭할 수 있습니다. [1024×576 첫 비행 안내](docs/screenshots/3d-day-27-guide-1024.png) · [4:3 출격 준비](docs/screenshots/3d-day-27-briefing-4x3.png) · [27일차 기록](docs/development/3d-day-27.md)
 

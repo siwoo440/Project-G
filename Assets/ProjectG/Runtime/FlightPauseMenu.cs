@@ -59,6 +59,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool priorCursor; // 이전 마우스 표시
         private CursorLockMode priorLock; // 이전 마우스 잠금
         private GameObject menuButtons; // 조립 화면 뒤에 숨길 기존 정지 메뉴
+        [SerializeField] private FlightTrainingMode training; // 자유 훈련에서만 소유권을 공유할 별도 설정
 
         private void Start() // 씬에 배치한 정지 버튼을 실제 동작과 연결
         {
@@ -113,6 +114,10 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // ESC와 바인딩 입력
         {
+            if (training != null && training.BlocksPause) // 연습 메뉴가 같은 ESC 입력을 받는 경우
+            {
+                return; // 원래 전투의 일시정지 입력과 중복 방지
+            }
             if (closeFrame >= 0 && Time.frameCount > closeFrame) // 버튼을 누른 프레임과 전투 입력 분리
             {
                 Resume(); // 실제 게임 시간 재개
@@ -213,6 +218,10 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Restart() // 다시하기 버튼과 BKSP의 공통 출격 초기화
         {
             Resume(); // 메뉴가 보였다면 우선 정리
+            if (training != null && training.RestartActive()) // 실제 자유 시험의 현재 패턴과 표적 복원
+            {
+                return; // 별도 연습 환경의 초기화만 수행
+            }
             run.RestartRun(); // 체력·레벨·드롭·연습 재설정
             encounter.RestartTrial(); // 첫 웨이브와 타이머
             skills.ResetRun(); // 마력·필살기·쿨타임

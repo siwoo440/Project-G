@@ -42,6 +42,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightSkillController skills; // 자원과 쿨타임 초기화
         [SerializeField] private FlightMagicDeck deck; // 마법 카드 초기화
         [SerializeField] private FlightCombatHud hud; // 실제 스킬 키캡
+        [SerializeField] private FlightBroomWorkshop broomWorkshop; // 실제 조립 화면
+        [SerializeField] private Button broomButton; // 빗자루 조립 화면 입장
         private int capture = -1; // 설정에서 새 키를 기다리는 동작
         private int closeFrame = -1; // 메뉴 클릭이 전투에 넘어가지 않는 프레임
         private bool abandon; // 이미 포기한 출격
@@ -52,6 +54,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool priorAudioPause; // 일시정지 전의 음원 상태
         private bool priorCursor; // 이전 마우스 표시
         private CursorLockMode priorLock; // 이전 마우스 잠금
+        private GameObject menuButtons; // 조립 화면 뒤에 숨길 기존 정지 메뉴
 
         private void Start() // 씬에 배치한 정지 버튼을 실제 동작과 연결
         {
@@ -65,6 +68,12 @@ namespace ProjectG // 프로젝트 게임 영역
             keyTab.onClick.AddListener(ShowKeySettings); // 키 변경 탭
             audioTab.onClick.AddListener(ShowAudioSettings); // 소리와 시점 감도 탭
             resetKeys.onClick.AddListener(bindings.ResetBindings); // 기본값으로 복구
+            if (broomWorkshop != null) // 조립을 연결한 실전 항로
+            {
+                menuButtons = panel.transform.Find("MenuButtons").gameObject; // 씬에 배치한 정지 버튼 열
+                broomWorkshop.Initialize(ShowControls); // 조립에서 조작 안내로 복귀
+                broomButton.onClick.AddListener(ShowWorkshop); // 조립 화면 열기
+            }
             for (int index = 0; index < bindingButtons.Length; index++) // 설정에 표시된 실제 조작
             {
                 int action = index; // 버튼별 입력을 기억
@@ -117,6 +126,11 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             if (opened) // 메뉴가 이미 열린 상태
             {
+                if (broomWorkshop != null && broomWorkshop.gameObject.activeSelf) // 후보를 보고 있는 조립 화면
+                {
+                    ShowControls(); // 확정하지 않은 미리보기 취소
+                    return; // 정지 메뉴에 남기
+                }
                 if (confirm.activeSelf && !abandon) // 포기 확인 중 취소
                 {
                     ShowControls(); // 오른쪽 키 설명으로 복귀
@@ -193,9 +207,21 @@ namespace ProjectG // 프로젝트 게임 영역
         private void ShowControls() // 오른쪽에 키와 사용법 표시
         {
             capture = -1; // 설정에서 입력 대기 중단
+            if (broomWorkshop != null) // 조립 화면을 지원하는 실전 항로
+            {
+                broomWorkshop.gameObject.SetActive(false); // 후보 미리보기 닫기
+                menuButtons.SetActive(true); // 기존 정지 버튼 열 돌아오기
+            }
             controls.SetActive(true); // 키보드와 키 목록 표시
             settings.SetActive(false); // 오른쪽 설정 숨김
             confirm.SetActive(false); // 포기 확인 숨김
+        }
+
+        private void ShowWorkshop() // 조립 작업 중 기존 안내 감춤
+        {
+            controls.SetActive(false); // 조작 설명 패널 전환
+            menuButtons.SetActive(false); // 뒤에 비치는 중복 정지 버튼 숨김
+            broomWorkshop.Show(); // 현재 장착과 후보 보기
         }
 
         private void ShowSettings() // 오른쪽만 환경 설정으로 전환

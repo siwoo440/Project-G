@@ -27,9 +27,11 @@ Windows 빌드는 `Assets/Scenes/OuterIslandsStage.unity`에서 시작합니다.
 | Backspace | 시험 출격 재시작 |
 | Esc | 일시정지. 계속하기에서 전투 복귀 |
 
-![프로젝트 G 3D 19일차 질풍의 몸체를 장착한 아리아](docs/screenshots/3d-day-19-flight.png)
+![프로젝트 G 3D 20일차 빗자루 조립과 외형 미리보기](docs/screenshots/3d-day-20-workshop.png)
 
-Windows 시험 빌드에서 아리아의 청록 정찰 몸체를 구리색 질풍의 몸체로 바꾼 화면입니다. 교체하면 수평 최고 속도가 12.3 m/s에서 12.7 m/s로 바뀝니다. Unity의 `AriaPilot/TrainingBroom/PartMounts`에서 빗자루의 8개 슬롯을 편집할 수 있습니다. [기본 몸체](docs/screenshots/3d-day-19-default.png) · [1024×576 시험 화면](docs/screenshots/3d-day-19-hud-1024.png) · [19일차 기록](docs/development/3d-day-19.md)
+하늘섬 외곽 항로에서 `Esc → 빗자루 조립`을 누르면 현재 캐릭터의 8개 부위를 확인할 수 있습니다. 후보를 선택하면 회전하는 3D 외형과 현재 조합에서 바뀌는 능력치가 표시됩니다. 장착 확정으로 저장한 조합은 재실행 후에도 복원됩니다. [1024×576 재실행 화면](docs/screenshots/3d-day-20-reload-1024.png) · [20일차 기록](docs/development/3d-day-20.md)
+
+질풍의 몸체를 장착하면 아리아의 수평 최고 속도가 12.3 m/s에서 12.7 m/s로 바뀝니다. Unity의 `AriaPilot/TrainingBroom/PartMounts`에서 부품 위치를 편집합니다. [기본 몸체](docs/screenshots/3d-day-19-default.png) · [질풍의 몸체](docs/screenshots/3d-day-19-flight.png) · [19일차 기록](docs/development/3d-day-19.md)
 
 최종 보스전에서는 타이머 아래에 체력과 남은 페이즈가 표시됩니다. 노란 점은 현재 페이즈를 포함하고, 체력 1,000과 500에서 공격이 바뀌며 이전 탄막이 회수됩니다. `전체` 시간에는 일시정지와 레벨업 선택이 포함됩니다. [최종 보스 2페이즈](docs/screenshots/3d-day-18-flight.png) · [3페이즈 교차 나선](docs/screenshots/3d-day-18-crossing.png) · [1024×576 보스 HUD](docs/screenshots/3d-day-18-hud-1024.png) · [중간 보스전](docs/screenshots/3d-day-17-flight.png) · [바다와 해안](docs/screenshots/3d-day-17-surface.png) · [정지와 조작 안내](docs/screenshots/3d-day-14-pause.png)
 

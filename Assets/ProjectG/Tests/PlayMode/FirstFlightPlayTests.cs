@@ -1633,6 +1633,55 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(art.sharedMaterial, Is.SameAs(ariaArt)); // 아리아의 장착 상태 복원
         }
 
+        [UnityTest] // 정상 정지 메뉴부터 빗자루 미리보기와 장착 저장
+        public IEnumerator BroomWorkshopPreviewsThenRestoresConfirmedLoadout() // 미리보기와 저장 상태 분리
+        {
+            string key = "ProjectG.Broom.Test." + System.Guid.NewGuid().ToString("N"); // 기존 사용자 저장과 분리한 검증 키
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY"); // 이전 테스트 저장 설정
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", key); // 저장 복원에 쓸 독립 키
+            try // 검증 끝에 독립 저장 해제
+            {
+                yield return LoadOuterIslands(); // 실제 시작 씬
+                var gear = FindPilot().GetComponent("FlightBroomEquipment"); // 실전 장착 상태
+                Transform pause = GameObject.Find("CombatHUD").transform.Find("PauseMenu"); // 기존 ESC 메뉴
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 다음 실제 게임 프레임에 ESC 입력
+                yield return WaitFrames(4); // 정지 화면 갱신
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 이전 입력 해제
+                Assert.That(pause.gameObject.activeSelf, Is.True); // 실제 정지 메뉴 진입 확인
+                ClickPauseButton(pause, "Controls/BroomWorkshop"); // 조립 화면 진입
+                Transform shop = pause.Find("BroomWorkshop"); // 편집 가능한 조립 화면
+                Assert.That(shop.gameObject.activeInHierarchy, Is.True); // 정지 화면의 조립 패널 표시
+                ClickPauseButton(shop, "Parts/Part1"); // 아리아 몸체 두 번째 후보
+                Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("aria.body:1")); // 확인 전 실제 장비의 기본 몸체 유지
+                var model = gear.transform.Find("TrainingBroom/PartMounts/Body/Visual").GetComponent<MeshRenderer>(); // 실제 장착 몸체
+                var preview = shop.Find("PreviewStudio/Turntable/PartMounts/Body/Visual").GetComponent<MeshRenderer>(); // 미리보기 전용 몸체
+                Assert.That(preview.sharedMaterial, Is.Not.SameAs(model.sharedMaterial)); // 확정 전 별도 미리보기 렌더러만 변경
+                Assert.That(shop.Find("PartComparison").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("0.4")); // 새 후보의 속도 차이
+                ClickPauseButton(shop, "Back"); // 바꾸지 않고 정지 화면 복귀
+                Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("aria.body:1")); // 취소한 조합 제외
+                ClickPauseButton(pause, "Controls/BroomWorkshop"); // 다시 열어 부품 장착
+                ClickPauseButton(shop, "Parts/Part1"); // 질풍 몸체 후보 선택
+                ClickPauseButton(shop, "Equip"); // 교체 저장 버튼의 실제 동작
+                Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("trial.storm-body:1")); // 확인한 새 조합
+                Assert.That(PlayerPrefs.HasKey(key), Is.True); // 독립 저장에 기록된 조합
+                yield return LoadOuterIslands(); // 새 출격 오브젝트에 저장값 복원
+                gear = FindPilot().GetComponent("FlightBroomEquipment"); // 새로 초기화한 실전 장비
+                Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("trial.storm-body:1")); // 저장한 개별 ID 복원
+                string invalid = PlayerPrefs.GetString(key).Replace("trial.storm-body:1", "rian.body:1"); // 다른 캐릭터에 이미 장착한 보유 ID
+                PlayerPrefs.SetString(key, invalid); // 중복 장착된 시험 저장
+                yield return LoadOuterIslands(); // 전체 장착 검증을 거치는 초기화
+                gear = FindPilot().GetComponent("FlightBroomEquipment"); // 손상 저장을 읽은 실제 장착 상태
+                Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("aria.body:1")); // 유효한 시작 장착 유지
+                Assert.That(BroomAction(gear, "GetEquippedId", "Rian", "Body"), Is.EqualTo("rian.body:1")); // 중복 저장의 일부 적용 차단
+            }
+            finally // 고유 시험 키와 환경 설정 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 자체 테스트 저장만 삭제
+                PlayerPrefs.Save(); // 저장 검증 키의 제거 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", prior); // 테스트 환경 복귀
+            }
+        }
+
         private static object BroomAction(Component equipment, string action, string pilot, string slot, string id = null) // 테스트 어셈블리에서 실제 장착 API 호출
         {
             var method = equipment.GetType().GetMethod(action); // 기존 게임 어셈블리 메서드

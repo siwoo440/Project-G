@@ -34,6 +34,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float mana = 100f; // 이번 출격의 실제 마력
         private float ultimate; // 소수 단위로 누적하는 필살기 에너지
         private int recordedGrazes; // 마지막으로 자원에 반영한 스침 수
+        private float nextWeakReduction; // 실제 약점 적중의 초당 재사용 감소 제한
 
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
         public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
@@ -125,6 +126,7 @@ namespace ProjectG // 프로젝트 게임 영역
             mana = 100f; // 새 출격의 마력
             ultimate = 0; // 새 출격의 필살기 에너지
             recordedGrazes = 0; // 스침 반영 초기화
+            nextWeakReduction = 0f; // 이전 출격의 약점 감소 제한 제거
             weapon.ResetCadence(); // 새 출격의 스킬과 패시브 초기화
             for (int slot = 0; slot < readyAt.Length; slot++) // 세 슬롯 초기화
             {
@@ -143,6 +145,17 @@ namespace ProjectG // 프로젝트 게임 영역
             mana -= cost; // 해당 카드 보석에 표시한 마력 비용
             ShowResources(); // 클릭 다음 프레임에 실제 자원 갱신
             return true; // 카드 순환 가능 여부
+        }
+
+        internal void ReduceSniperCooldown() // 리안 약점 사냥 2의 실제 Q 대기 감소
+        {
+            if (Time.time < nextWeakReduction || readyAt[0] <= Time.time) // 현재 쿨타임과 초당 1회 제한
+            {
+                return; // 가능 상태의 재사용 시간에는 변경 없음
+            }
+            readyAt[0] = Mathf.Max(Time.time, readyAt[0] - 0.2f); // 0초 아래로 내리지 않는 감소
+            nextWeakReduction = Time.time + 1f; // 같은 프레임과 초당 중복 효과 제한
+            hud.SetCooldown(0, readyAt[0] - Time.time); // Q의 실제 숫자에 즉시 반영
         }
 
         internal bool CanSpendCraftedMana() // 카드와 같은 조준·생존 조건

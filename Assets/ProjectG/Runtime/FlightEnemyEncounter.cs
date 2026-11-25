@@ -27,6 +27,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FlightStageBoss activeBoss; // 현재 보스 전투와 격파 알림 대상
         private float phaseStartedAt; // 보스 격파 뒤 후속 일정의 기준 시각
         private string sortieId; // 실제 첫 전투부터 유효한 영구 정산 ID
+        private FlightWeapon playerWeapon; // 해당 출격의 실제 유효 적중 기록
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
         public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
@@ -90,6 +91,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (IsStage) // 실전 씬의 준비 상태
             {
                 WaveNumber = 0; // 첫 출현 전까지 웨이브 미시작
+                playerWeapon = pilot.GetComponent<FlightWeapon>(); // 정식 출격의 실제 과제 공급원
                 FlightProgress.Current.Recover(); // 에디터에서 항로를 직접 연 경우에도 전 실행의 출격 처리
             }
             else if (openingEnemy != null) // 편집 가능한 시작 표적
@@ -145,6 +147,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void RestartTrial() // 시험 출격을 다시 시작할 때
         {
             Conclude(false); // 참여 후 재시작한 이전 실전을 실패로 한 번 정산
+            playerWeapon?.StopFirstTask(); // 다음 출격에서 누적 적중 횟수 재시작
             sortieId = null; // 새 출격은 첫 웨이브에서 별도 ID 발급
             StopTrial(); // 이전 웨이브 정리
             WaveNumber = IsStage ? 0 : 1; // 실전 준비 또는 시험 첫 웨이브
@@ -166,7 +169,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightProgressReceipt Conclude(bool cleared) // 결과, 일시정지 포기와 재출격의 공통 정산
         {
-            return sortieId == null ? null : FlightProgress.Current.Complete(sortieId, cleared); // 연습과 참여 전 출격에는 보상 없음
+            return sortieId == null ? null : FlightProgress.Current.CompleteWithTask(sortieId, cleared, playerWeapon.FirstTaskReady); // 실제 전투의 일반 보상과 최초 과제
         }
 
         internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
@@ -207,8 +210,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     if (WaveNumber == 0) // 정식 출격의 실제 첫 웨이브
                     {
-                        FlightBroomPilot actor = pilot.GetComponent<FlightWeapon>().IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 참가 시점의 실제 조종사
+                        FlightBroomPilot actor = playerWeapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 참가 시점의 실제 조종사
                         sortieId = FlightProgress.Current.Begin(actor); // 마물이 나오기 직전의 내구성 있는 참여 기록
+                        if (sortieId != null) // 첫 전투에 정상 참여한 출격
+                        {
+                            playerWeapon.StartFirstTask(); // 여기서부터의 적중을 현재 과제로 인정
+                        }
                     }
                     WaveNumber++; // HUD의 새 출현 번호
                     if (next.boss != null) // 일반 적과 분리된 보스 웨이브

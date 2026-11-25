@@ -17,6 +17,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private int effectiveDamage; // 발사 당시 피해량
         private float remaining; // 탄환의 남은 진행 거리
         private LayerMask collisionLayers; // 지형과 표적의 구분
+        private Action<FlightEnemy, bool> observeHit; // 유효한 체력 피해와 약점 여부 관찰
 
         public void Begin(LayerMask hitLayers, float range, FlightRapidFire source, float weakBonus, int piercingDamage = 0, float damageScale = 1f, float widthScale = 1f, int extraPierces = 0, int assistDamage = 0) // 피해와 관통 초기화
         {
@@ -30,6 +31,12 @@ namespace ProjectG // 프로젝트 게임 영역
             effectiveDamage = rapid != null ? rapid.ScaleDamage(stacked) : Mathf.RoundToInt(stacked); // 속사는 별도 반영
             maxHits = piercingDamage > 0 ? int.MaxValue : 1 + extraPierces; // 고유 관통과 일반탄 관통의 상한
             piercedTargets = maxHits > 1 ? new HashSet<Component>() : null; // 관통탄에서만 맞힌 대상 기억
+            observeHit = null; // 이전 발사의 기록 콜백 제거
+        }
+
+        internal void Observe(Action<FlightEnemy, bool> onHit) // 게임 과제가 있는 실제 사격에만 등록
+        {
+            observeHit = onHit; // 이 발사의 실제 적중 종류
         }
 
         private void Update() // 한 프레임의 탄환 이동
@@ -60,18 +67,17 @@ namespace ProjectG // 프로젝트 게임 영역
             Component target = FindTarget(hit.collider, out FlightWeakPoint weakPoint); // 표적과 약점 구분
             if (target != null) // 피해를 받을 물체인지 확인
             {
-                ApplyDamage(target, effectiveDamage, weakPoint, weakRatio); // 약점과 캐릭터 보너스 반영
-                rapid?.RecordHit(); // 아리아 기본·집중탄의 실제 명중
+                ApplyDamage(target, effectiveDamage, weakPoint, weakRatio, rapid, observeHit); // 판정된 피해와 실제 출격 적중
             }
             return true; // 첫 접촉으로 탄환 종료
         }
 
         private bool ApplyPiercingHits(float step) // Q 관통탄과 R 광선의 동일 순서
         {
-            return ApplyPiercingPath(transform.position, castRadius, transform.forward, step, collisionLayers, piercedTargets, effectiveDamage, weakRatio, maxHits, rapid, out _); // 이번 이동 범위 검사
+            return ApplyPiercingPath(transform.position, castRadius, transform.forward, step, collisionLayers, piercedTargets, effectiveDamage, weakRatio, maxHits, rapid, out _, observeHit); // 실제 대상마다 한 번 관통 적중
         }
 
-        internal static bool ApplyPiercingPath(Vector3 origin, float thickness, Vector3 heading, float length, LayerMask layers, HashSet<Component> targets, int damage, float weakBonus, int maximumHits, FlightRapidFire rapid, out float travel) // 거리순 관통과 지형 차단
+        internal static bool ApplyPiercingPath(Vector3 origin, float thickness, Vector3 heading, float length, LayerMask layers, HashSet<Component> targets, int damage, float weakBonus, int maximumHits, FlightRapidFire rapid, out float travel, Action<FlightEnemy, bool> onHit = null) // 거리순 관통, 지형, 실제 약점 피해
         {
             travel = length; // 막힘이 없는 경우 전체 진행 거리
             RaycastHit[] hits = Physics.SphereCastAll(origin, thickness, heading, length, layers, QueryTriggerInteraction.Ignore); // 한 구간의 모든 접촉
@@ -86,8 +92,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 if (targets.Add(target)) // 같은 적의 몸통·약점 중 첫 명중만 처리
                 {
-                    ApplyDamage(target, damage, weakPoint, weakBonus); // 첫 접촉 부위에 따른 피해
-                    rapid?.RecordHit(); // 가로지른 고유 대상의 유효 적중
+                    ApplyDamage(target, damage, weakPoint, weakBonus, rapid, onHit); // 몸통·약점 피해와 같은 대상 재적중 방지
                     if (targets.Count >= maximumHits) // 해당 탄의 관통 한계
                     {
                         travel = hit.distance; // 마지막 적 접촉 위치
@@ -112,17 +117,24 @@ namespace ProjectG // 프로젝트 게임 영역
             return collider.GetComponent<FlightPracticeTarget>(); // 연습 표적 또는 지형
         }
 
-        private static void ApplyDamage(Component target, int baseDamage, FlightWeakPoint weakPoint, float characterBonus) // 몸통과 약점의 피해량
+        private static void ApplyDamage(Component target, int baseDamage, FlightWeakPoint weakPoint, float characterBonus, FlightRapidFire rapidFire, Action<FlightEnemy, bool> onHit) // 실제 피해와 변화한 체력 관찰
         {
             float bonus = weakPoint == null ? 0f : Mathf.Max(weakPoint.MinimumDamageBonus, characterBonus); // 보스 공통 보너스와 캐릭터 보너스 중 큰 값
             int amount = Mathf.RoundToInt(baseDamage * (1f + bonus)); // 실제 판정에 반영할 피해량
             if (target is FlightEnemy enemy) // 일반 마물
             {
+                int prior = enemy.Health; // 무적·페이즈 잠금 전의 체력
                 enemy.ReceiveHit(amount); // 실제 체력 갱신
+                rapidFire?.RecordHit(); // 기존 속사 사격 누적
+                if (enemy.Health < prior) // 무적과 제한으로 변화가 없으면 과제에서 제외
+                {
+                    onHit?.Invoke(enemy, weakPoint != null); // 마물의 실제 유효 적중만 성장에 전달
+                }
             }
             else if (target is FlightPracticeTarget practice) // 기존 연습 표적
             {
                 practice.ReceiveHit(amount); // 명중 수와 시험 피해 반영
+                rapidFire?.RecordHit(); // 일반 시험 표적의 기존 사격 누적
             }
         }
     }

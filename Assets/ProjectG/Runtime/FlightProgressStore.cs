@@ -16,6 +16,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int Crystals; // 이번 출격의 공통 천공 결정 증가
         public int Gold; // 이번 출격의 골드 지급량
         public int Marks; // 이번 출격의 조종사 조율의 증표 증가
+        public bool FirstTask; // 이번 정상 결과에서 최초 과제 지급
     }
 
     public sealed class FlightProgressStore : IDisposable // 출격당 원자 정산과 재실행 복구
@@ -26,6 +27,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public int mastery; // 경계 보상 산정에 쓰는 누적 숙련도
             public int marks; // 보유한 해당 캐릭터 전용 재료
             public bool commonFan; // 마을에서 장착한 산탄 공용 스킬
+            public bool completedFirstTask; // 해당 조종사의 과제 보상 지급 이력
         }
 
         [Serializable] // 상점에서 구매하거나 공방에서 강화한 개별 부품
@@ -101,6 +103,21 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         internal bool GetCommonFan(FlightBroomPilot pilot) => state.pilots[(int)pilot].commonFan; // 캐릭터별 현재 공용 스킬
         internal bool OwnsBroomPart(string id) => FindBroom(state, id)?.purchased == true; // 상점에서 산 실제 개별 보유
         internal int BroomUpgrade(string id, int initial) => FindBroom(state, id)?.upgrade ?? initial; // 시작 부품과 강화한 부품의 실제 단계
+        internal bool HasCompletedFirstTask(FlightBroomPilot pilot) => state.pilots[(int)pilot].completedFirstTask; // 각 조종사 최초 과제 정산
+
+        internal bool BuyGrowthNode(string id, FlightBroomPilot pilot) // 공통 결정과 해당 조종사의 증표로 후속 카드 자격 구매
+        {
+            if (!FlightGrowthNodes.BelongsTo(id, pilot) || HasUnlock(id) || state.crystals < FlightGrowthNodes.CrystalCost || GetMarks(pilot) < FlightGrowthNodes.MarkCost) // 실제 기획과 보유 재료 검증
+            {
+                return false; // 같은 노드 재구매·다른 캐릭터·부족 재화 제외
+            }
+            Save next = Copy(); // 비용과 해금을 함께 기록할 새 상태
+            next.crystals -= FlightGrowthNodes.CrystalCost; // 공통 결정 18
+            next.pilots[(int)pilot].marks -= FlightGrowthNodes.MarkCost; // 해당 조종사 증표 1
+            Array.Resize(ref next.unlocks, next.unlocks.Length + 1); // 기존 해금 목록에 공간 추가
+            next.unlocks[next.unlocks.Length - 1] = id; // 캐릭터가 앞으로 얻을 실제 선택 자격
+            return Write(next); // 두 비용과 권한을 동시에 저장
+        }
 
         internal static int ShopPrice(int grade) => grade >= 1 && grade <= ShopPrices.Length ? ShopPrices[grade - 1] : 0; // 세 판매 등급의 가격
 
@@ -176,15 +193,20 @@ namespace ProjectG // 프로젝트 영구 성장 영역
 
         public FlightProgressReceipt Complete(string id, bool cleared) // 정상 클리어·실패·포기·다시하기 정산
         {
-            return Settle(id, cleared, false); // 현재 출격 결과 적용
+            return CompleteWithTask(id, cleared, false); // 일반 참여만 확정
+        }
+
+        internal FlightProgressReceipt CompleteWithTask(string id, bool cleared, bool taskEligible) // 실제 전투 결과까지 인정한 첫 과제
+        {
+            return Settle(id, cleared, false, taskEligible); // 보상·과제와 출격을 원자적으로 기록
         }
 
         public FlightProgressReceipt Recover() // 다음 실행에서만 중단 출격의 참여 보상 지급
         {
-            return Settle(state.pendingId, false, true); // 강제 종료의 클리어 보너스 제외
+            return Settle(state.pendingId, false, true, false); // 중단 출격은 기본 참여분만 지급
         }
 
-        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered) // 보상과 기록을 같은 저장에 추가
+        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible) // 보상과 기록을 같은 저장에 추가
         {
             if (string.IsNullOrEmpty(id)) // 아직 전투 참여 전 또는 이미 복구됨
             {
@@ -209,10 +231,12 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 Recovered = recovered, // 재실행 후 실패 정산 표시
                 Mastery = cleared ? 20 : 10, // 참여 10과 성공 시 추가 10
                 Crystals = cleared ? 6 : 3, // 성공 6 또는 기본 참여 3
-                Gold = cleared ? 600 : 150 // 기획서의 기본 난이도 클리어·참여 골드
+                Gold = cleared ? 600 : 150, // 기획서의 기본 난이도 클리어·참여 골드
+                FirstTask = taskEligible && !progress.completedFirstTask // 같은 조종사의 첫 정상 종료에서 한 번
             };
             progress.mastery += receipt.Mastery; // 이번 출격의 캐릭터별 참여 숙련도
-            receipt.Marks = progress.mastery / MarkInterval - oldSteps; // 실제 새로 달성한 60 경계 수
+            receipt.Marks = progress.mastery / MarkInterval - oldSteps + (receipt.FirstTask ? 1 : 0); // 숙련 경계와 최초 과제 보상 별도 합산
+            progress.completedFirstTask |= receipt.FirstTask; // 이후 출격에서도 같은 과제 중복 차단
             progress.marks += receipt.Marks; // 캐릭터 전용 증표 누적
             next.crystals += receipt.Crystals; // 모든 캐릭터에서 공용 재료 증가
             next.gold += receipt.Gold; // 출격 ID당 한 번만 골드 지급

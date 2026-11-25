@@ -12,6 +12,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         [SerializeField] private GameObject modal; // 마을을 떠나지 않고 작업하는 시설 UI
         [SerializeField] private GameObject market; // 재고와 공용기 장착 선택
         [SerializeField] private GameObject forge; // 장착 부위의 강화 조작
+        [SerializeField] private GameObject growth; // 업적과 후속 전투 선택지 구매
         [SerializeField] private Text title; // 현재 연 시설의 명확한 이름
         [SerializeField] private Text wallet; // 공용 골드와 천공 결정
         [SerializeField] private Text status; // 구매·강화·장착의 실제 결과
@@ -28,6 +29,11 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         [SerializeField] private Button enhance; // 다음 단계 강화와 비용 확인
         [SerializeField] private Text[] stockText; // 재고마다의 이름과 현재 보유
         [SerializeField] private Button[] stockButtons; // 해당 개별 부품을 구매 또는 장착
+        [SerializeField] private Button openGrowth; // 강화 공방의 후속 성장 화면
+        [SerializeField] private Button closeGrowth; // 후속 성장에서 부품 강화로 복귀
+        [SerializeField] private Text firstTask; // 현재 조종사의 최초 과제와 보상
+        [SerializeField] private Text[] growthInfo; // 구매할 실제 노드와 현재 상태
+        [SerializeField] private Button[] growthButtons; // 기획서에서 정한 노드의 개별 구매
         private readonly List<FlightBroomPart> stock = new List<FlightBroomPart>(); // 지금 마을에 표시할 실제 재고
         private FlightBroomPilot selected; // 현재 변경을 적용할 조종사
         private int slot; // 공방에서 고른 장착 부위
@@ -43,10 +49,17 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             previous.onClick.AddListener(() => ChangeSlot(-1)); // 공방에서 이전 부위 선택
             next.onClick.AddListener(() => ChangeSlot(1)); // 공방에서 다음 부위 선택
             enhance.onClick.AddListener(Enhance); // 실제 공방 작업
+            openGrowth.onClick.AddListener(ShowGrowth); // 같은 건물에서 성장 관리
+            closeGrowth.onClick.AddListener(ShowForge); // 기존 강화 화면 복귀
             for (int i = 0; i < stockButtons.Length; i++) // 배치한 실제 매대마다 구매 연결
             {
                 int index = i; // 이 줄의 구체적인 목록 위치
                 stockButtons[index].onClick.AddListener(() => UseStock(index)); // 현재 재고와 해당 버튼 동기화
+            }
+            for (int i = 0; i < growthButtons.Length; i++) // 씬의 노드 배치 순서대로 구매
+            {
+                int index = i; // 실제 편집한 연구 위치
+                growthButtons[index].onClick.AddListener(() => BuyGrowth(index)); // 캐릭터·비용의 실제 저장
             }
         }
 
@@ -59,6 +72,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             title.text = shop ? "장비 상점" : "강화 공방"; // 실제 방문한 시설
             market.SetActive(shop); // 상점의 재고와 보호막·산탄
             forge.SetActive(!shop); // 공방의 부위 선택과 단계 비용
+            growth.SetActive(false); // 상점과 공방의 기본 화면으로 진입
             modal.SetActive(true); // 마을 뒤쪽에 별도로 배치한 씬 패널
             Refresh(); // 현재 저장에 맞는 가격·부품·재화 표시
             close.Select(); // 키보드로도 바로 닫을 수 있게 포커스
@@ -120,10 +134,39 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             Refresh(); // 부품 단계와 남은 두 재화
         }
 
+        private void ShowGrowth() // 같은 공방에서 첫 과제와 전투 후속 선택지 확인
+        {
+            title.text = "후속 성장"; // 다른 종류의 영구 강화 구분
+            status.text = string.Empty; // 부품 강화의 이전 결과 숨기기
+            forge.SetActive(false); // 장착 부위의 기존 조작 숨김
+            growth.SetActive(true); // 해당 조종사의 연구를 보여 줌
+            Refresh(); // 해금 여부와 조율의 증표 표시
+            closeGrowth.Select(); // 마우스 없이 공방으로 돌아올 수 있도록 포커스
+        }
+
+        private void ShowForge() // 기존 부품 강화로 계속 작업
+        {
+            title.text = "강화 공방"; // 원래 마을 작업의 제목
+            status.text = string.Empty; // 앞서 구매한 연구의 표시 정리
+            growth.SetActive(false); // 부품 강화 화면과 중복하지 않음
+            forge.SetActive(true); // 현재 부위와 비용
+            Refresh(); // 구매로 줄어든 재화 반영
+            openGrowth.Select(); // 기존 선택의 실제 포커스 복구
+        }
+
+        private void BuyGrowth(int index) // 준비한 조종사의 확정 노드 한 개를 구입
+        {
+            FlightGrowthNodes.Node node = FlightGrowthNodes.All[index]; // 기획서의 이름과 조종사
+            bool purchased = FlightProgress.Current.BuyGrowthNode(node.Id, selected); // 결정 18과 해당 증표 1을 함께 저장
+            status.text = purchased ? "해금했습니다. 출격에서 같은 가지의 1단계를 고르세요." : "해금할 수 없습니다. 조종사와 재화를 확인하세요."; // 후속 카드가 나오는 실제 조건
+            Refresh(); // 영구 권한과 새 보유액 반영
+        }
+
         private void Refresh() // 현재 시설에 실제 장착·재화 대입
         {
             FlightProgressStore profile = FlightProgress.Current; // 상점과 공방에서 공유하는 영구 자산
-            wallet.text = $"천공 결정 {profile.SharedCrystals:N0}   ·   골드 {profile.Gold:N0}"; // 다음 동작 전에 볼 수 있는 보유값
+            wallet.text = growth.activeSelf ? $"천공 결정 {profile.SharedCrystals:N0}   ·   조율의 증표 {profile.GetMarks(selected):N0}" // 후속 성장의 실제 보유 재료
+                : $"천공 결정 {profile.SharedCrystals:N0}   ·   골드 {profile.Gold:N0}"; // 판매와 강화의 공용 보유값
             aria.interactable = selected != FlightBroomPilot.Aria; // 선택된 아리아가 표시되도록 잠금
             rian.interactable = selected != FlightBroomPilot.Rian; // 선택된 리안이 표시되도록 잠금
             bool equippedFan = profile.GetCommonFan(selected); // 현재 조종사의 실제 공용기
@@ -152,6 +195,18 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             var cost = FlightProgressStore.ForgePrice(level); // 정확한 다음 단계 결정과 골드
             enhance.interactable = item.HasValue && cost.Gold > 0; // 장착한 부품의 +5까지만
             price.text = item.HasValue && level >= 5 ? "최대 강화 단계" : item.HasValue ? $"다음 단계 +{level + 1}   ·   천공 결정 {cost.Crystals}   ·   골드 {cost.Gold:N0}" : "장착된 부품을 고르세요."; // 현재 단계에서 가능한 조작
+            string task = selected == FlightBroomPilot.Rian ? "약점 10회 적중" : "기본·집중 사격 50회 적중"; // 기획서의 조종사별 최초 과제
+            firstTask.text = $"첫 과제   ·   한 출격에서 {task}\n{(profile.HasCompletedFirstTask(selected) ? "조율의 증표 지급 완료" : "최초 보상 조율의 증표 1개")}"; // 공개 과제 상태와 한 번의 보상
+            for (int i = 0; i < growthButtons.Length; i++) // 설정한 후속 연구의 실제 표시
+            {
+                FlightGrowthNodes.Node node = FlightGrowthNodes.All[i]; // 같은 조종사의 확인된 항목
+                bool belongs = node.Pilot == selected; // 다른 조종사 노드 제외
+                bool unlocked = profile.HasUnlock(node.Id); // 영구 저장의 현재 권한
+                growthButtons[i].transform.parent.gameObject.SetActive(belongs); // 현 시설에서 실제 구매 후보
+                growthButtons[i].interactable = belongs && !unlocked; // 이미 해금한 비용을 다시 내지 않음
+                growthButtons[i].GetComponentInChildren<Text>().text = unlocked ? "해금 완료" : "해금"; // 적용된 실제 저장
+                growthInfo[i].text = $"{node.Name}   ·   {node.Requirement}\n천공 결정 {FlightGrowthNodes.CrystalCost}   ·   조율의 증표 {FlightGrowthNodes.MarkCost}"; // 전투 선행 카드와 구매비
+            }
         }
     }
 }

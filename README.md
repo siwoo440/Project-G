@@ -19,6 +19,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 서쪽 장비 상점에서는 골드로 빗자루 부품을 사고 장착하거나 캐릭터별 E 스킬을 보호막·산탄으로 바꿀 수 있습니다. 동쪽 강화 공방에서는 장착 부품에 천공 결정과 골드를 사용해 최대 +5까지 강화합니다. 두 시설은 가까이에서 E로 열고 Esc로 닫습니다. [상점 UI](docs/screenshots/3d-day-30-market.png) · [공방 UI](docs/screenshots/3d-day-30-forge.png) · [1024×576 재실행 확인](docs/screenshots/3d-day-30-forge-1024.png) · [30일차 기록](docs/development/3d-day-30.md)
 
+강화 공방의 **후속 성장**에서 조종사별 첫 과제와 카드 해금을 확인합니다. 최초 과제 정산으로 해당 조종사의 조율의 증표를 한 번 받고, 천공 결정 18개와 증표 1개로 노드를 해금합니다. 해금한 2단계 카드는 출격 중 같은 분기 1단계를 골라야 후보에 들어갑니다. [아리아 첫 과제](docs/screenshots/3d-day-31-aria-task.png) · [리안 첫 과제](docs/screenshots/3d-day-31-rian-task.png) · [1024×576 후속 성장 복원](docs/screenshots/3d-day-31-restore-growth.png) · [31일차 기록](docs/development/3d-day-31.md)
+
 ---
 ## 캐릭터 선택과 출격 준비
 

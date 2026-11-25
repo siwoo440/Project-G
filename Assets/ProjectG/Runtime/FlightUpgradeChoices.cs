@@ -10,7 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice // 단계와 보조 슬롯 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond // 단계와 보조 슬롯 구분
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -52,7 +52,10 @@ namespace ProjectG // 프로젝트 게임 영역
             new Card(Reward.SlowDecay, "추격 사격 1", "연속 적중 보너스\n감소 1초 지연", 1, 1, 1, 0), // 추격 사격 1
             new Card(Reward.Wide, "확산 포화 1", "아리아의 기본탄 폭 +20%", 1, 1, 2, 0), // 확산 포화 1
             new Card(Reward.Weak, "약점 사냥 1", "리안의 약점 피해\n보너스 +65%로 증가", 1, 2, 1, 4), // 약점 사냥 1
-            new Card(Reward.SniperPierce, "관통 궤도 1", "리안의 자동탄\n관통 대상 +1", 1, 2, 2, 4) // 관통 궤도 1
+            new Card(Reward.SniperPierce, "관통 궤도 1", "리안의 자동탄\n관통 대상 +1", 1, 2, 2, 4), // 관통 궤도 1
+            new Card(Reward.ChaseSecond, "추격 사격 2", "누적 +30%에서 같은 적 5회\n피해 5 추가탄", 1, 1, 1, 0), // 같은 가지의 후속 피해
+            new Card(Reward.SpreadSecond, "확산 포화 2", "집중 포화 중 0.5초마다\n가까운 적에게 피해 5 추가탄", 1, 1, 2, 0), // 고유기 지속 시간의 추가 사격
+            new Card(Reward.WeakSecond, "약점 사냥 2", "약점 적중 시 Q 대기 -0.2초\n초당 한 번", 1, 2, 1, 4) // 약점 타격과 실제 스킬 시간의 연결
         };
 
         private static readonly Card[] Fallback = // 유효 후보가 부족할 때만 쓰는 보상
@@ -96,6 +99,9 @@ namespace ProjectG // 프로젝트 게임 영역
         public int DroneRank => Rank(Reward.Drone); // 장착한 보조 드론 슬롯
         public int BladeRank => Rank(Reward.Blade); // 장착한 두 번째 보조 슬롯
         public bool HasProtectionDevice => Rank(Reward.ProtectionDevice) > 0; // 패시브 보호 장치 슬롯
+        internal bool ChaseSecond => Rank(Reward.ChaseSecond) > 0; // 아리아의 현재 출격 후속 탄
+        internal bool SpreadSecond => Rank(Reward.SpreadSecond) > 0; // 고유기 지속 중 추가 사격
+        internal bool WeakSecond => Rank(Reward.WeakSecond) > 0; // 리안 약점 적중의 재사용 효과
 
         internal float ItemSharedCardBonus(FlightEnhancementKind kind) // 드롭의 공통 상한에서 이미 사용한 카드 수치
         {
@@ -244,6 +250,9 @@ namespace ProjectG // 프로젝트 게임 영역
                 Reward.Cycle => CooldownScale > 0.6001f, // 고유기 쿨타임에 여유
                 Reward.Pierce or Reward.SniperPierce => AutoPierce < FlightEnhancements.PierceLimit, // 추가 관통에 여유
                 Reward.Fan => !HasFan, // 이미 산탄을 쓰는 조종사에게 같은 교체 제외
+                Reward.ChaseSecond => Rank(Reward.SlowDecay) > 0 && FlightProgress.Current.HasUnlock(FlightGrowthNodes.Chase), // 추격 사격 1과 영구 해금
+                Reward.SpreadSecond => Rank(Reward.Wide) > 0 && FlightProgress.Current.HasUnlock(FlightGrowthNodes.Spread), // 확산 포화 1과 영구 해금
+                Reward.WeakSecond => Rank(Reward.Weak) > 0 && FlightProgress.Current.HasUnlock(FlightGrowthNodes.Weakness), // 약점 사냥 1과 영구 해금
                 _ => true // 다른 종류의 독립 효과
             };
         }

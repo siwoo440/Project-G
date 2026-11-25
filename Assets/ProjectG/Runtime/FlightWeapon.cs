@@ -23,6 +23,15 @@ namespace ProjectG // 프로젝트 게임 영역
         private FirstFlightCamera chase; // 조준과 둘러보기의 카메라 좌표
         private FlightRapidFire rapid; // 아리아 자동탄의 누적 피해
         private FlightBroomEquipment broom; // 캐릭터별 빗자루 조합
+        private FlightSkillController skills; // 약점 적중의 고유기 재사용 조정
+        private System.Action<FlightEnemy, bool> ariaHit; // 기본·집중 사격을 관찰할 아리아의 발사 콜백
+        private System.Action<FlightEnemy, bool> rianHit; // 실제 약점의 리안 발사 콜백
+        private bool measureTask; // 첫 웨이브 이후 유효한 실제 적중 인정
+        private int taskHits; // 이번 출격의 첫 과제 적중 수
+        private FlightEnemy chaseTarget; // 추격 후속에서 연속으로 맞힌 마물
+        private int chaseHits; // 현재 같은 마물의 유효 연속 적중
+        private float nextChase; // 초당 한 발 제한
+        private float nextSpread; // 집중 포화 뒤 처음 후속탄 시각
         private Color normalReticleColor; // 기존 조준점 색
         private float beamUntil; // 광선 표시 종료 시각
         private float rapidUntil; // Q 효과의 종료 시각
@@ -31,6 +40,18 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
         public bool IsRian { get; private set; } // 현재 시험 조종사
+        internal bool FirstTaskReady => measureTask && taskHits >= (IsRian ? 10 : 50); // 현재 캐릭터의 첫 출격 과제 달성
+
+        internal void StartFirstTask() // 실제 첫 웨이브 시작의 과제 초기값
+        {
+            taskHits = 0; // 출격 사이에 누적하지 않는 적중 수
+            measureTask = true; // 진행하는 정상 정식 출격
+        }
+
+        internal void StopFirstTask() // 다른 출격으로 넘어가는 시점
+        {
+            measureTask = false; // 준비와 연습 동안에는 집계 없음
+        }
 
         public void TogglePilot() // 아리아와 리안의 전투 설정 전환
         {
@@ -43,6 +64,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             rapidUntil = Time.time + 3f; // 3초간 자동탄 가속
             nextShot = Time.time; // 다음 발사 시작 시각
+            nextSpread = Time.time + 0.5f; // 확산 후속탄의 첫 간격
         }
 
         public void ResetCadence() // 재출격 발사 설정 복구
@@ -50,6 +72,10 @@ namespace ProjectG // 프로젝트 게임 영역
             rapidUntil = 0f; // 이전 집중 포화 제거
             nextShot = Time.time; // 새 첫 발 시각
             rapid?.ResetRun(); // 아리아 적중 보너스 초기화
+            chaseTarget = null; // 이전 출격의 추격 대상 제거
+            chaseHits = 0; // 같은 대상의 연속 적중 초기화
+            nextChase = 0f; // 이전 추격탄 제한 제거
+            nextSpread = float.PositiveInfinity; // 새 집중 포화 전에 확산 없음
             if (sniperBeam != null) // 관측선이 배치된 시험 씬
             {
                 sniperBeam.enabled = false; // 이전 광선의 시각 효과 중단
@@ -60,6 +86,10 @@ namespace ProjectG // 프로젝트 게임 영역
             chase = flightCamera.GetComponent<FirstFlightCamera>(); // 독립 둘러보기의 기준 조준
             TryGetComponent(out rapid); // 캐릭터의 선택적 자동탄 강화
             TryGetComponent(out broom); // 실전 씬의 장착 구성
+            TryGetComponent(out skills); // 현재 조종사의 시전과 재사용 시간
+            ariaHit = OnAriaHit; // 아리아 기본·집중의 실제 적중 처리
+            rianHit = OnRianHit; // 리안의 실제 약점 사격 처리
+            nextSpread = float.PositiveInfinity; // 고유기를 쓰기 전에는 추가탄 없음
             normalReticleColor = reticle.color; // 편집한 기본 조준점 색 설정
         }
 
@@ -75,6 +105,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 sniperBeam.enabled = false; // 프레임에 그리는 광선 제거
             }
             bool trackWeakPoint = IsRian && pilot.IsFocusHeld && reticle.enabled; // 실제로 보이는 집중 조준점
+            if (!IsRian && pilot.CanFly && upgrades != null && upgrades.SpreadSecond && nextSpread <= rapidUntil && Time.time >= nextSpread) // 집중 포화의 0.5초 간격 후속탄
+            {
+                FireSpreadFollowup(); // 실제 근처 대상의 독립 추가탄
+                nextSpread += 0.5f; // 같은 집중 포화 안의 다음 발사만 예약
+            }
             bool canShoot = pilot.CanFly && Time.time >= nextShot; // 자동 발사 가능 시각
             if (!canShoot && !trackWeakPoint) // 명중 검사나 조준 안내가 필요 없는 프레임
             {
@@ -122,6 +157,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
             FlightSpellBolt bolt = Instantiate(focusedBolt, muzzle.position, Quaternion.LookRotation(travel)); // 빠른 집중탄 외형 재사용
             bolt.Begin(aimLayers, aimRange, null, WeakRatio, 100); // 피해 100의 한 발 관통탄
+            bolt.Observe(rianHit); // 약점에 실제 적용된 리안 피해
             return true; // 관통 사격 성공
         }
 
@@ -147,7 +183,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 start = muzzle.position; // 광선 시작점
             Vector3 direction = travel.normalized; // 정규화한 조준 방향
             var hitTargets = new HashSet<Component>(); // 한 번만 피해를 받을 표적 집합
-            FlightSpellBolt.ApplyPiercingPath(start, BeamRadius, direction, aimRange, aimLayers, hitTargets, 220, WeakRatio, int.MaxValue, null, out float length); // 표적마다 피해 220과 지형 차단
+            FlightSpellBolt.ApplyPiercingPath(start, BeamRadius, direction, aimRange, aimLayers, hitTargets, 220, WeakRatio, int.MaxValue, null, out float length, rianHit); // 실제 약점과 피격 대상을 한 번씩 확인
             pool.ClearAlongBeam(start, direction, length, BeamRadius); // 벽 앞 광선에 닿은 적탄 회수
             if (sniperBeam != null) // 씬의 편집 가능한 광선 참조
             {
@@ -191,6 +227,70 @@ namespace ProjectG // 프로젝트 게임 영역
                 Quaternion direction = basis * Quaternion.Euler(pitch, yaw, 0f); // 화면 중앙 방향에서 분산
                 FlightSpellBolt bolt = Instantiate(focused ? focusedBolt : standardBolt, muzzle.position, direction); // 기존 마법탄 프리팹 재사용
                 bolt.Begin(aimLayers, aimRange, isAutomatic && !IsRian ? rapid : null, WeakRatio, 0, damage, width, pierce); // 발사 때 확정한 피해와 폭
+                if (isAutomatic) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
+                {
+                    bolt.Observe(IsRian ? rianHit : ariaHit); // 시작 시점 조종사의 직접 공격 확인
+                }
+            }
+        }
+
+        private void OnAriaHit(FlightEnemy enemy, bool _) // 실제 기본·집중 사격으로 줄어든 적 체력
+        {
+            if (IsRian) // 전환 전 남아 있는 서로 다른 조종사의 탄
+            {
+                return; // 다른 조종사 과제나 후속 카드에 반영하지 않음
+            }
+            if (measureTask && taskHits < 50) // 정식 출격의 최초 과제 범위
+            {
+                taskHits++; // 관통탄도 적 하나마다 한 번
+            }
+            if (upgrades == null || !upgrades.ChaseSecond || rapid == null || rapid.BonusPercent < 30f) // 선행·후속 카드와 누적 조건
+            {
+                chaseHits = 0; // 조건을 잃으면 같은 대상의 연속 조건 초기화
+                return; // 해당 적중의 추격 효과 없음
+            }
+            chaseHits = chaseTarget == enemy ? Mathf.Min(5, chaseHits + 1) : 1; // 같은 적만 최대 다섯 회까지 집계
+            chaseTarget = enemy; // 실제 명중한 현재 대상
+            if (chaseHits >= 5 && enemy.Health > 0 && Time.time >= nextChase) // 생존한 대상에 초당 한 번
+            {
+                CastAssist(muzzle.position, enemy.transform.position, 5); // 누적과 과제 관찰을 붙이지 않은 별도 추가탄
+                chaseHits = 0; // 같은 대상이라도 다시 다섯 회 필요
+                nextChase = Time.time + 1f; // 다음 추격탄의 최소 간격
+            }
+        }
+
+        private void OnRianHit(FlightEnemy _, bool weak) // 리안이 실제로 적의 약점 체력을 깎은 경우
+        {
+            if (!IsRian || !weak) // 몸통·다른 캐릭터의 공격 제외
+            {
+                return; // 노출 약점이 아닌 판정에는 보상 없음
+            }
+            if (measureTask && taskHits < 10) // 현재 한 출격을 확인하는 첫 과제
+            {
+                taskHits++; // 해당 표적의 실제 약점 적중
+            }
+            if (upgrades != null && upgrades.WeakSecond) // 같은 가지의 두 번째 카드가 선택된 경우
+            {
+                skills?.ReduceSniperCooldown(); // 실제 재사용 시간에 초당 한 번 반영
+            }
+        }
+
+        private void FireSpreadFollowup() // 집중 포화 중 가까운 실제 마물로 후속탄 하나
+        {
+            FlightEnemy nearest = null; // 거리 안의 생존한 표적
+            float best = 35f * 35f; // 보조탄 실제 최대 사거리
+            foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 이번 프레임의 마물만 확인
+            {
+                float distance = (enemy.transform.position - muzzle.position).sqrMagnitude; // 현재 총구에서의 실제 거리
+                if (enemy.Health > 0 && distance < best) // 아직 피해를 줄 수 있는 가장 가까운 적
+                {
+                    nearest = enemy; // 현재 가장 가까운 후속탄 표적
+                    best = distance; // 더 가까운 적이 있으면 교체
+                }
+            }
+            if (nearest != null) // 범위 안의 실제 대상이 있을 때만 추가
+            {
+                CastAssist(muzzle.position, nearest.transform.position, 5); // 기존 독립 보조탄을 쓰는 피해 5
             }
         }
     }

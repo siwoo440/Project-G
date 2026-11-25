@@ -125,6 +125,58 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
             }
         }
 
+        [Test] // 최초 과제와 전용 성장 해금의 원자 저장
+        public void FirstTaskAndGrowthUnlockPayOnceAcrossReload() // 과제 중복과 조종사별 비용 격리
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp"); // 실제 정산 구현
+            var settlement = type.GetMethod("CompleteWithTask", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 종료 시 과제 보상 경로
+            Assert.That(settlement, Is.Not.Null); // 과제와 출격 보상의 원자적 합산
+            string directory = Path.Combine(Application.temporaryCachePath, "Growth-" + Guid.NewGuid().ToString("N")); // 게임 파일과 분리된 시험 작성
+            string path = Path.Combine(directory, "progress.json"); // 다시 연 동일 프로필
+            const string node = "growth.aria.chase-2"; // 최초 두 번째 분기 연구
+            try // 세 번의 클리어와 신규 구매
+            {
+                Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID의 유효 범위
+                object aria = Enum.Parse(pilot, "Aria"); // 첫 과제 완료 캐릭터
+                object rian = Enum.Parse(pilot, "Rian"); // 다른 조종사의 진행 보존
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 실제 성장 저장 시작
+                {
+                    string first = (string)Call(type, store, "Begin", aria); // 아리아의 한 출격
+                    Call(type, store, "CompleteWithTask", first, true, true); // 기본·집중 공격 과제 충족
+                    Call(type, store, "CompleteWithTask", first, true, true); // 같은 출격 결과의 중복 호출
+                    Assert.That(Call(type, store, "GetMarks", aria), Is.EqualTo(1)); // 첫 조율의 증표 한 개만 지급
+                    string repeat = (string)Call(type, store, "Begin", aria); // 조건을 충족한 별도 재출격
+                    Call(type, store, "CompleteWithTask", repeat, true, true); // 이미 완료한 최초 과제
+                    Assert.That(Call(type, store, "GetMarks", aria), Is.EqualTo(1)); // 다음 출격에서도 두 번째 과제 보상 금지
+                    Assert.That(Call(type, store, "BuyGrowthNode", node, aria), Is.False); // 결정 12에서는 잠금 유지
+                    string other = (string)Call(type, store, "Begin", rian); // 리안으로 공통 결정 확보
+                    Call(type, store, "Complete", other, true); // 리안 과제를 충족하지 않음
+                    Assert.That(Call(type, store, "BuyGrowthNode", node, rian), Is.False); // 다른 조종사의 연구를 대신 구입 금지
+                    Assert.That(Call(type, store, "BuyGrowthNode", node, aria), Is.True); // 해당 조종사가 실제 결정 18·증표 1로 해금
+                    Assert.That(Call(type, store, "BuyGrowthNode", node, aria), Is.False); // 같은 연구의 중복 지출 차단
+                    Assert.That(Crystals(type, store), Is.Zero); // 구매 비용의 결정 소모
+                    Assert.That(Call(type, store, "GetMarks", aria), Is.Zero); // 아리아의 증표 하나만 소모
+                }
+                using (var reopened = (IDisposable)Activator.CreateInstance(type, path)) // 새 실행에서 저장 상태 확인
+                {
+                    Assert.That(Call(type, reopened, "HasUnlock", node), Is.True); // 앞으로의 실제 레벨업 선택 자격
+                    Assert.That(Call(type, reopened, "HasCompletedFirstTask", aria), Is.True); // 증표를 써도 최초 과제 기록 보존
+                    Assert.That(Call(type, reopened, "HasCompletedFirstTask", rian), Is.False); // 다른 캐릭터의 과제 유지
+                }
+            }
+            finally // 시험 폴더만 정리
+            {
+                if (Directory.Exists(directory)) // 해당 검증이 생성한 경로
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 시험 저장·백업·잠금
+                    {
+                        File.Delete(file); // 실제 사용자 저장과 무관
+                    }
+                    Directory.Delete(directory); // 비워 둔 시험 디렉터리 제거
+                }
+            }
+        }
+
         private static object Call(Type type, object store, string method, params object[] supplied) // 실제 게임 어셈블리의 정산 호출
         {
             return type.GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Invoke(store, supplied); // 참조 없는 테스트 조립과 연결

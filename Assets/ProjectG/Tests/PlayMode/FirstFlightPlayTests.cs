@@ -1975,6 +1975,61 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(LocateCombatHud().transform.Find("SortieEnd").gameObject.activeSelf, Is.False); // 이전 결과 화면 제거
         }
 
+        [UnityTest] // 두 속사 후속탄과 리안의 약점 타격 후 재사용 감소
+        public IEnumerator VerifiedGrowthEffectsFireAndRespectTheirLimits() // 선택한 실제 후속 카드의 효과 실행 검증
+        {
+            yield return LoadOuterIslands(); // 실제 3D 조종사와 장면의 마물
+            Transform pilot = FindPilot(); // 이번 출격 조종사
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 자동 발사 콜백
+            Component upgrades = pilot.GetComponent("FlightUpgradeChoices") ?? LocateCombatHud().GetComponent("FlightUpgradeChoices"); // 씬의 실제 카드 적용
+            if (upgrades == null) // 카드가 하이러키 다른 곳에 있는 경우
+            {
+                upgrades = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightUpgradeChoices, Assembly-CSharp")) as Component; // 배치한 카드 실제 컴포넌트
+            }
+            Assert.That(upgrades, Is.Not.Null); // 실제 실전 카드 데이터 확인
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 선택 및 적중의 관찰
+            var reward = upgrades.GetType().GetNestedType("Reward", System.Reflection.BindingFlags.NonPublic); // 선택한 효과의 실제 항목
+            var apply = upgrades.GetType().GetMethod("Apply", hidden); // 선택되었을 때 같은 효과 적용
+            var boltType = System.Type.GetType("ProjectG.FlightSpellBolt, Assembly-CSharp"); // 실제 플레이어 탄 개체
+            ((Behaviour)weapon).enabled = false; // 기본 자동탄으로 인한 측정 오차 방지
+            Component rapid = pilot.GetComponent("FlightRapidFire"); // 실제 연속 적중에 있는 보너스
+            var hit = rapid.GetType().GetMethod("RecordHit"); // 이전 자동·집중 사격의 실제 적중 누적
+            for (int i = 0; i < 30; i++) // 후속탄의 +30% 규칙을 시험
+            {
+                hit.Invoke(rapid, null); // 실제 패시브 누적 함수
+            }
+            Component enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy").GetComponent("FlightEnemy"); // 현재 씬의 일반 마물
+            enemy.gameObject.SetActive(true); // 시험 대상으로 활성화
+            enemy.transform.position = pilot.position + Vector3.forward * 11f; // 추가탄 범위 안의 실제 위치
+            apply.Invoke(upgrades, new[] { System.Enum.Parse(reward, "ChaseSecond") }); // 확인된 추격 두 번째 노드 효과
+            var ariaHit = weapon.GetType().GetMethod("OnAriaHit", hidden); // 물리 적중이 전달하는 실제 처리
+            int shots = Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length; // 기존 탄 수 기준
+            for (int i = 0; i < 10; i++) // 한 대상 두 묶음의 같은 프레임 적중
+            {
+                ariaHit.Invoke(weapon, new object[] { enemy, false }); // 같은 실제 마물의 피해 관찰
+            }
+            Assert.That(Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length, Is.EqualTo(shots + 1)); // 다섯 회 충족과 초당 한 번 제한
+            apply.Invoke(upgrades, new[] { System.Enum.Parse(reward, "SpreadSecond") }); // 선택한 확산 후속 카드
+            weapon.GetType().GetMethod("BeginRapidFire").Invoke(weapon, null); // 실제 Q의 집중 포화 상태 시작
+            var nextSpread = weapon.GetType().GetField("nextSpread", hidden); // 첫 0.5초 간격의 발사 시각
+            float firstPulse = (float)nextSpread.GetValue(weapon); // 초기 후속탄의 예정 시각
+            ((Behaviour)weapon).enabled = true; // 실제 LateUpdate에서 자동 발사
+            yield return WaitFrames(35); // 첫 후속탄 시각을 넘겨 다음 0.5초 간격 확인
+            Assert.That((float)nextSpread.GetValue(weapon), Is.EqualTo(firstPulse + 0.5f).Within(0.05f)); // 실제 집중 포화의 후속 발사 처리
+            yield return SelectRian(); // 같은 준비 구간에서 실제 리안 프로필로 변경
+            apply.Invoke(upgrades, new[] { System.Enum.Parse(reward, "WeakSecond") }); // 선택한 약점 사냥의 후속 효과
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 Q 쿨타임 저장
+            var readyAt = (float[])skills.GetType().GetField("readyAt", hidden).GetValue(skills); // 현재 재사용 가능 시각
+            readyAt[0] = Time.time + 6f; // 약점에 맞을 때 감소시킬 실제 Q 재사용
+            float prior = readyAt[0]; // 초당 한 번 감소 전의 값
+            var rianHit = weapon.GetType().GetMethod("OnRianHit", hidden); // 실제 약점 적중 콜백
+            rianHit.Invoke(weapon, new object[] { enemy, false }); // 몸통 적중은 감소 대상 제외
+            Assert.That(readyAt[0], Is.EqualTo(prior)); // 실제 몸통 피해는 Q 시각 유지
+            rianHit.Invoke(weapon, new object[] { enemy, true }); // 첫 유효 약점 피해
+            rianHit.Invoke(weapon, new object[] { enemy, true }); // 같은 순간의 중복 약점
+            Assert.That(readyAt[0], Is.EqualTo(prior - 0.2f).Within(0.001f)); // 초당 한 번과 정확한 0.2초
+        }
+
         [UnityTest] // 선택형 첫 출격 훈련과 실제 입력
         public IEnumerator FirstSortieGuideSupportsActualControlsAndSkip() // 실제 훈련에서 건너뛰고 준비로 복귀
         {

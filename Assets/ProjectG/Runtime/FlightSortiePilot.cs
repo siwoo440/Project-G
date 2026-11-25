@@ -27,8 +27,8 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal static void Open(bool resume) // 새 게임 또는 이어서하기 버튼
         {
-            preparing = resume && FlightTitleSettings.CanStore && PlayerPrefs.GetInt(FlightTitleSettings.Key("Pilot"), 0) == (int)FlightBroomPilot.Rian // 마지막에 확정한 실제 조종사
-                ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 현재 조작 가능한 두 캐릭터
+            var previous = (FlightBroomPilot)(resume && FlightTitleSettings.CanStore ? PlayerPrefs.GetInt(FlightTitleSettings.Key("Pilot"), 0) : 0); // 마지막으로 출발한 조종사 값
+            preparing = FlightPilotRoster.CanSelect(previous) ? previous : FlightBroomPilot.Aria; // 현재 선택할 수 있는 조종사 복원
             pending = null; // 새로운 시작 선택의 이전 값 제거
             ViaVillage = false; // 착륙장에서 출격소를 찾아가는 새 진입
         }
@@ -66,12 +66,9 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Start() // 실제 하늘섬 전투 진입
         {
-            bool rian = FlightSortieChoice.Consume() == FlightBroomPilot.Rian; // 확인한 조종사
-            if (weapons.IsRian != rian) // 시작 설정과 다른 조종사 선택
-            {
-                weapons.TogglePilot(); // 기존 스킬과 빗자루 장착 전환 재사용
-            }
-            hud.SetSniper(rian); // 처음부터 선택한 캐릭터의 전투 HUD
+            FlightBroomPilot selected = FlightSortieChoice.Consume(); // 준비에서 출발을 확정한 조종사
+            weapons.SelectPilot(selected); // 캐릭터 능력과 장비에 실제 선택 연결
+            hud.SetPilot(weapons); // 처음부터 선택한 캐릭터의 전투 HUD
         }
     }
 }

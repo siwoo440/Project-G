@@ -10,7 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond // 단계와 보조 슬롯 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread // 단계와 보조 슬롯 구분
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -55,7 +55,9 @@ namespace ProjectG // 프로젝트 게임 영역
             new Card(Reward.SniperPierce, "관통 궤도 1", "리안의 자동탄\n관통 대상 +1", 1, 2, 2, 4), // 관통 궤도 1
             new Card(Reward.ChaseSecond, "추격 사격 2", "누적 +30%에서 같은 적 5회\n피해 5 추가탄", 1, 1, 1, 0), // 같은 가지의 후속 피해
             new Card(Reward.SpreadSecond, "확산 포화 2", "집중 포화 중 0.5초마다\n가까운 적에게 피해 5 추가탄", 1, 1, 2, 0), // 고유기 지속 시간의 추가 사격
-            new Card(Reward.WeakSecond, "약점 사냥 2", "약점 적중 시 Q 대기 -0.2초\n초당 한 번", 1, 2, 1, 4) // 약점 타격과 실제 스킬 시간의 연결
+            new Card(Reward.WeakSecond, "약점 사냥 2", "약점 적중 시 Q 대기 -0.2초\n초당 한 번", 1, 2, 1, 4), // 약점 타격과 실제 스킬 시간의 연결
+            new Card(Reward.LumiTracking, "집중 추적 1", "유도탄 회전 속도 +20%", 1, 3, 1, 4), // 루미의 집중 유도 강화
+            new Card(Reward.LumiSpread, "별빛 분산 1", "별빛 추적탄을 다른 적에게 우선 배정", 1, 3, 2, 4) // 루미의 다중 추적 강화
         };
 
         private static readonly Card[] Fallback = // 유효 후보가 부족할 때만 쓰는 보상
@@ -94,13 +96,15 @@ namespace ProjectG // 프로젝트 게임 영역
         public float PickupScale => 1f + 0.20f * Rank(Reward.Magnet); // 자석의 획득 반경
         public float WeakRatio => Rank(Reward.Weak) > 0 ? 0.65f : 0.5f; // 리안의 약점 첫 노드
         public float RapidHold => Rank(Reward.SlowDecay) > 0 ? 3f : 2f; // 아리아의 누적 유지
-        public bool HasFan => Rank(Reward.Fan) > 0 || FlightProgress.Current.GetCommonFan(weapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 출격 카드 또는 마을의 공용 산탄 장착
+        public bool HasFan => Rank(Reward.Fan) > 0 || FlightProgress.Current.GetCommonFan(weapon.ActivePilot); // 출격 카드 또는 마을의 공용 산탄 장착
         public int AutoPierce => (int)Total(FlightEnhancementKind.Pierce, FlightEnhancements.PierceLimit); // 최대 3명의 추가 관통
         public int DroneRank => Rank(Reward.Drone); // 장착한 보조 드론 슬롯
         public int BladeRank => Rank(Reward.Blade); // 장착한 두 번째 보조 슬롯
         public bool HasProtectionDevice => Rank(Reward.ProtectionDevice) > 0; // 패시브 보호 장치 슬롯
         internal bool ChaseSecond => Rank(Reward.ChaseSecond) > 0; // 아리아의 현재 출격 후속 탄
         internal bool SpreadSecond => Rank(Reward.SpreadSecond) > 0; // 고유기 지속 중 추가 사격
+        internal bool LumiSpread => Rank(Reward.LumiSpread) > 0; // Q 추적탄의 대상 분산
+        internal float LumiTurnScale => Rank(Reward.LumiTracking) > 0 ? 1.2f : 1f; // 기획의 기본 회전 속도 강화
         internal bool WeakSecond => Rank(Reward.WeakSecond) > 0; // 리안 약점 적중의 재사용 효과
 
         internal float ItemSharedCardBonus(FlightEnhancementKind kind) // 드롭의 공통 상한에서 이미 사용한 카드 수치
@@ -200,7 +204,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Present() // 공용·전용·대체 보상에서 선택 후보 준비
         {
             candidates.Clear(); // 직전 선택의 임시 후보 제거
-            int profile = weapon.IsRian ? 2 : 1; // 현재 출격 캐릭터
+            int profile = (int)weapon.ActivePilot + 1; // 현재 출격 캐릭터
             foreach (Card card in Core) // 기획표 전체 후보 검증
             {
                 bool family = card.pilot == 0 || card.pilot == profile; // 현재 캐릭터로 유효

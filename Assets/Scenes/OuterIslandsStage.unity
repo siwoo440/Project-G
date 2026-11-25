@@ -25755,6 +25755,8 @@ MonoBehaviour:
   rapid: {fileID: 1287475979}
   rapidLabel: {fileID: 1760569707}
   sniperSkillArt: {fileID: 2800000, guid: 79ec9ae38e624404380e7fece03d810c, type: 3}
+  trackedSkillAtlas: {fileID: 2800000, guid: 9ab133a89709b1d4e92e8ce75d1688ba, type: 3}
+  trackedUltimateAtlas: {fileID: 2800000, guid: 2ac3cbe2064537a418eb7da9a3453e35, type: 3}
 --- !u!114 &1102515536
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -65,11 +65,8 @@ namespace ProjectG // 프로젝트 비행 입문
             active = true; // 안내 입력과 진행 활성화
             sandboxTargets.SetActive(false); // 입문 훈련의 조준선과 총구 사이 장애물 제거
             target.gameObject.SetActive(false); // 사격 연습 전까지 시험 표적 숨김
-            if (weapon.IsRian != (selected == FlightBroomPilot.Rian)) // 기존 조종사가 준비 화면의 선택과 다른 경우
-            {
-                weapon.TogglePilot(); // 실제 스킬과 자동 사격의 조종사 변경
-            }
-            GetComponent<FlightCombatHud>().SetSniper(weapon.IsRian); // 사용 중인 조종사의 스킬 이미지와 패시브
+            weapon.SelectPilot(selected); // 준비에서 고른 조종사의 실제 스킬과 자동 사격
+            GetComponent<FlightCombatHud>().SetPilot(weapon); // 사용 중인 조종사의 스킬 이미지와 패시브
             start = flight.transform.position; // 실제 이동 성공 확인 기준
             skip.onClick.AddListener(ReturnToBriefing); // 훈련 중 마우스 복귀
             skills.SkillActivated += ObserveCast; // 버튼 입력만으로는 성공 처리 금지
@@ -222,6 +219,7 @@ namespace ProjectG // 프로젝트 비행 입문
                 Lesson.Focus => $"[{Keycap(FlightAction.Focus)}] 길게 눌러 집중 비행을 익히세요.", // 집중 비행 유지
                 Lesson.Shoot => "마우스로 중앙 조준점을 표적에 맞추세요.\n기본 마법탄은 자동으로 발사됩니다.", // 실제 사격의 조건
                 Lesson.Graze => "가까운 탄이 기체를 스치면 그레이즈가 쌓입니다.\n탄이 옆을 통과할 때까지 기다려 보세요.", // 판정과 안전한 관찰
+                Lesson.Cast when selected == FlightBroomPilot.Lumi => $"[{Keycap(FlightAction.Common)}] 공용 스킬로 피해 1회를 막을 수 있습니다.", // 표적 없는 훈련의 실제 사용 기술
                 Lesson.Cast => $"[{Keycap(FlightAction.Special)}] 고유 스킬 또는 [{Keycap(FlightAction.Common)}] 공용 스킬을 사용하세요.", // 실제 마력 스킬 키
                 _ => "출격 준비로 돌아가 장비를 확인하고 출발하세요." // 실제 전투 전 복귀
             };

@@ -210,7 +210,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     if (WaveNumber == 0) // 정식 출격의 실제 첫 웨이브
                     {
-                        FlightBroomPilot actor = playerWeapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 참가 시점의 실제 조종사
+                        FlightBroomPilot actor = playerWeapon.ActivePilot; // 참가 시점의 실제 조종사
                         sortieId = FlightProgress.Current.Begin(actor); // 마물이 나오기 직전의 내구성 있는 참여 기록
                         if (sortieId != null) // 첫 전투에 정상 참여한 출격
                         {

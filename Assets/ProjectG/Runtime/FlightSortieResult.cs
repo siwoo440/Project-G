@@ -17,6 +17,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Text defeats; // 격파한 적
         [SerializeField] private Text grazes; // 유효한 그레이즈 수
         [SerializeField] private Text level; // 마지막 레벨
+        [SerializeField] private FlightCurrencyLabel crystals; // 현재 출격의 결정 지급량
+        [SerializeField] private FlightCurrencyLabel gold; // 현재 출격의 골드 지급량
         [SerializeField] private Text rewards; // 이번 출격의 영구 보상
         [SerializeField] private Button retry; // 같은 조합으로 재출격
         [SerializeField] private Button title; // 실제 메인 타이틀 복귀
@@ -53,7 +55,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             outcome.text = report.Cleared ? "출격 완료" : "출격 실패"; // 실제 최종 결과 구분
-            pilotName.text = report.Pilot == FlightBroomPilot.Rian ? "리안  ·  하늘섬 외곽 항로" : "아리아  ·  하늘섬 외곽 항로"; // 종료한 캐릭터 확인
+            pilotName.text = $"{FlightPilotRoster.Name(report.Pilot)}  ·  하늘섬 외곽 항로"; // 종료한 캐릭터 확인
             combatTime.text = FormatTime(report.CombatSeconds); // 실제 전투 시계의 분과 초
             totalTime.text = FormatTime(report.TotalSeconds); // 정지 시간을 포함한 분과 초
             score.text = report.Score.ToString("N0"); // 실제 게임 점수
@@ -62,8 +64,10 @@ namespace ProjectG // 프로젝트 게임 영역
             level.text = $"LV. {report.Level}"; // 종료 시에 확정된 레벨
             FlightProgressReceipt receipt = report.Receipt; // 실제로 저장을 끝낸 출격 영수증
             string firstTask = receipt?.FirstTask == true ? "   ·   첫 과제 완료" : string.Empty; // 이번 출격에서만 지급한 증표의 이유
-            rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   조율의 증표 +{receipt.Marks}{firstTask}\n천공 결정 +{receipt.Crystals}   ·   골드 +{receipt.Gold}" // 조종사 보상과 공방 재화
+            rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   조율의 증표 +{receipt.Marks}{firstTask}" // 조종사 보상과 증표
                 : FlightProgress.Current.Error ?? "전투 참여 보상 없음"; // 실패한 저장 또는 참여 전 종료
+            crystals?.Show(receipt?.Crystals, true); // 실제 확정한 출격 결정 증가량
+            gold?.Show(receipt?.Gold, true); // 실제 확정한 출격 골드 증가량
         }
 
         private void Update() // 마우스와 같은 결과 조작 키

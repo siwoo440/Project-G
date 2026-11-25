@@ -35,12 +35,19 @@ namespace ProjectG // 프로젝트 게임 영역
         private Color normalReticleColor; // 기존 조준점 색
         private float beamUntil; // 광선 표시 종료 시각
         private float rapidUntil; // Q 효과의 종료 시각
+        private readonly List<FlightEnemy> lumiTargets = new List<FlightEnemy>(); // 현재 조준 방향의 입체 유도 대상
+        private FlightEnemy lumiTarget; // 유지한 표적과 회전 속도 보너스의 기준
+        private float trackingSince; // 같은 표적의 연속 추적 시작 시각
+        private float nextTargetScan; // 표적 탐색 갱신 시각
         private float nextShot; // 다음 자동 연사 가능 시각
         private float WeakRatio => IsRian ? (upgrades != null ? upgrades.WeakRatio : 0.5f) : 0f; // 실제 캐릭터의 약점 배율
 
         public float FireIntervalScale => Time.time < rapidUntil ? 0.7f : 1f; // 집중 포화의 30% 단축
-        public bool IsRian { get; private set; } // 현재 시험 조종사
-        internal bool FirstTaskReady => measureTask && taskHits >= (IsRian ? 10 : 50); // 현재 캐릭터의 첫 출격 과제 달성
+        public FlightBroomPilot ActivePilot { get; private set; } // 출격에서 실제 조작하는 캐릭터
+        public bool IsRian => ActivePilot == FlightBroomPilot.Rian; // 저격형 프로필 확인
+        private bool IsAria => ActivePilot == FlightBroomPilot.Aria; // 속사형 프로필 확인
+        internal int LumiTrackingBonus => lumiTarget != null && lumiTarget.isActiveAndEnabled && lumiTarget.Health > 0 ? Mathf.Clamp(Mathf.FloorToInt(Time.time - trackingSince), 0, 3) * 15 : 0; // 동일 표적 1초마다 15%, 최대 45%
+        internal bool FirstTaskReady => measureTask && (IsAria ? taskHits >= 50 : IsRian && taskHits >= 10); // 두 조종사의 확정 첫 출격 과제
 
         internal void StartFirstTask() // 실제 첫 웨이브 시작의 과제 초기값
         {
@@ -55,9 +62,17 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void TogglePilot() // 아리아와 리안의 전투 설정 전환
         {
-            IsRian = !IsRian; // 다음 시험 캐릭터 선택
-            broom?.SelectPilot(IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 캐릭터에 맞는 부품 조합 복원
-            ResetCadence(); // 이전 속사 효과와 광선 표시 제거
+            if (IsAria || IsRian) // 새 출격 조종사에게 기존 시험 전환 미적용
+            {
+                SelectPilot(IsRian ? FlightBroomPilot.Aria : FlightBroomPilot.Rian); // 기존 두 조종사의 빠른 시험 전환
+            }
+        }
+
+        internal void SelectPilot(FlightBroomPilot selected) // 승인된 조종사의 전투 상태 설정
+        {
+            ActivePilot = selected; // 전투와 정산에 사용되는 실제 조종사
+            broom?.SelectPilot(selected); // 캐릭터에 맞는 부품 조합 복원
+            ResetCadence(); // 이전 효과와 표적 제거
         }
 
         public void BeginRapidFire() // 아리아 Q 집중 포화
@@ -72,6 +87,10 @@ namespace ProjectG // 프로젝트 게임 영역
             rapidUntil = 0f; // 이전 집중 포화 제거
             nextShot = Time.time; // 새 첫 발 시각
             rapid?.ResetRun(); // 아리아 적중 보너스 초기화
+            lumiTarget = null; // 출격과 전환 뒤 추적 누적 제거
+            lumiTargets.Clear(); // 이전 웨이브의 후보 제거
+            trackingSince = Time.time; // 새 표적의 기본 누적 시각
+            nextTargetScan = 0f; // 다음 프레임부터 정상 탐색
             chaseTarget = null; // 이전 출격의 추격 대상 제거
             chaseHits = 0; // 같은 대상의 연속 적중 초기화
             nextChase = 0f; // 이전 추격탄 제한 제거
@@ -105,7 +124,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 sniperBeam.enabled = false; // 프레임에 그리는 광선 제거
             }
             bool trackWeakPoint = IsRian && pilot.IsFocusHeld && reticle.enabled; // 실제로 보이는 집중 조준점
-            if (!IsRian && pilot.CanFly && upgrades != null && upgrades.SpreadSecond && nextSpread <= rapidUntil && Time.time >= nextSpread) // 집중 포화의 0.5초 간격 후속탄
+            if (ActivePilot == FlightBroomPilot.Lumi && pilot.CanFly && Time.time >= nextTargetScan) // 제어 가능한 루미의 정기 표적 확인
+            {
+                RefreshLumiTargets(); // 같은 대상의 유도력 유지 확인
+            }
+            if (IsAria && pilot.CanFly && upgrades != null && upgrades.SpreadSecond && nextSpread <= rapidUntil && Time.time >= nextSpread) // 집중 포화의 0.5초 간격 후속탄
             {
                 FireSpreadFollowup(); // 실제 근처 대상의 독립 추가탄
                 nextSpread += 0.5f; // 같은 집중 포화 안의 다음 발사만 예약
@@ -145,6 +168,59 @@ namespace ProjectG // 프로젝트 게임 영역
 
             FireSpread(travel, focused, count, spread, isAutomatic); // 실제 발사체 생성
             return true; // 성공한 발사에만 자원 비용 적용
+        }
+
+        internal bool CastLumiStars(bool ultimate) // 높이가 다른 적에게 유도 별빛 발사
+        {
+            RefreshLumiTargets(); // 입력 시점의 유효 표적 재확인
+            if (lumiTargets.Count == 0) // 쫓을 적이 없는 상태
+            {
+                return false; // 탄환과 자원 소모 생략
+            }
+            int count = ultimate ? 12 : 6; // 별무리 항로와 별빛 추적탄 발사 수
+            int damage = ultimate ? 18 : 12; // 기획의 발당 직접 피해
+            bool spread = ultimate || (upgrades != null && upgrades.LumiSpread); // 필살기와 분산 1의 다중 표적
+            float arc = upgrades != null ? upgrades.LumiTurnScale : 1f; // 집중 추적 1의 회전 배율
+            Quaternion aim = Quaternion.LookRotation(AttackRay().direction); // 카메라에 맞춘 초기 발사 축
+            for (int index = 0; index < count; index++) // 모든 별빛의 독립 추적 설정
+            {
+                FlightEnemy target = lumiTargets[spread ? index % lumiTargets.Count : 0]; // 가까운 유효 마물부터 순환 배정
+                float bonus = target == lumiTarget ? LumiTrackingBonus * 0.01f : 0f; // 유지한 대상만 받는 회전 보너스
+                float angle = index * 360f / count * Mathf.Deg2Rad; // 상하좌우로 펼치는 발사 위상
+                Quaternion heading = aim * Quaternion.Euler(Mathf.Sin(angle) * 8f, Mathf.Cos(angle) * 10f, 0f); // 입체 부채꼴의 시작 방향
+                FlightSpellBolt bolt = Instantiate(standardBolt, muzzle.position, heading); // 지형 충돌과 수명이 있는 실제 마법탄
+                bolt.Begin(aimLayers, aimRange, null, 0f, assistDamage: damage); // 조종사별 기본 피해 적용
+                bolt.Guide(target, Mathf.Deg2Rad * 220f * arc * (1f + bonus)); // 시험 기본 회전량과 표적 추적 강화
+            }
+            return true; // 자원과 재사용 시간을 적용할 정상 발사
+        }
+
+        private void RefreshLumiTargets() // 사거리와 조준 반구에 있는 살아 있는 마물 검색
+        {
+            nextTargetScan = Time.time + 0.2f; // 일반 프레임의 반복 탐색량 제한
+            Vector3 origin = muzzle.position; // 거리와 고도를 재는 실제 총구
+            Vector3 forward = AttackRay().direction; // 둘러보기와 구분되는 발사 방향
+            lumiTargets.Clear(); // 움직이는 적의 새 후보 목록
+            foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 현재 씬의 활성 마물
+            {
+                Vector3 offset = enemy.transform.position - origin; // 세 축의 상대 위치
+                float distance = offset.magnitude; // 실제 입체 거리
+                if (enemy.isActiveAndEnabled && enemy.Health > 0 && distance <= aimRange && Vector3.Dot(forward, offset) > distance * 0.3f) // 사거리와 조준 방향 확인
+                {
+                    lumiTargets.Add(enemy); // 다중 유도에서 재사용할 후보
+                }
+            }
+            lumiTargets.Sort((a, b) => (a.transform.position - origin).sqrMagnitude.CompareTo((b.transform.position - origin).sqrMagnitude)); // 가까운 적부터 우선 배분
+            if (lumiTargets.Count == 0 || !lumiTargets.Contains(lumiTarget)) // 적이 죽거나 사거리·조준 방향을 벗어난 경우
+            {
+                lumiTarget = lumiTargets.Count > 0 ? lumiTargets[0] : null; // 다음 유효 표적 또는 잠금 해제
+                trackingSince = Time.time; // 새 표적의 회전 증가를 0에서 시작
+            }
+            else if (lumiTargets[0] != lumiTarget) // 기존 적을 계속 조준하는 동안 유지
+            {
+                lumiTargets.Remove(lumiTarget); // 가까이 온 다른 대상으로 자동 교체 방지
+                lumiTargets.Insert(0, lumiTarget); // 단일 추적탄의 실제 우선 표적
+            }
         }
 
         public bool CastPiercingShot() // 리안 Q 관통 사격
@@ -226,8 +302,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 float pitch = count >= 5 ? (index % 2 == 0 ? -3f : 3f) : 0f; // 넓은 마법탄의 입체 고도
                 Quaternion direction = basis * Quaternion.Euler(pitch, yaw, 0f); // 화면 중앙 방향에서 분산
                 FlightSpellBolt bolt = Instantiate(focused ? focusedBolt : standardBolt, muzzle.position, direction); // 기존 마법탄 프리팹 재사용
-                bolt.Begin(aimLayers, aimRange, isAutomatic && !IsRian ? rapid : null, WeakRatio, 0, damage, width, pierce); // 발사 때 확정한 피해와 폭
-                if (isAutomatic) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
+                bolt.Begin(aimLayers, aimRange, isAutomatic && IsAria ? rapid : null, WeakRatio, 0, damage, width, pierce); // 발사 때 확정한 피해와 폭
+                if (isAutomatic && (IsAria || IsRian)) // 두 캐릭터의 기본·집중 사격만 후속 적중을 관찰
                 {
                     bolt.Observe(IsRian ? rianHit : ariaHit); // 시작 시점 조종사의 직접 공격 확인
                 }
@@ -236,7 +312,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnAriaHit(FlightEnemy enemy, bool _) // 실제 기본·집중 사격으로 줄어든 적 체력
         {
-            if (IsRian) // 전환 전 남아 있는 서로 다른 조종사의 탄
+            if (!IsAria) // 전환 전 남아 있는 서로 다른 조종사의 탄
             {
                 return; // 다른 조종사 과제나 후속 카드에 반영하지 않음
             }

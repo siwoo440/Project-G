@@ -73,13 +73,16 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightRapidFire rapid; // 현재 캐릭터의 누적 화력 상태
         [SerializeField] private Text rapidLabel; // 게이지 아래의 보너스
         [SerializeField] private Texture sniperSkillArt; // 리안 Q·R 시험 아이콘 두 칸
+        [SerializeField] private Texture trackedSkillAtlas; // 탐색자 스킬 아이콘 시안
+        [SerializeField] private Texture trackedUltimateAtlas; // 탐색자 필살기 아이콘 시안
+        private FlightWeapon currentWeapon; // 추적 시간에서 패시브 숫자를 읽는 실제 무기
         private Texture ariaSkillArt; // 아리아의 원래 Q 스킬 그림
         private Texture ariaUltimateArt; // 아리아의 원래 R 스킬 그림
         private Rect ariaSkillUv; // 아리아 Q의 아틀라스 영역
         private Rect ariaUltimateUv; // 아리아 R의 아틀라스 영역
         private Texture guardArt; // 기본 E 보호막의 원본 그림
         private Rect guardUv; // 기본 E 보호막의 아틀라스 범위
-        private bool isSniper; // 현재 표시하는 리안의 전투 설정
+
         private const int MaxResource = 100; // 초기 시험 자원의 최대값
         private int manaPoints = MaxResource; // 시작 시 마력
         private int ultimatePoints; // 시작 시 필살기 에너지
@@ -114,13 +117,18 @@ namespace ProjectG // 프로젝트 게임 영역
             slots[2].keyLabel.text = ultimateKey; // 현재 필살기 키
         }
 
-        public void SetSniper(bool active) // 시험 캐릭터와 Q·R 아이콘 전환
+        public void SetPilot(FlightWeapon weapon) // 조종사의 Q·R 아이콘과 패시브 전환
         {
-            isSniper = active; // 패시브 표시 내용 전환
-            if (sniperSkillArt == null) // 아이콘이 아직 연결되지 않은 씬
+            currentWeapon = weapon; // 패시브 숫자를 계산하는 실제 무기
+            if (weapon.ActivePilot == FlightBroomPilot.Lumi && trackedSkillAtlas != null && trackedUltimateAtlas != null) // 세 번째 조종사의 제작 아이콘
             {
-                return; // 기존 아이콘 유지
+                slots[0].art.texture = trackedSkillAtlas; // 별빛 추적탄 아이콘 아틀라스
+                slots[2].art.texture = trackedUltimateAtlas; // 별무리 항로 아이콘 아틀라스
+                slots[0].art.uvRect = new Rect(0f, 0.5f, 1f / 3f, 0.5f); // 첫 칸의 전용 Q 그림
+                slots[2].art.uvRect = slots[0].art.uvRect; // 같은 위치의 전용 R 그림
+                return; // 기본 조종사의 그림을 적용하지 않음
             }
+            bool active = weapon.IsRian && sniperSkillArt != null; // 리안의 이미지가 연결된 현재 씬
             slots[0].art.texture = active ? sniperSkillArt : ariaSkillArt; // 리안 Q 또는 아리아 Q
             slots[0].art.uvRect = active ? new Rect(0f, 0f, 0.5f, 1f) : ariaSkillUv; // 왼쪽 아이콘만 표시
             slots[2].art.texture = active ? sniperSkillArt : ariaUltimateArt; // 리안 R 또는 아리아 R
@@ -159,7 +167,11 @@ namespace ProjectG // 프로젝트 게임 영역
             mana.Set(manaPoints, MaxResource, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
-            if (isSniper) // 리안의 약점 피해 안내
+            if (currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Lumi) // 루미의 실제 추적 성능 표시
+            {
+                rapidLabel.text = $"표적 추적 +{currentWeapon.LumiTrackingBonus}%"; // 적을 유지한 실제 초 단위 보너스
+            }
+            else if (currentWeapon != null && currentWeapon.IsRian) // 리안의 약점 피해 안내
             {
                 rapidLabel.text = "리안  약점 +50%"; // HUD 안에 들어가는 리안 약점 보너스
             }

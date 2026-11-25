@@ -82,7 +82,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Record() // 끝난 출격의 결과를 캡처
         {
             bool cleared = stage.IsStageComplete && !pilot.IsDefeated; // 실제 전투 성공 여부
-            FlightBroomPilot current = weapon.IsRian ? FlightBroomPilot.Rian : FlightBroomPilot.Aria; // 스킬·장비의 실제 조종사
+            FlightBroomPilot current = weapon.ActivePilot; // 스킬·장비의 실제 조종사
             FlightProgressReceipt receipt = stage.Conclude(cleared); // 결과 보기 전에 보상과 완료 ID를 함께 저장
             snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt); // 결과에 복제할 확정값
             heading.text = cleared ? "출격 완료" : "출격 실패"; // 전투에 표시할 실제 결과

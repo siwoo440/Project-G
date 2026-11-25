@@ -15,7 +15,9 @@ namespace ProjectG // 프로젝트 게임 영역
         PiercingShot, // 리안 관통 사격
         SniperBeam, // 리안 천공 관측선
         SingleHitGuard, // 리안의 1회 피해 방어
-        SlotGuard // 아리아 E가 주는 교체 가능한 시간 보호
+        SlotGuard, // 아리아 E가 주는 교체 가능한 시간 보호
+        StarlightSeekers, // 루미의 별빛 추적탄
+        ConstellationRoute // 루미의 별무리 항로
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -90,7 +92,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard != null && bindings.Pressed(keyboard, FlightAction.Pilot) && FindFirstObjectByType<FlightEnemyEncounter>()?.CanSwitchPilot != false) // 연습과 참여 전 캐릭터 시험 전환
             {
                 weapon.TogglePilot(); // 기존 자원을 유지한 전투 설정 변경
-                hud.SetSniper(weapon.IsRian); // 전용 아이콘과 패시브 전환
+                hud.SetPilot(weapon); // 전용 아이콘과 패시브 전환
                 upgrades?.RefreshCommonSkill(); // 시험 전환에 다른 조종사의 공용 아이콘 동기화
             }
             if (pilot.CanFly) // 실패 전 자원과 스킬만 갱신
@@ -104,17 +106,25 @@ namespace ProjectG // 프로젝트 게임 영역
                     if (bindings.Pressed(keyboard, FlightAction.Special)) // 설정한 고유기 입력
                     {
                         float scale = upgrades != null ? upgrades.CooldownScale : 1f; // 선택 카드의 고유기 순환
-                        TrySkill(0, weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle, 25, (weapon.IsRian ? 10f : 8f) * scale, false, weapon.IsRian ? 0f : 3f); // 관통 사격 또는 집중 포화
+                        bool lumi = weapon.ActivePilot == FlightBroomPilot.Lumi; // 별빛 추적탄의 전용 발사
+                        FlightMagicEffect effect = lumi ? FlightMagicEffect.StarlightSeekers : weapon.IsRian ? FlightMagicEffect.PiercingShot : FlightMagicEffect.RapidCycle; // 고유기 효과 분리
+                        TrySkill(0, effect, 25, (lumi ? 9f : weapon.IsRian ? 10f : 8f) * scale, false, effect == FlightMagicEffect.RapidCycle ? 3f : 0f); // 조종사별 실제 대기시간
                     }
                     if (bindings.Pressed(keyboard, FlightAction.Common)) // 설정한 공용기 입력
                     {
                         bool fan = upgrades != null && upgrades.HasFan; // E가 산탄 카드로 교체된 상태
-                        FlightMagicEffect effect = fan ? FlightMagicEffect.Nova : (weapon.IsRian ? FlightMagicEffect.SingleHitGuard : FlightMagicEffect.SlotGuard); // 산탄 또는 각 캐릭터의 보호막
-                        TrySkill(1, effect, 30, fan ? 8f : (weapon.IsRian ? 12f : 6f), false); // 슬롯의 현재 재사용 시간
+                        FlightMagicEffect effect = fan ? FlightMagicEffect.Nova : (weapon.ActivePilot != FlightBroomPilot.Aria ? FlightMagicEffect.SingleHitGuard : FlightMagicEffect.SlotGuard); // 산탄 또는 각 캐릭터의 보호막
+                        TrySkill(1, effect, 30, fan ? 8f : (weapon.ActivePilot != FlightBroomPilot.Aria ? 12f : 6f), false); // 슬롯의 현재 재사용 시간
                     }
                     if (bindings.Pressed(keyboard, FlightAction.Ultimate)) // 설정한 필살기 입력
                     {
-                        TrySkill(2, weapon.IsRian ? FlightMagicEffect.SniperBeam : FlightMagicEffect.Meteor, 100, 12f, true); // 천공 관측선 또는 유성 탄막
+                        FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 필살기
+                        {
+                            FlightBroomPilot.Lumi => FlightMagicEffect.ConstellationRoute, // 별무리 항로
+                            FlightBroomPilot.Rian => FlightMagicEffect.SniperBeam, // 천공 관측선
+                            _ => FlightMagicEffect.Meteor // 유성 탄막
+                        };
+                        TrySkill(2, effect, 100, 12f, true); // 충전한 에너지와 재사용 조건
                     }
                 }
             }
@@ -214,6 +224,10 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastPiercingShot(); // 발사 성공 후 마력 소비
                 case FlightMagicEffect.SniperBeam: // 리안의 천공 관측선
                     return weapon.CastSniperBeam(threatPool); // 광선 적중과 경로의 적탄 소거
+                case FlightMagicEffect.StarlightSeekers: // 루미의 여섯 발 유도탄
+                    return weapon.CastLumiStars(false); // 단일 추적 또는 현재 분산 노드
+                case FlightMagicEffect.ConstellationRoute: // 루미의 열두 발 필살기
+                    return weapon.CastLumiStars(true); // 가까운 3D 적에 순환 배분
                 case FlightMagicEffect.SingleHitGuard: // 리안의 공용 보호막 시험값
                     vitals.GrantSingleHitGuard(1f); // 첫 피해 또는 1초에 만료되는 보호막
                     return true; // 보호 발생 성공

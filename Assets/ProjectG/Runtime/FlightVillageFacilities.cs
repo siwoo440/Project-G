@@ -14,12 +14,19 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         [SerializeField] private GameObject forge; // 장착 부위의 강화 조작
         [SerializeField] private GameObject growth; // 업적과 후속 전투 선택지 구매
         [SerializeField] private Text title; // 현재 연 시설의 명확한 이름
+        [SerializeField] private FlightCurrencyLabel walletCrystals; // 마을의 공용 천공 결정 보유량
+        [SerializeField] private FlightCurrencyLabel walletGold; // 마을의 공용 골드 보유량
+        [SerializeField] private FlightCurrencyLabel forgeCrystals; // 다음 빗자루 강화의 결정 비용
+        [SerializeField] private FlightCurrencyLabel forgeGold; // 다음 빗자루 강화의 골드 비용
+        [SerializeField] private FlightCurrencyLabel[] offerGold; // 처음 구입할 상품의 각 골드 가격
+        [SerializeField] private FlightCurrencyLabel[] nodeCrystals; // 후속 성장 노드의 각 결정 비용
         [SerializeField] private Text wallet; // 공용 골드와 천공 결정
         [SerializeField] private Text status; // 구매·강화·장착의 실제 결과
         [SerializeField] private Text currentSkill; // 선택 조종사의 저장된 공용기
         [SerializeField] private Text part; // 공방에 올린 장착 부품과 강화 단계
         [SerializeField] private Text price; // 다음 강화의 결정과 골드 비용
         [SerializeField] private Button close; // 마을 현재 위치로 복귀
+        [SerializeField] private Button lumi; // 별빛 빗자루와 공용기 선택
         [SerializeField] private Button aria; // 아리아의 장착을 편집하는 선택
         [SerializeField] private Button rian; // 리안의 장착을 편집하는 선택
         [SerializeField] private Button ward; // 캐릭터의 기본 공용 보호
@@ -42,6 +49,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         private void Start() // 에디터에 배치한 시설 UI를 버튼과 연결
         {
             close.onClick.AddListener(Close); // Esc와 같은 마을 복귀
+            lumi.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Lumi)); // 루미의 장착과 재화 화면
             aria.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Aria)); // 해당 조종사의 현재 장착
             rian.onClick.AddListener(() => SelectPilot(FlightBroomPilot.Rian)); // 해당 조종사의 현재 장착
             ward.onClick.AddListener(() => SelectSkill(false)); // 실제 기본 공용기
@@ -165,8 +173,11 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         private void Refresh() // 현재 시설에 실제 장착·재화 대입
         {
             FlightProgressStore profile = FlightProgress.Current; // 상점과 공방에서 공유하는 영구 자산
-            wallet.text = growth.activeSelf ? $"천공 결정 {profile.SharedCrystals:N0}   ·   조율의 증표 {profile.GetMarks(selected):N0}" // 후속 성장의 실제 보유 재료
-                : $"천공 결정 {profile.SharedCrystals:N0}   ·   골드 {profile.Gold:N0}"; // 판매와 강화의 공용 보유값
+            bool viewingGrowth = growth.activeSelf; // 현재 후속 성장을 보거나 시설의 기본 화면 사용
+            wallet.text = viewingGrowth ? $"조율의 증표 {profile.GetMarks(selected):N0}" : string.Empty; // 후속 성장의 별도 증표 이름
+            walletCrystals?.Show(profile.SharedCrystals); // 모든 시설에 표시하는 공용 보유량
+            walletGold?.Show(viewingGrowth ? null : profile.Gold); // 골드를 쓰는 화면의 공용 보유량
+            lumi.interactable = selected != FlightBroomPilot.Lumi; // 현재 탐색자의 선택 상태
             aria.interactable = selected != FlightBroomPilot.Aria; // 선택된 아리아가 표시되도록 잠금
             rian.interactable = selected != FlightBroomPilot.Rian; // 선택된 리안이 표시되도록 잠금
             bool equippedFan = profile.GetCommonFan(selected); // 현재 조종사의 실제 공용기
@@ -185,7 +196,11 @@ namespace ProjectG // 프로젝트 하늘섬 시설
                 string id = offer.id + ":1"; // 현재 이 부품의 실제 보유 개체
                 bool owned = equipment.IsOwned(id); // 현재 플레이어의 소유
                 bool equipped = equipment.GetEquippedId(selected, offer.slot) == id; // 해당 조종사의 실제 장착
-                stockText[i].text = $"{offer.displayName}   ·   {Grades[offer.grade - 1]}\n{(owned ? "보유" : $"{FlightProgressStore.ShopPrice(offer.grade):N0} 골드")}"; // 같은 행의 실제 이름과 가격
+                stockText[i].text = $"{offer.displayName}   ·   {Grades[offer.grade - 1]}\n{(owned ? "보유" : string.Empty)}"; // 상품 이름과 구매 여부
+                if (offerGold != null) // 편집 중인 씬의 가격 표시 유무
+                {
+                    offerGold[i].Show(owned ? null : FlightProgressStore.ShopPrice(offer.grade)); // 미구입 상품만 골드 가격 표시
+                }
                 stockButtons[i].GetComponentInChildren<Text>().text = equipped ? "장착 중" : owned ? "장착" : "구매"; // 실제 가능한 다음 작업
                 stockButtons[i].interactable = !equipped; // 중복 장착 입력 방지
             }
@@ -194,9 +209,11 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             part.text = $"{SlotNames[slot]}   ·   {(item.HasValue ? $"{item.Value.Name} +{level}" : "미장착")}"; // 현재 선택과 단계
             var cost = FlightProgressStore.ForgePrice(level); // 정확한 다음 단계 결정과 골드
             enhance.interactable = item.HasValue && cost.Gold > 0; // 장착한 부품의 +5까지만
-            price.text = item.HasValue && level >= 5 ? "최대 강화 단계" : item.HasValue ? $"다음 단계 +{level + 1}   ·   천공 결정 {cost.Crystals}   ·   골드 {cost.Gold:N0}" : "장착된 부품을 고르세요."; // 현재 단계에서 가능한 조작
+            price.text = item.HasValue && level >= 5 ? "최대 강화 단계" : item.HasValue ? $"다음 단계 +{level + 1}" : "장착된 부품을 고르세요."; // 현재 단계에서 가능한 조작
+            forgeCrystals?.Show(enhance.interactable ? cost.Crystals : null); // 다음 단계에 들어가는 결정
+            forgeGold?.Show(enhance.interactable ? cost.Gold : null); // 다음 단계에 들어가는 골드
             string task = selected == FlightBroomPilot.Rian ? "약점 10회 적중" : "기본·집중 사격 50회 적중"; // 기획서의 조종사별 최초 과제
-            firstTask.text = $"첫 과제   ·   한 출격에서 {task}\n{(profile.HasCompletedFirstTask(selected) ? "조율의 증표 지급 완료" : "최초 보상 조율의 증표 1개")}"; // 공개 과제 상태와 한 번의 보상
+            firstTask.text = selected == FlightBroomPilot.Lumi ? "루미의 첫 과제와 영구 노드는 준비 중입니다." : $"첫 과제   ·   한 출격에서 {task}\n{(profile.HasCompletedFirstTask(selected) ? "조율의 증표 지급 완료" : "최초 보상 조율의 증표 1개")}"; // 공개 과제 상태와 한 번의 보상
             for (int i = 0; i < growthButtons.Length; i++) // 설정한 후속 연구의 실제 표시
             {
                 FlightGrowthNodes.Node node = FlightGrowthNodes.All[i]; // 같은 조종사의 확인된 항목
@@ -205,7 +222,11 @@ namespace ProjectG // 프로젝트 하늘섬 시설
                 growthButtons[i].transform.parent.gameObject.SetActive(belongs); // 현 시설에서 실제 구매 후보
                 growthButtons[i].interactable = belongs && !unlocked; // 이미 해금한 비용을 다시 내지 않음
                 growthButtons[i].GetComponentInChildren<Text>().text = unlocked ? "해금 완료" : "해금"; // 적용된 실제 저장
-                growthInfo[i].text = $"{node.Name}   ·   {node.Requirement}\n천공 결정 {FlightGrowthNodes.CrystalCost}   ·   조율의 증표 {FlightGrowthNodes.MarkCost}"; // 전투 선행 카드와 구매비
+                growthInfo[i].text = $"{node.Name}   ·   {node.Requirement}"; // 전투의 선행 카드 조건
+                if (nodeCrystals != null) // 씬에서 편집한 성장 비용 표시
+                {
+                    nodeCrystals[i].Show(FlightGrowthNodes.CrystalCost); // 후속 노드를 살 때 들어가는 결정
+                }
             }
         }
     }

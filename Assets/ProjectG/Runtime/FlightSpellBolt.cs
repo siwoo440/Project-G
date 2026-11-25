@@ -9,6 +9,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(0.01f)] private float speed = 40f; // 탄환의 월드 이동 속도
         [SerializeField, Min(0.01f)] private float radius = 0.12f; // 탄환의 충돌 반경
         [SerializeField, Min(1)] private int damage = 8; // 표적에 기록할 시험 피해
+        private FlightEnemy guidedTarget; // 유도탄만 추적하는 실제 표적
+        private float guideRadians; // 초당 회전 거리의 라디안 값
         private FlightRapidFire rapid; // 누적에 포함되는 자동탄 출처
         private HashSet<Component> piercedTargets; // 관통탄 한 발이 이미 맞힌 대상
         private float weakRatio; // 발사 당시의 약점 피해 보너스
@@ -32,6 +34,7 @@ namespace ProjectG // 프로젝트 게임 영역
             maxHits = piercingDamage > 0 ? int.MaxValue : 1 + extraPierces; // 고유 관통과 일반탄 관통의 상한
             piercedTargets = maxHits > 1 ? new HashSet<Component>() : null; // 관통탄에서만 맞힌 대상 기억
             observeHit = null; // 이전 발사의 기록 콜백 제거
+            guidedTarget = null; // 새 발사에는 기본 유도 표적 없음
         }
 
         internal void Observe(Action<FlightEnemy, bool> onHit) // 게임 과제가 있는 실제 사격에만 등록
@@ -39,11 +42,26 @@ namespace ProjectG // 프로젝트 게임 영역
             observeHit = onHit; // 이 발사의 실제 적중 종류
         }
 
+        internal void Guide(FlightEnemy target, float radiansPerSecond) // 별빛 탄환의 입체 유도 설정
+        {
+            guidedTarget = target; // 이 발사에 지정한 표적
+            guideRadians = radiansPerSecond; // 캐릭터와 강화에 맞춘 회전 속도
+        }
+
         private void Update() // 한 프레임의 탄환 이동
         {
             if (Time.timeScale == 0f) // 카드 선택 중 탄환 판정 정지
             {
                 return; // 실제 충돌이 일어나지 않는 프레임
+            }
+            if (guidedTarget != null && guidedTarget.isActiveAndEnabled && guidedTarget.Health > 0) // 사라진 표적은 마지막 방향으로 통과
+            {
+                Vector3 route = guidedTarget.transform.position - transform.position; // 높이를 포함한 실제 충돌 지점 방향
+                if (route.sqrMagnitude > 0.001f) // 같은 위치에서 회전을 정할 수 없는 경우 제외
+                {
+                    Vector3 heading = Vector3.RotateTowards(transform.forward, route.normalized, guideRadians * Time.deltaTime, 0f); // 급회전의 실제 한계
+                    transform.rotation = Quaternion.LookRotation(heading); // 콜라이더 검사 전에 방향 반영
+                }
             }
             float step = Mathf.Min(remaining, speed * Time.deltaTime); // 사거리 안에서 이동할 거리
             bool blocked = piercedTargets != null ? ApplyPiercingHits(step) : ApplyFirstHit(step); // 탄 종류에 맞는 접촉 경로

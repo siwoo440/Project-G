@@ -14,6 +14,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private GameObject settings; // 화면·음량 설정 보기
         [SerializeField] private GameObject dialog; // 새 게임 또는 종료 확인
         [SerializeField] private Text prompt; // 확인해야 하는 실제 상황
+        [SerializeField] private FlightCurrencyLabel recoveredCrystals; // 중단 출격에서 복구한 결정
+        [SerializeField] private FlightCurrencyLabel recoveredGold; // 중단 출격에서 복구한 골드
         [SerializeField] private Text recoveredSortie; // 중단된 출격의 실제 복구 안내
         [SerializeField] private FlightTitleSettings options; // 화면과 음량의 저장
         [SerializeField] private Button newGame; // 새 게임 버튼
@@ -38,8 +40,10 @@ namespace ProjectG // 프로젝트 게임 영역
             EventSystem.current.sendNavigationEvents = false; // 키보드의 메뉴 클릭 중복 방지
             options.Initialize(); // 현재 환경 설정 읽기
             FlightProgressReceipt recovered = FlightProgress.Current.Recover(); // 이번 실행에서 미정산 출격만 한 번 복구
-            recoveredSortie.text = recovered != null ? $"중단 출격 정산\n숙련도 +{recovered.Mastery}  ·  천공 결정 +{recovered.Crystals}  ·  골드 +{recovered.Gold}" // 제목과 새로 지급한 기본 참여 보상
+            recoveredSortie.text = recovered != null ? $"중단 출격 정산   ·   숙련도 +{recovered.Mastery}" // 제목과 새로 지급한 조종사 숙련도
                 : FlightProgress.Current.Error ?? string.Empty; // 저장 문제만 별도로 안내
+            recoveredCrystals?.Show(recovered?.Crystals, true); // 미정산 출격에서 새로 지급한 실제 결정
+            recoveredGold?.Show(recovered?.Gold, true); // 미정산 출격에서 새로 지급한 실제 골드
             recoveredSortie.transform.parent.gameObject.SetActive(recoveredSortie.text.Length > 0); // 실제 복구 기록이나 저장 오류가 있을 때만 표시
             newGame.onClick.AddListener(NewGame); // 저장 여부에 따른 새 출격
             continueGame.onClick.AddListener(() => Begin(true)); // 저장한 출격을 계속

@@ -15,12 +15,16 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private GameObject ready; // 조종사 선택과 출발 개체
         [SerializeField] private RawImage portrait; // 기획서의 실제 스탠딩
         [SerializeField] private Texture2D ariaStanding; // 아리아 원본 이미지
+        [SerializeField] private Texture2D lumiStanding; // 기획서 루미의 원본 일러스트
         [SerializeField] private Texture2D rianStanding; // 리안 원본 이미지
         [SerializeField] private Text title; // 활동 캐릭터 이름과 전투 역할
         [SerializeField] private Text details; // 이미 확정한 설명과 Q·E·R
         [SerializeField] private Text equipped; // 출발에 반영되는 현재 실제 조합
+        [SerializeField] private FlightCurrencyLabel crystals; // 현재 공용 천공 결정 보유량
+        [SerializeField] private FlightCurrencyLabel gold; // 현재 공용 골드 보유량
         [SerializeField] private Text progression; // 누적 숙련도와 실제 보유 재료
         [SerializeField] private Button aria; // 조사팀 속사형 선택
+        [SerializeField] private Button lumi; // 조사팀 유도형 선택
         [SerializeField] private Button rian; // 수호팀 저격형 선택
         [SerializeField] private Button back; // 왼쪽 위의 메뉴 복귀
         [SerializeField] private Button depart; // 오른쪽 아래 실제 출발
@@ -38,8 +42,10 @@ namespace ProjectG // 프로젝트 게임 영역
             EventSystem.current.sendNavigationEvents = false; // 자체 선택 키와 UI 제출 중복 방지
             workshop.Initialize(ShowSummary); // 저장한 장비로 출격 요약 갱신
             editor.Initialize(ShowSummary); // 마법 조합도 같은 화면으로 복귀
-            aria.interactable = FlightProgress.Current.HasUnlock("pilot.aria"); // 저장된 아리아 선택 자격
-            rian.interactable = FlightProgress.Current.HasUnlock("pilot.rian"); // 저장된 리안 선택 자격
+            aria.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Aria); // 저장된 아리아 선택 자격
+            rian.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Rian); // 저장된 리안 선택 자격
+            lumi.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Lumi); // 루미의 시험 출격 자격
+            lumi.onClick.AddListener(() => Choose(FlightBroomPilot.Lumi)); // 루미로 미리보기
             aria.onClick.AddListener(() => Choose(FlightBroomPilot.Aria)); // 아리아로 미리보기
             rian.onClick.AddListener(() => Choose(FlightBroomPilot.Rian)); // 리안으로 미리보기
             back.onClick.AddListener(Return); // 타이틀로 돌아가기
@@ -47,7 +53,7 @@ namespace ProjectG // 프로젝트 게임 영역
             editGear.onClick.AddListener(OpenWorkshop); // 기존 빗자루 조립기 연결
             editMagic.onClick.AddListener(OpenMagic); // 기존 제작 마법 화면 연결
             firstSortieGuide.onClick.AddListener(OpenGuide); // 독립된 비행 연습 연결
-            Choose(FlightSortieChoice.Initial == FlightBroomPilot.Rian && rian.interactable ? FlightBroomPilot.Rian : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
+            Choose(FlightPilotRoster.CanSelect(FlightSortieChoice.Initial) ? FlightSortieChoice.Initial : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
         }
 
         private void Update() // 실제 키보드로 캐릭터와 이동 선택
@@ -80,11 +86,11 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame) // 왼쪽 캐릭터
             {
-                Choose(FlightBroomPilot.Aria); // 아리아 보기
+                Choose((FlightBroomPilot)(((int)pilot + FlightPilotRoster.Count - 1) % FlightPilotRoster.Count)); // 앞 조종사 보기
             }
             if (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame) // 오른쪽 캐릭터
             {
-                Choose(FlightBroomPilot.Rian); // 리안 보기
+                Choose((FlightBroomPilot)(((int)pilot + 1) % FlightPilotRoster.Count)); // 다음 조종사 보기
             }
             if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame) // 실제 출발 입력
             {
@@ -94,7 +100,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Choose(FlightBroomPilot selected) // 장비 편집과 스탠딩 캐릭터 동기화
         {
-            if (!(selected == FlightBroomPilot.Rian ? rian : aria).interactable) // 키 입력과 버튼의 해금 조건 공유
+            if (!ChoiceButton(selected).interactable) // 키 입력과 버튼의 해금 조건 공유
             {
                 return; // 저장된 영구 선택지만 적용
             }
@@ -110,15 +116,30 @@ namespace ProjectG // 프로젝트 게임 영역
             ready.SetActive(true); // 포트레이트와 출격 정보
             bool sniper = pilot == FlightBroomPilot.Rian; // 선택한 전투 역할
             FlightProgressStore profile = FlightProgress.Current; // 실제 원자 정산으로 저장한 성장
-            string common = profile.GetCommonFan(pilot) ? "산탄" : sniper ? "1회 보호" : "보호막"; // 마을에서 저장한 공용기와 캐릭터 기본값
-            portrait.texture = sniper ? rianStanding : ariaStanding; // 같은 캐릭터의 기획서 원본
-            title.text = sniper ? "리안 · 저격형 수호자" : "아리아 · 속사형 조사원"; // 현재 사용 가능한 캐릭터
-            details.text = sniper // 확정한 소속과 핵심 전투 방식
+            string common = profile.GetCommonFan(pilot) ? "산탄" : pilot != FlightBroomPilot.Aria ? "1회 보호" : "보호막"; // 마을에서 저장한 공용기와 캐릭터 기본값
+            bool tracking = pilot == FlightBroomPilot.Lumi; // 유도형의 전용 설명
+            portrait.texture = tracking ? lumiStanding : sniper ? rianStanding : ariaStanding; // 같은 캐릭터의 기획서 원본
+            title.text = tracking ? "루미 · 유도형 탐색자" : sniper ? "리안 · 저격형 수호자" : "아리아 · 속사형 조사원"; // 현재 사용 가능한 캐릭터
+            details.text = tracking // 유도형의 확정 소속과 스킬
+                ? $"조사팀   ·   같은 적을 추적할수록 유도가 강해집니다.\nQ  별빛 추적탄    E  {common}    R  별무리 항로" // 루미의 실제 유도와 공용기
+                : sniper // 아리아와 리안의 전투 방식
                 ? $"수호팀   ·   노출된 약점을 정확하게 노립니다.\nQ  관통 사격    E  {common}    R  천공 관측선" // 리안의 스킬과 장착한 공용기
                 : $"조사팀   ·   연속 적중으로 기본 사격의 화력을 높입니다.\nQ  집중 포화    E  {common}    R  유성 탄막"; // 아리아의 스킬과 장착한 공용기
             equipped.text = $"빗자루 몸체  {gear.GetEquippedName(FlightBroomSlot.Body)}\n마법  좌 {SlotName(0)}  /  우 {SlotName(1)}"; // 편성한 부품과 마법의 실제 준비 상태
-            progression.text = $"숙련도 {profile.GetMastery(pilot)} · 천공 결정 {profile.SharedCrystals} · 조율의 증표 {profile.GetMarks(pilot)} · 골드 {profile.Gold:N0}"; // 조종사별 성장과 공유 보유 재화
-            (sniper ? rian : aria).Select(); // 현재 캐릭터 버튼에 포커스
+            progression.text = $"숙련도 {profile.GetMastery(pilot)} · 조율의 증표 {profile.GetMarks(pilot)}"; // 조종사별 성장과 남은 증표
+            crystals?.Show(profile.SharedCrystals); // 천공 결정 아이콘과 실제 보유 수치
+            gold?.Show(profile.Gold); // 골드 아이콘과 실제 보유 수치
+            ChoiceButton(pilot).Select(); // 현재 캐릭터 버튼에 포커스
+        }
+
+        private Button ChoiceButton(FlightBroomPilot selected) // 하이러키의 실제 선택 버튼
+        {
+            return selected switch // 선택한 조종사에 맞는 버튼
+            {
+                FlightBroomPilot.Rian => rian, // 리안 선택 위치
+                FlightBroomPilot.Lumi => lumi, // 루미 선택 위치
+                _ => aria // 기본 아리아 선택 위치
+            };
         }
 
         private string SlotName(int index) // 현재 제작 마법의 출격 표시

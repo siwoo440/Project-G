@@ -21,7 +21,9 @@ namespace ProjectG // 프로젝트 게임 영역
         BreakthroughBlade, // 세라의 돌파 검기와 비행
         SkyChainSlash, // 세라의 천공 연참
         ShadowCounter, // 녹스가 표식을 써서 발사하는 반격탄
-        BoundaryReversal // 녹스 주변의 적탄 소거와 방사 피해
+        BoundaryReversal, // 녹스 주변의 적탄 소거와 방사 피해
+        DeployVeraTurret, // 베라 마도 포대 설치
+        TurretCrossBeam // 배치한 포대에서 발사하는 교차 광선
     }
 
     [DefaultExecutionOrder(130)] // 자동탄과 카메라 갱신 뒤 발동
@@ -114,12 +116,13 @@ namespace ProjectG // 프로젝트 게임 영역
                         FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 고유기
                         {
                             FlightBroomPilot.Lumi => FlightMagicEffect.StarlightSeekers, // 별빛 추적탄
+                            FlightBroomPilot.Vera => FlightMagicEffect.DeployVeraTurret, // 마도 포대 배치
                             FlightBroomPilot.Nox => FlightMagicEffect.ShadowCounter, // 그림자 반격
                             FlightBroomPilot.Sera => FlightMagicEffect.BreakthroughBlade, // 돌파 검기
                             FlightBroomPilot.Rian => FlightMagicEffect.PiercingShot, // 관통 사격
                             _ => FlightMagicEffect.RapidCycle // 집중 포화
                         };
-                        TrySkill(0, effect, 25, (lumi ? 9f : weapon.IsRian ? 10f : 8f) * scale, false, effect == FlightMagicEffect.RapidCycle ? 3f : 0f); // 조종사별 실제 대기시간
+                        TrySkill(0, effect, 25, (lumi ? 9f : weapon.IsRian || effect == FlightMagicEffect.DeployVeraTurret ? 10f : 8f) * scale, false, effect == FlightMagicEffect.RapidCycle ? 3f : 0f); // 조종사별 실제 대기시간
                     }
                     if (bindings.Pressed(keyboard, FlightAction.Common)) // 설정한 공용기 입력
                     {
@@ -131,6 +134,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     {
                         FlightMagicEffect effect = weapon.ActivePilot switch // 현재 조종사의 필살기
                         {
+                            FlightBroomPilot.Vera => FlightMagicEffect.TurretCrossBeam, // 포대에서만 발사하는 광선
                             FlightBroomPilot.Nox => FlightMagicEffect.BoundaryReversal, // 경계 역전의 3D 소거
                             FlightBroomPilot.Sera => FlightMagicEffect.SkyChainSlash, // 천공 연참
                             FlightBroomPilot.Lumi => FlightMagicEffect.ConstellationRoute, // 별무리 항로
@@ -237,6 +241,10 @@ namespace ProjectG // 프로젝트 게임 영역
                     return weapon.CastPiercingShot(); // 발사 성공 후 마력 소비
                 case FlightMagicEffect.SniperBeam: // 리안의 천공 관측선
                     return weapon.CastSniperBeam(threatPool); // 광선 적중과 경로의 적탄 소거
+                case FlightMagicEffect.DeployVeraTurret: // 베라의 실제 세계 좌표 포대
+                    return weapon.Turret != null && weapon.Turret.Deploy(); // 한 포대의 배치 또는 교체
+                case FlightMagicEffect.TurretCrossBeam: // 실제 포대가 살아 있는 상태의 광선
+                    return weapon.Turret != null && weapon.Turret.CastBeam(); // 포대가 없으면 에너지와 재사용 보존
                 case FlightMagicEffect.ShadowCounter: // 녹스의 표식 소비와 반격탄
                     return weapon.Counter != null && weapon.Counter.CastCounter(); // 표식 0일 때 자원 소비 방지
                 case FlightMagicEffect.BoundaryReversal: // 주변 적탄을 지우고 마물 공격

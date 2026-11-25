@@ -47,6 +47,82 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Application.runInBackground = runInBackground; // 시험 전 백그라운드 실행 복원
         }
 
+        [UnityTest] // 베라의 한 포대 설치와 포대에서 시작하는 광선
+        public IEnumerator VeraSortieTurretStaysPlacedAndGatesBeam() // 미설치·설치·이동·교체·만료의 실제 스킬
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 베라 선택 씬
+            yield return WaitFrames(3); // 현재 출격 버튼과 스탠딩 준비
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 편집 가능한 출격 준비
+            Assert.That(briefing.Find("Ready/SelectVera"), Is.Not.Null); // 여섯 번째 시범 출격 조종사
+            ClickPauseButton(briefing, "Ready/SelectVera"); // 실제 베라를 선택
+            ClickPauseButton(briefing, "Ready/Depart"); // 공방의 선택 캐릭터를 실제 스테이지로
+            yield return WaitForActiveScene(OuterIslandsPath); // 실제 하늘섬 전투
+            Transform pilot = FindPilot(); // 출격에서 조작하는 비행체
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 조종사의 실제 사격
+            Component skills = pilot.GetComponent("FlightSkillController"); // 마력·필살기 자원
+            Component turret = pilot.GetComponent("FlightVeraTurret"); // 현재 마도 포대의 상태
+            var body = GameObject.Find("VeraTurretSite"); // 실제 씬에 배치한 수정 가능한 설치 지점
+            Assert.That(body, Is.Not.Null); // 코드에서 만들지 않는 포대 부품
+            Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Vera")); // 실제 출격 캐릭터
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 독립된 회귀용 상태
+            ((MonoBehaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 자동 웨이브의 다른 적 제외
+            weapon.GetType().GetField("nextShot", hidden).SetValue(weapon, float.PositiveInfinity); // 포대 사격과 플레이어 사격을 분리
+            var members = (Component[])skills.GetType().GetField("defeatRewards", hidden).GetValue(skills); // 실제 마물의 피격 원본
+            foreach (Component original in members) // 자동 웨이브의 기존 적은 검증과 무관
+            {
+                original.gameObject.SetActive(false); // 배치한 포대의 단일 표적으로 분리
+            }
+            Vector3 start = pilot.position; // 포대가 고정될 최초 비행 좌표
+            Vector3 direction = pilot.forward; // 포대 앞의 실제 표적 방향
+            Vector3 right = pilot.right; // 플레이어만 움직일 위치
+            var active = turret.GetType().GetProperty("IsDeployed"); // 포대가 남아 있는 현재 상태
+            var power = turret.GetType().GetProperty("DamageMultiplier"); // 실제 포대 중심의 자동탄 피해 배율
+            skills.GetType().GetMethod("AddUltimate").Invoke(skills, new object[] { 100 }); // 필살기 비용을 먼저 충전
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 포대 없는 상태의 필살기
+            yield return WaitFrames(4); // 조건 확인과 새 입력 간격
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 키 입력 해제
+            Assert.That(Metric(skills, "Ultimate"), Is.EqualTo(100)); // 실제 퇴장 전 자원 보존
+            Assert.That(active.GetValue(turret), Is.False); // 없던 포대를 만들지 않음
+            GameObject target = CloneStationaryTarget(members[0], start + direction * 10f, 800); // 설치된 포대 앞의 실제 구체 표적
+            Physics.SyncTransforms(); // 마물의 실제 3D 충돌 좌표
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 마도 포대 Q 설치
+            yield return WaitFrames(4); // 포대 오브젝트를 켤 시간
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 이후에 계속 누르지 않음
+            Assert.That(active.GetValue(turret), Is.True); // 첫 포대가 실제 배치됨
+            Assert.That(Vector3.Distance(body.transform.position, start), Is.LessThan(0.02f)); // 설치 순간의 월드 위치
+            Assert.That((float)power.GetValue(turret), Is.EqualTo(1.2f).Within(0.001f)); // 반경 2m 안 자동탄 피해 증가
+            Transform rotor = body.transform.Find("Hover/TopPropeller"); // 상단의 편집 가능한 회전자
+            Quaternion spin = rotor.localRotation; // 현재 프레임의 실제 방향
+            yield return new WaitForSeconds(1.42f); // 첫 자동 포대탄의 실제 적중
+            Assert.That(Quaternion.Angle(spin, rotor.localRotation), Is.GreaterThan(4f)); // 멈춰 있지 않은 프로펠러
+            Assert.That(Metric(target.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(790)); // 1초 뒤 첫 포대탄 피해 10
+            Component flight = pilot.GetComponent("FirstFlightController"); // 현재 조종사의 비행 지점
+            Vector3 moved = start + right * 4f; // 포대 범위 밖으로만 이동
+            flight.GetType().GetMethod("ResetFlightPose").Invoke(flight, new object[] { moved, pilot.rotation }); // 플레이어만 이동
+            Assert.That(Vector3.Distance(body.transform.position, start), Is.LessThan(0.02f)); // 포대는 원래 지점 유지
+            Assert.That((float)power.GetValue(turret), Is.EqualTo(1f)); // 바깥에서 자동탄 강화 해제
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 이동 뒤 독립 설치 지점의 광선
+            yield return WaitFrames(4); // 실제 첫 광선 타격
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 같은 R 입력 반복 제한
+            Assert.That(Metric(skills, "Ultimate"), Is.Zero); // 포대가 있을 때만 필살기 소비
+            Assert.That(Metric(target.GetComponent("FlightEnemy"), "Health"), Is.EqualTo(590)); // 포대 앞의 적에게 200 광선 피해
+            var cooldown = (float[])skills.GetType().GetField("readyAt", hidden).GetValue(skills); // 순차 교체를 분리할 실제 슬롯
+            cooldown[0] = Time.time; // 시험에서만 Q 다시 사용 가능
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Q)); // 같은 포대가 새 위치로 교체되는 경로
+            yield return WaitFrames(4); // 설치 지점 오브젝트 갱신
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 실제 새 입력 종료
+            Assert.That(Vector3.Distance(body.transform.position, moved), Is.LessThan(0.02f)); // 기존 포대가 새 위치로 이동하며 교체
+            yield return new WaitForSeconds(8.15f); // 기본 유지 시간이 실제 경과
+            Assert.That(active.GetValue(turret), Is.False); // 만료 시 자동 공격과 상태 종료
+            cooldown[2] = Time.time; // 만료 상태만 분리해서 필살기 사용
+            skills.GetType().GetMethod("AddUltimate").Invoke(skills, new object[] { 100 }); // 새로 충전한 실제 자원
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R)); // 만료된 포대에서 광선 사용 시도
+            yield return WaitFrames(4); // 실제 사용 실패 확인
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 시험의 입력 원상복구
+            Assert.That(Metric(skills, "Ultimate"), Is.EqualTo(100)); // 만료된 포대도 에너지 보존
+            Object.Destroy(target); // 독립 검증용 적 정리
+        }
+
         [UnityTest] // 녹스의 스침·표식과 실제 3D 탄 소거 판정
         public IEnumerator NoxSortieCapsGrazeMarksAndClearsOnlyNearbyThreats() // 표식 0·상한·소비와 주변 소거
         {

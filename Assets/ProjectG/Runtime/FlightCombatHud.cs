@@ -170,7 +170,14 @@ namespace ProjectG // 프로젝트 게임 영역
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치
             bool nox = currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Nox; // 반격 표식이 있는 실제 출격
             int marks = nox && currentWeapon.Counter != null ? currentWeapon.Counter.Marks : 0; // 현재 사용 가능한 녹스 표식
-            if (nox) // 표시할 녹스의 수치를 세 스킬과 공유
+            bool vera = currentWeapon != null && currentWeapon.ActivePilot == FlightBroomPilot.Vera; // 현재 살아 있는 포대의 조종사
+            FlightVeraTurret turret = vera ? currentWeapon.Turret : null; // 포대 상태를 읽는 실제 오브젝트
+            bool hasTurret = turret != null && turret.IsDeployed; // 필살기의 설치 선행 조건
+            if (vera) // 베라에게 보이는 포대 상태와 근처 보너스
+            {
+                rapidLabel.text = hasTurret ? $"포대 {turret.SecondsLeft}초{(turret.DamageMultiplier > 1f ? "  +20%" : "")}" : "포대 미설치"; // 실제 남은 시간과 반경 안 자동탄 보너스
+            }
+            else if (nox) // 표시할 녹스의 수치를 세 스킬과 공유
             {
                 rapidLabel.text = $"반격 표식 {marks} / {FlightNoxCombat.MarkLimit}"; // 현재 출격에서 모은 실제 표식
             }
@@ -193,7 +200,8 @@ namespace ProjectG // 프로젝트 게임 영역
             for (int index = 0; index < slots.Length; index++) // 편집된 세 슬롯 표시
             {
                 SkillSlot slot = slots[index]; // Q·E·R 순서의 실제 슬롯
-                slot.Render(slot.usesUltimate ? ultimatePoints : manaPoints, nox && index == 0 && marks == 0); // 표식 또는 자원 부족의 어두운 그림
+                bool blocked = (nox && index == 0 && marks == 0) || (vera && index == 2 && !hasTurret); // 추가 캐릭터의 스킬 조건
+                slot.Render(slot.usesUltimate ? ultimatePoints : manaPoints, blocked); // 표식 또는 자원 부족의 어두운 그림
             }
         }
     }

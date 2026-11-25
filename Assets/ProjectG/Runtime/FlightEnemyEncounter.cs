@@ -21,6 +21,9 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightBindings bindings; // 설정에서 지정한 웨이브 키
         [SerializeField] private StageWave[] stageWaves = System.Array.Empty<StageWave>(); // 실전 항로의 순차 출현 목록
         [SerializeField, Min(0f)] private float stageEndTime = 80f; // 드롭 회수 구간의 시험 종료 시각
+        [SerializeField] private StageWave[] bossRushWaves = System.Array.Empty<StageWave>(); // 동일 보스의 독립 출현 배열
+        [SerializeField] private FlightExperience experience; // 보스 러시에서 금지할 본편 XP
+        [SerializeField] private FlightEnhancements drops; // 따로 지급하는 일반 항로의 아이템
         private Vector3 openingPosition; // 재출격할 때 첫 적이 나타날 위치
         private Quaternion openingRotation; // 첫 적의 원래 비행 방향
         private bool stopped; // 완료·실패·포기 뒤의 시간 고정 상태
@@ -36,8 +39,9 @@ namespace ProjectG // 프로젝트 게임 영역
         public bool IsPreparing => IsStage && !stopped && ElapsedSeconds < stageWaves[0].startsAt; // 첫 적 출현 시점 전의 실제 준비 구간
         public bool IsMidBossActive => activeBoss is FlightMidBoss; // 웨이브 HUD의 중간 보스 표시
         public bool IsFinalBossActive => activeBoss is FlightFinalBoss; // 전용 HUD의 최종 보스 표시
+        public bool IsBossRush { get; private set; } // 출격 시 결정한 연속 보스 모드
         private bool IsStage => stageWaves.Length > 0; // 실전 웨이브의 씬 등록 여부
-        internal bool CanSwitchPilot => !IsStage || (WaveNumber == 0 && !stopped); // 실전 참여 전에만 조종사 시험 전환
+        internal bool CanSwitchPilot => !IsBossRush && (!IsStage || (WaveNumber == 0 && !stopped)); // 실전 참여 전에만 조종사 시험 전환
         private bool HasOpeningTarget => !IsStage && WaveNumber == 1; // 시험 씬의 시작 표적 표시 여부
 
         public int ActiveEnemyCount // 현재 웨이브에서 아직 보이는 적 수
@@ -88,16 +92,33 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Awake() // 첫 웨이브의 배치 기억
         {
+            IsBossRush = FlightSortieChoice.PendingBossRush && bossRushWaves.Length > 0; // 다음 씬으로 전달한 실제 보스 모드
+            if (IsBossRush) // 저장된 런타임 배열만 다른 방식으로 선택
+            {
+                stageWaves = bossRushWaves; // 현재 씬의 보스 두 기만 연속 출현
+            }
             if (IsStage) // 실전 씬의 준비 상태
             {
                 WaveNumber = 0; // 첫 출현 전까지 웨이브 미시작
                 playerWeapon = pilot.GetComponent<FlightWeapon>(); // 정식 출격의 실제 과제 공급원
-                FlightProgress.Current.Recover(); // 에디터에서 항로를 직접 연 경우에도 전 실행의 출격 처리
+                if (!IsBossRush) // 별도 보스 모드에서는 진행 저장 조작 없음
+                {
+                    FlightProgress.Current.Recover(); // 본편을 직접 열었을 때 이전 출격 복원
+                }
             }
             else if (openingEnemy != null) // 편집 가능한 시작 표적
             {
                 openingPosition = openingEnemy.transform.position; // 초기 등장 위치
                 openingRotation = openingEnemy.transform.rotation; // 초기 회전
+            }
+        }
+
+        private void Start() // 본편과 분리한 모드의 보상과 성장 설정
+        {
+            if (IsBossRush) // 연속 보스는 시작 조합으로 비교
+            {
+                experience.enabled = false; // 레벨업과 경험치 조각 제외
+                drops.enabled = false; // 중간 보스의 본편 강화 아이템 제외
             }
         }
 
@@ -208,7 +229,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 StageWave next = stageWaves[WaveNumber]; // 현재 번호에 이어지는 웨이브
                 if (ElapsedSeconds >= phaseStartedAt + next.startsAt) // 현재 전투 구간의 출현 시간 이후
                 {
-                    if (WaveNumber == 0) // 정식 출격의 실제 첫 웨이브
+                    if (WaveNumber == 0 && !IsBossRush) // 본편에서만 실제 참여와 영구 보상을 등록
                     {
                         FlightBroomPilot actor = playerWeapon.ActivePilot; // 참가 시점의 실제 조종사
                         sortieId = FlightProgress.Current.Begin(actor); // 마물이 나오기 직전의 내구성 있는 참여 기록
@@ -248,6 +269,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 IsStageComplete = true; // 출격 성공과 전투·전체 시각 확정
                 StopStage(); // 보스 적탄과 이후 웨이브 종료
                 return; // 후속 일반 전투 없음
+            }
+            if (IsBossRush) // 연속 보스 사이의 시험 회복 조건
+            {
+                pilot.Heal(pilot.MaxHealth); // 실제 체력을 최대까지 회복
+                pilot.GetComponent<FlightSkillController>().RefillMana(); // 다음 전투 시작 전 마력 복원
             }
             phaseStartedAt = ElapsedSeconds; // 보스 격파가 늦어져도 이후 시간은 격파 기준
             pool.ReturnAll(); // 보스가 남긴 적탄 회수

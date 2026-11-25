@@ -36,6 +36,8 @@ Windows 빌드는 `Assets/Scenes/FlightMainMenu.unity`에서 시작합니다. �
 
 출격 준비에서 **자유 훈련** 또는 F4를 누르면 선택한 조종사로 자유 비행, 표적 사격, 마물 경로와 네 가지 탄막을 연습합니다. 설정에서 한 번 또는 반복을 고르고 같은 연습을 초기화할 수 있습니다. 경험치·강화 아이템·영구 보상 지급은 본편에서 진행합니다. [자유 훈련 메뉴](docs/screenshots/3d-day-41-training.png) · [고리 탄막 훈련](docs/screenshots/3d-day-41-ring.png)
 
+출격 준비에서 **보스 러시** 또는 F5를 누르면 현재 조종사와 장비로 중간·최종 보스를 연속으로 상대합니다. 중간 보스 격파 후 체력·마력을 회복하며 클리어 시간은 조종사별로 기록합니다. [보스 러시 진입](docs/screenshots/3d-day-42-briefing.png) · [최종 보스](docs/screenshots/3d-day-42-final-boss.png) · [보스 러시 결과](docs/screenshots/3d-day-42-result.png) · [42일차 기록](docs/development/3d-day-42.md)
+
 출격 준비에서 **첫 비행 안내** 또는 F1을 누르면 이동·집중·자동 사격·그레이즈·스킬을 연습합니다. Enter로 출격 준비에 돌아갈 수 있고, Tab으로 마우스 포인터를 전환해 안내 버튼을 클릭할 수 있습니다. [1024×576 첫 비행 안내](docs/screenshots/3d-day-27-guide-1024.png) · [4:3 출격 준비](docs/screenshots/3d-day-27-briefing-4x3.png) · [27일차 기록](docs/development/3d-day-27.md)
 
 ---

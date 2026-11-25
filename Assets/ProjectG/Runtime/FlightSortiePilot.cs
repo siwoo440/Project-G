@@ -10,6 +10,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private static FlightBroomPilot? pending; // 출발 승인 후 다음 항로에서 읽을 조종사
 
         internal static FlightBroomPilot Initial => preparing; // 출격 준비의 시작 선택
+        internal static bool PendingBossRush { get; private set; } // 같은 항로 씬의 연속 보스 모드 전달
         internal static bool ViaVillage { get; private set; } // 준비에서 돌아갈 실제 입장 경로
 
         internal static void RememberPilot(FlightBroomPilot selected) // 연습과 마을을 오가는 임시 조종사 선택
@@ -22,6 +23,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             preparing = FlightBroomPilot.Aria; // 최초 캐릭터의 기본값
             pending = null; // 승인된 출격 없음
+            PendingBossRush = false; // 새 실행에서는 일반 항로
             ViaVillage = false; // 시작하지 않은 마을 동선
         }
 
@@ -30,6 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
             var previous = (FlightBroomPilot)(resume && FlightTitleSettings.CanStore ? PlayerPrefs.GetInt(FlightTitleSettings.Key("Pilot"), 0) : 0); // 마지막으로 출발한 조종사 값
             preparing = FlightPilotRoster.CanSelect(previous) ? previous : FlightBroomPilot.Aria; // 현재 선택할 수 있는 조종사 복원
             pending = null; // 새로운 시작 선택의 이전 값 제거
+            PendingBossRush = false; // 타이틀에서 이전 모드 요청 제거
             ViaVillage = false; // 착륙장에서 출격소를 찾아가는 새 진입
         }
 
@@ -41,6 +44,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal static void Launch(FlightBroomPilot selected) // 출발 확정에서만 저장
         {
             pending = selected; // 실제 출격 시작점까지 전달
+            PendingBossRush = false; // 일반 출격 버튼에 맞는 모드
             ViaVillage = false; // 마을과 준비의 임시 방문이 끝난 상태
             if (FlightTitleSettings.CanStore) // 플레이어 또는 독립 시험의 저장 환경
             {
@@ -50,10 +54,18 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal static void LaunchBossRush(FlightBroomPilot selected) // 일반 이어서하기에 영향 없는 보스 연속 모드
+        {
+            pending = selected; // 전투에서 사용하는 조종사
+            PendingBossRush = true; // 씬의 별도 웨이브 묶음 사용
+            ViaVillage = false; // 현재 조합을 실전에 전달하고 준비는 닫음
+        }
+
         internal static FlightBroomPilot Consume() // 다음 실제 전투가 선택을 한 번 읽기
         {
             FlightBroomPilot selected = pending ?? FlightBroomPilot.Aria; // 선택 없이 씬을 열면 기존 기본값
             pending = null; // 다음 독립 테스트로 조종사가 넘어가지 않게 제거
+            PendingBossRush = false; // 씬의 Awake에서 읽은 임시 모드 비우기
             return selected; // 이번 씬의 시작 조종사
         }
     }

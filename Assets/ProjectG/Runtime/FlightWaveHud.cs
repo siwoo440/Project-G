@@ -32,7 +32,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 shownComplete = encounter.IsStageComplete; // 표시한 항로 완료 상태
                 shownBoss = encounter.IsMidBossActive; // 표시한 중간 보스 상태
                 shownFinal = encounter.IsFinalBossActive; // 표시한 최종 보스 상태
-                wave.text = shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownComplete ? "항로 완료" : shownWave == 0 ? "준비" : $"Wave : {shownWave}"; // 전투 구간에 맞는 표기
+                if (encounter.IsBossRush) // 시험 보스 러시의 중간 상태 포함
+                {
+                    wave.text = shownComplete ? "도전 완료" : shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownWave > 0 ? "보스 전환" : "보스 러시"; // 출격 준비·휴식·전투 단계
+                }
+                else
+                {
+                    wave.text = shownFinal ? "최종 보스" : shownBoss ? "중간 보스" : shownComplete ? "항로 완료" : shownWave == 0 ? "준비" : $"Wave : {shownWave}"; // 전투 구간에 맞는 표기
+                }
             }
             int enemies = encounter.ActiveEnemyCount; // 현재 씬에 남은 마물 수
             if (shownEnemies != enemies) // 처치 또는 이탈로 달라진 값

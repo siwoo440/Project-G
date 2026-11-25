@@ -2718,6 +2718,108 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(3); // 다음 대사로 들어갈 수 있는 별도 입력
         }
 
+        [UnityTest] // 두 보스와 모드별 정산을 실제 배포 씬에서 확인
+        public IEnumerator BossRushPreservesTheNormalSaveAndRecordsOnlyClears() // 시제품의 회복·페이즈·같은 모드 재도전
+        {
+            const string flag = "PROJECTG_MENU_TEST_KEY"; // 현재 설정과 분리한 테스트 경로
+            string prior = System.Environment.GetEnvironmentVariable(flag); // 이전 테스트 환경의 저장 값
+            string root = "ProjectG.BossRush.Test." + System.Guid.NewGuid().ToString("N"); // 이 조종사의 기록과 이어서하기
+            string recordKey = root + ".BossRush.Best.2"; // 루미의 실제 최고 기록
+            System.Environment.SetEnvironmentVariable(flag, root); // 실제 사용자 설정과 분리
+            try
+            {
+                PlayerPrefs.SetString(root + ".Resume", "ExistingStory"); // 기존의 본편 계속하기 기록
+                PlayerPrefs.SetInt(root + ".Pilot", 1); // 일반 출격을 마지막으로 한 리안
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 기존 출격 준비
+                yield return WaitFrames(3); // 버튼과 조종사 연결 대기
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 현재 장비와 마법의 준비 세트
+                ClickPauseButton(briefing, "Ready/SelectLumi"); // 저장된 본편 조종사와 다른 루미
+                ClickPauseButton(briefing, "Ready/BossRush"); // 실제 별도 모드 버튼
+                yield return WaitForActiveScene(OuterIslandsPath); // 실제 보스가 있는 항로
+                Transform pilot = FindPilot(); // 현재 조종사 기체
+                Component weapon = pilot.GetComponent("FlightWeapon"); // 명중 제어와 선택한 조종사
+                Assert.That(weapon.GetType().GetProperty("ActivePilot").GetValue(weapon).ToString(), Is.EqualTo("Lumi")); // 실제 조종사 전달
+                Assert.That(BroomAction(pilot.GetComponent("FlightBroomEquipment"), "GetEquippedId", "Lumi", "Body"), Does.StartWith("lumi.")); // 현재 장비 편성 전달
+                ((Behaviour)weapon).enabled = false; // 우연한 처치와 분리한 보스 타이밍 검증
+                Component vitals = pilot.GetComponent("FlightPilotVitals"); // 단일 피해와 회복의 실제 대상
+                Component skills = pilot.GetComponent("FlightSkillController"); // 마력과 필살기
+                Transform encounter = GameObject.Find("EnemyEncounter").transform; // 본편 보스의 기존 배치
+                Component timeline = encounter.GetComponent("FlightEnemyEncounter"); // 별도 시간표
+                Assert.That(timeline.GetType().GetProperty("IsBossRush").GetValue(timeline), Is.EqualTo(true)); // 준비에서 선택한 모드
+                Assert.That(PlayerPrefs.GetString(root + ".Resume"), Is.EqualTo("ExistingStory")); // 일반 이어서하기 보존
+                Assert.That(PlayerPrefs.GetInt(root + ".Pilot"), Is.EqualTo(1)); // 기존 조종사 보존
+                Transform combat = LocateCombatHud().transform; // 보스 러시에서도 쓰는 실제 전투 HUD
+                Assert.That(combat.Find("FirstIncidentBroadcast/Transmission").gameObject.activeSelf, Is.False); // 본편 통신 분리
+                Time.captureDeltaTime = 0.1f; // 보스 사이 시간을 합리적으로 단축한 테스트
+                yield return AdvanceStageTo(timeline, 3.7f); // 첫 전투는 중간 보스
+                Transform middle = encounter.Find("MidBoss"); // 본편과 동일한 실제 보스
+                Assert.That(middle.gameObject.activeSelf, Is.True); // 일반 웨이브 없는 첫 전투
+                Assert.That(Metric(timeline, "WaveNumber"), Is.EqualTo(1)); // 모드 전용 첫 출현
+                Assert.That(Metric(timeline, "ActiveEnemyCount"), Is.EqualTo(1)); // 보스 한 개체
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 시험용 피격과 마나 상태
+                var pilotHit = vitals.GetType().GetMethod("ResolveThreat", hidden); // 게임의 공통 피해 함수
+                pilotHit.Invoke(vitals, new object[] { Vector3.zero, Vector3.forward, .1f, 35, false, false }); // 회복 전에 실제 피해 발생
+                Assert.That(Metric(vitals, "Health"), Is.LessThan(Metric(vitals, "MaxHealth"))); // 실제 회복할 체력
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 10f); // 시험용 마나 소진
+                skills.GetType().GetField("ultimate", hidden).SetValue(skills, 25f); // 회복 구간에서 잃지 않을 충전
+                Component mid = middle.GetComponent("FlightEnemy"); // 실제 보스 피격과 정산
+                mid.GetType().GetMethod("ReceiveHit").Invoke(mid, new object[] { 900 }); // 통제된 중간 보스 격파
+                float defeated = StageTime(timeline, "ElapsedSeconds"); // 최종 보스 출현 기준
+                Assert.That(Metric(vitals, "Health"), Is.EqualTo(Metric(vitals, "MaxHealth"))); // 중간 회복 조건
+                Assert.That(Metric(skills, "Mana"), Is.EqualTo(Metric(skills, "MaxMana"))); // 최대 마력
+                Assert.That(Metric(skills, "Ultimate"), Is.GreaterThanOrEqualTo(25)); // 앞에서 충전한 값 보존
+                Assert.That(Metric(GetThreatPool(), "ActiveCount"), Is.Zero); // 앞 보스 적탄 정리
+                Assert.That(((Behaviour)GameObject.Find("EnhancementDrops").GetComponent("FlightEnhancements")).enabled, Is.False); // 강화 드롭 제외
+                Assert.That(PlayerPrefs.HasKey(recordKey), Is.False); // 중간 격파로 최고 기록을 만들지 않음
+                vitals.GetType().GetMethod("GrantProtection").Invoke(vitals, new object[] { 40f }); // 최종 보스 단계 검증의 통제 보호
+                yield return AdvanceStageTo(timeline, defeated + 2.3f); // 준비 여유 내 기존 탄막 없음
+                Transform final = encounter.Find("FinalBoss"); // 현재 최종 보스 오브젝트
+                Assert.That(final.gameObject.activeSelf, Is.False); // 2.6초 전에는 최종 보스 미출현
+                yield return AdvanceStageTo(timeline, defeated + 4.75f); // 최종 보스가 실제로 입장
+                Component finalLife = final.GetComponent("FlightEnemy"); // 체력 단계와 공통 충돌
+                Component finalPhases = final.GetComponent("FlightFinalBoss"); // 실제 보스 패턴
+                Assert.That(Metric(finalPhases, "Phase"), Is.EqualTo(1)); // 첫 페이즈에서 시작
+                Assert.That(finalPhases.GetType().GetProperty("IsEntering").GetValue(finalPhases), Is.EqualTo(false)); // 진입 중에는 피해를 받지 않는 기존 규칙
+                var finalHit = finalLife.GetType().GetMethod("ReceiveHit"); // 자동 사격과 동일한 피해 진입점
+                for (int phase = 2; phase <= 3; phase++) // 두 체력 경계가 차례로 활성화
+                {
+                    finalHit.Invoke(finalLife, new object[] { 2000 }); // 단일 피해로도 단계 건너뛰기 방지
+                    yield return AdvanceStageTo(timeline, StageTime(timeline, "ElapsedSeconds") + 1.65f); // 다음 패턴이 시작될 때까지 진행
+                    Assert.That(Metric(finalPhases, "Phase"), Is.EqualTo(phase)); // 원래 보스의 실제 페이즈
+                }
+
+                finalHit.Invoke(finalLife, new object[] { 600 }); // 실제 최종 클리어
+                yield return WaitFrames(4); // 정산과 기록 저장
+                int best = PlayerPrefs.GetInt(recordKey); // 사용자 기록 저장 경로
+                Assert.That(best, Is.GreaterThan(0)); // 실제로 완료한 기록만 저장
+                ClickPauseButton(combat.Find("SortieEnd"), "Open"); // 기존 결과 씬 진입
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 좌우로 분리한 결과
+                Transform result = GameObject.Find("SortieResult").transform; // 조종사와 기록의 실제 결과
+                Assert.That(HudText(result.Find("Panel/Outcome")), Is.EqualTo("보스 러시 완료")); // 다른 모드의 제목
+                Assert.That(HudText(result.Find("Panel/Rewards")), Does.Contain("신기록")); // 저장한 실제 백분의 일 초
+                Assert.That(HudText(result.Find("Panel/Level")), Is.EqualTo("LV. 1")); // XP 없이 처음 조합의 레벨 보존
+                Assert.That(result.Find("PortraitArea/StandingIllustration").GetComponent<RawImage>().texture.name, Is.EqualTo("LumiStanding")); // 실제 도전 조종사의 스탠딩
+                ClickPauseButton(result, "Panel/Retry"); // 같은 모드로 다시 시작
+                yield return WaitForActiveScene(OuterIslandsPath); // 다시 두 보스의 별도 항로
+                Transform retryPilot = FindPilot(); // 같은 캐릭터로 새로 시작
+                Assert.That(retryPilot.GetComponent("FlightWeapon").GetType().GetProperty("ActivePilot").GetValue(retryPilot.GetComponent("FlightWeapon")).ToString(), Is.EqualTo("Lumi")); // 다른 캐릭터 혼입 방지
+                Component retry = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 신규 도전의 모드
+                Assert.That(retry.GetType().GetProperty("IsBossRush").GetValue(retry), Is.EqualTo(true)); // 본편으로 돌아가지 않음
+                pilotHit.Invoke(retryPilot.GetComponent("FlightPilotVitals"), new object[] { Vector3.zero, Vector3.forward, .1f, 120, false, false }); // 빠른 패배도 같은 판정
+                yield return WaitFrames(4); // 실제 실패 기록 시점
+                Assert.That(PlayerPrefs.GetInt(recordKey), Is.EqualTo(best)); // 실패가 성공 기록을 덮지 않음
+                Assert.That(PlayerPrefs.GetString(root + ".Resume"), Is.EqualTo("ExistingStory")); // 다시하기와 실패도 본편을 보존
+                Assert.That(PlayerPrefs.HasKey(root + ".BossRush.Best.1"), Is.False); // 다른 조종사의 기록과 분리
+            }
+            finally
+            {
+                PlayerPrefs.DeleteKey(recordKey); // 테스트 최고 기록 삭제
+                PlayerPrefs.DeleteKey(root + ".Resume"); // 독립 시험 계속하기 삭제
+                PlayerPrefs.DeleteKey(root + ".Pilot"); // 독립 시험 조종사 선택 삭제
+                System.Environment.SetEnvironmentVariable(flag, prior); // 원래 저장 환경 복귀
+            }
+        }
+
         [UnityTest] // 실패 결과와 같은 캐릭터의 새 출격
         public IEnumerator SortieResultRetriesSamePilotAndClearsOldCombatState() // 전투 → 결과 → 재출격
         {

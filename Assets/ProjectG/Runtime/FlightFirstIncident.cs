@@ -37,6 +37,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 content.text = script.Archive; // 실제 게임이 공유하는 세계관 문장
                 return; // 열람에 전투 시계 없음
             }
+            if (encounter.IsBossRush) // 별도 보스 시험에 본편의 첫 사건을 소비하지 않음
+            {
+                enabled = false; // 기록과 실제 서사는 이후 본편에서 실행
+                return; // 보스 러시에는 본편의 조우 문구 제외
+            }
             if (!openingViewed && (weapon.ActivePilot is FlightBroomPilot.Aria or FlightBroomPilot.Rian)) // 기획서의 첫 만남에 해당하는 두 조종사
             {
                 openingViewed = true; // 재출격해도 같은 도입을 반복하지 않음

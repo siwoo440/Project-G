@@ -16,8 +16,11 @@ namespace ProjectG // 프로젝트 게임 영역
         internal readonly int Grazes; // 인정한 근접 회피 수
         internal readonly int Level; // 이번 출격에서 도달한 레벨
         internal readonly FlightProgressReceipt Receipt; // 같은 출격 ID의 실제 정산 영수증
+        internal readonly bool BossRush; // 본편 또는 두 보스 연속 도전
+        internal readonly int BestTime; // 조종사의 최고 기록 백분의 일 초
+        internal readonly bool NewRecord; // 이번 성공으로 단축한 기록
 
-        internal FlightSortieReport(bool cleared, FlightBroomPilot pilot, float combat, float total, long score, int defeats, int grazes, int level, FlightProgressReceipt receipt) // 결과로 전달할 동결 값
+        internal FlightSortieReport(bool cleared, FlightBroomPilot pilot, float combat, float total, long score, int defeats, int grazes, int level, FlightProgressReceipt receipt, bool bossRush = false, int bestTime = 0, bool newRecord = false) // 결과로 전달할 동결 값
         {
             Cleared = cleared; // 승리와 실패 표시
             Pilot = pilot; // 같은 조종사로 다시 출격
@@ -28,6 +31,9 @@ namespace ProjectG // 프로젝트 게임 영역
             Grazes = grazes; // 전투의 실제 스침
             Level = level; // 마지막 성장 상태
             Receipt = receipt; // 영구 보상과 정산 완료 여부
+            BossRush = bossRush; // 끝난 도전의 실제 모드
+            BestTime = bestTime; // 종료 시점에 확정된 조종사 기록
+            NewRecord = newRecord; // 이번 도전에서 갱신한 여부
         }
     }
 
@@ -84,8 +90,11 @@ namespace ProjectG // 프로젝트 게임 영역
             bool cleared = stage.IsStageComplete && !pilot.IsDefeated; // 실제 전투 성공 여부
             FlightBroomPilot current = weapon.ActivePilot; // 스킬·장비의 실제 조종사
             FlightProgressReceipt receipt = stage.Conclude(cleared); // 결과 보기 전에 보상과 완료 ID를 함께 저장
-            snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt); // 결과에 복제할 확정값
-            heading.text = cleared ? "출격 완료" : "출격 실패"; // 전투에 표시할 실제 결과
+            bool rush = stage.IsBossRush; // 종료한 실제 보스 모드
+            bool newRecord = rush && cleared && FlightBossRushRecords.TryRecord(current, stage.ElapsedSeconds); // 두 보스를 모두 격파한 전투 기록
+            int bestTime = rush ? FlightBossRushRecords.Best(current) : 0; // 보스 모드의 조종사별 최고 기록
+            snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt, rush, bestTime, newRecord); // 결과에 복제할 확정값
+            heading.text = $"{(rush ? "보스 러시" : "출격")} {(cleared ? "완료" : "실패")}"; // 전투에 표시할 실제 결과
             flight.SetSortieEnded(true); // 결과 확인에 쓸 클릭이 비행으로 넘어가지 않도록 분리
             priorLock = Cursor.lockState; // 현재 전투의 커서 제어 기록
             priorVisible = Cursor.visible; // 현재 표시 상태 저장

@@ -60,10 +60,13 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             FlightAudio.ShowResult(report.Cleared); // 실제 클리어와 실패의 다른 결과곡
-            incident?.ShowResult(report.Cleared); // 같은 작전 기록에 현재 결과만 표시
-            outcome.text = report.Cleared ? "출격 완료" : "출격 실패"; // 실제 최종 결과 구분
-            pilotName.text = $"{FlightPilotRoster.Name(report.Pilot)}  ·  하늘섬 외곽 항로"; // 종료한 캐릭터 확인
-            combatTime.text = FormatTime(report.CombatSeconds); // 실제 전투 시계의 분과 초
+            if (!report.BossRush) // 일반 항로의 실제 작전 결과만 보관
+            {
+                incident?.ShowResult(report.Cleared); // 같은 작전 기록에 현재 결과만 표시
+            }
+            outcome.text = $"{(report.BossRush ? "보스 러시" : "출격")} {(report.Cleared ? "완료" : "실패")}"; // 실제 최종 결과 구분
+            pilotName.text = $"{FlightPilotRoster.Name(report.Pilot)}  ·  {(report.BossRush ? "보스 러시" : "하늘섬 외곽 항로")}"; // 종료한 조종사와 모드
+            combatTime.text = report.BossRush ? FlightBossRushRecords.Format(Mathf.RoundToInt(report.CombatSeconds * 100f)) : FormatTime(report.CombatSeconds); // 보스 기록 초 아래 두 자리
             totalTime.text = FormatTime(report.TotalSeconds); // 정지 시간을 포함한 분과 초
             score.text = report.Score.ToString("N0"); // 실제 게임 점수
             defeats.text = report.Defeats.ToString(); // 최종 보스를 포함한 격파 수
@@ -73,6 +76,10 @@ namespace ProjectG // 프로젝트 게임 영역
             string firstTask = receipt?.FirstTask == true ? "   ·   첫 과제 완료" : string.Empty; // 이번 출격에서만 지급한 증표의 이유
             rewards.text = receipt != null ? $"숙련도 +{receipt.Mastery}   ·   조율의 증표 +{receipt.Marks}{firstTask}" // 조종사 보상과 증표
                 : FlightProgress.Current.Error ?? "전투 참여 보상 없음"; // 실패한 저장 또는 참여 전 종료
+            if (report.BossRush) // 영구 보상 대신 조종사별 도전 기록 표시
+            {
+                rewards.text = report.BestTime == 0 ? "최고 기록 없음" : $"{(report.NewRecord ? "신기록" : "최고 기록")}  {FlightBossRushRecords.Format(report.BestTime)}"; // 성공 기록의 동일한 시간 단위
+            }
             crystals?.Show(receipt?.Crystals, true); // 실제 확정한 출격 결정 증가량
             gold?.Show(receipt?.Gold, true); // 실제 확정한 출격 골드 증가량
         }
@@ -121,7 +128,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 직접 열었을 때는 메인 이동만 가능
             }
             moving = true; // 클릭과 Enter 중복 취소
-            FlightSortieChoice.Launch(report.Pilot); // 이번에 끝난 실제 조종사로 준비
+            if (report.BossRush) // 재도전 때 동일한 모드 보존
+            {
+                FlightSortieChoice.LaunchBossRush(report.Pilot); // 저장된 본편 이어서하기를 유지한 재도전
+            }
+            else
+            {
+                FlightSortieChoice.Launch(report.Pilot); // 이번에 끝난 실제 조종사로 준비
+            }
             SceneManager.LoadSceneAsync(FlightSortieChoice.StageScene); // 실전 씬을 새로 로드하여 전투 상태 초기화
         }
 

@@ -35,6 +35,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private Button firstSortieGuide; // 선택형 첫 비행 안내
         [SerializeField] private FlightFirstIncident incident; // 출격 준비에서 읽는 첫 사건 기록
         [SerializeField] private Button freeTraining; // 정식 출격과 따로 여는 연습 메뉴
+        [SerializeField] private Button bossRush; // 두 보스를 연속으로 만나 기록할 별도 모드
         private FlightBroomPilot pilot; // 선택 화면의 현재 조종사
         private bool moving; // 중복 씬 전환 방지
 
@@ -66,6 +67,7 @@ namespace ProjectG // 프로젝트 게임 영역
             editMagic.onClick.AddListener(OpenMagic); // 기존 제작 마법 화면 연결
             firstSortieGuide.onClick.AddListener(OpenGuide); // 독립된 비행 연습 연결
             freeTraining?.onClick.AddListener(OpenTraining); // 자유 훈련으로 현재 조종사 전달
+            bossRush?.onClick.AddListener(OpenBossRush); // 기존 보스와 같은 충돌·패턴의 연속 도전
             Choose(FlightPilotRoster.CanSelect(FlightSortieChoice.Initial) ? FlightSortieChoice.Initial : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
         }
 
@@ -95,6 +97,11 @@ namespace ProjectG // 프로젝트 게임 영역
             if (!ready.activeSelf) // 세부 화면에서 캐릭터와 출발 입력 차단
             {
                 return; // 편집 중인 상태 보존
+            }
+            if (keyboard.f5Key.wasPressedThisFrame) // 두 보스를 연이어 만나는 별도 모드
+            {
+                OpenBossRush(); // 배치된 보스 러시 버튼의 같은 행동
+                return; // 출격 키와 중복 진입 방지
             }
             if (keyboard.f4Key.wasPressedThisFrame) // 현재 조종사와 자유 훈련 열기
             {
@@ -197,6 +204,17 @@ namespace ProjectG // 프로젝트 게임 영역
             moving = true; // 다른 버튼과 키 입력 차단
             FlightSortieChoice.Launch(pilot); // 출발을 확정하고 플레이어에 전달
             SceneManager.LoadSceneAsync(FlightSortieChoice.StageScene); // 실제 하늘섬 외곽 항로
+        }
+
+        private void OpenBossRush() // 장비 편성으로 실제 첫 보스에 들어가는 진입
+        {
+            if (moving) // 한 프레임에 입력이 겹쳐도 한 번만
+            {
+                return; // 이미 시작된 화면 전환 보존
+            }
+            moving = true; // 중복 준비 버튼 차단
+            FlightSortieChoice.LaunchBossRush(pilot); // 지금 선택한 장비와 마법의 조종사
+            SceneManager.LoadSceneAsync(FlightSortieChoice.StageScene); // 실제 보스의 월드 위치와 동작
         }
 
         private void OpenTraining() // 첫 항로에 참여하지 않는 자유 훈련 요청

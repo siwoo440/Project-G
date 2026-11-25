@@ -168,6 +168,12 @@ namespace ProjectG // 프로젝트 게임 영역
             ShowResources(); // 현재 마력과 에너지 표시
         }
 
+        internal void RefillMana() // 연속 보스 사이에 시전 조건만 복구
+        {
+            mana = MaxMana; // 현재 조합의 최대 마력
+            ShowResources(); // 필살기 충전과 쿨타임을 유지한 HUD
+        }
+
         internal void ResetRun() // 새 출격의 자원과 사용 가능 시각
         {
             mana = MaxMana; // 새 출격의 장착 마력으로 초기화

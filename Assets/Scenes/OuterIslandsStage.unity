@@ -20912,6 +20912,15 @@ MonoBehaviour:
     enemies: []
     boss: {fileID: 1772971609}
   stageEndTime: 65
+  bossRushWaves:
+  - startsAt: 2.5
+    enemies: []
+    boss: {fileID: 1936174849}
+  - startsAt: 2.6
+    enemies: []
+    boss: {fileID: 1772971609}
+  experience: {fileID: 699633218}
+  drops: {fileID: 158209855}
 --- !u!4 &892431605
 Transform:
   m_ObjectHideFlags: 0

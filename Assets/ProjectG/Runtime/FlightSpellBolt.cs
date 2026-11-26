@@ -151,9 +151,9 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 int prior = enemy.Health; // 무적·페이즈 잠금 전의 체력
                 enemy.ReceiveHit(amount); // 실제 체력 갱신
-                rapidFire?.RecordHit(); // 기존 속사 사격 누적
-                if (enemy.Health < prior) // 무적과 제한으로 변화가 없으면 과제에서 제외
+                if (enemy.Health < prior) // 무적과 제한으로 변화가 없으면 유효 적중에서 제외
                 {
+                    rapidFire?.RecordHit(); // 실제 피해가 발생한 속사 누적
                     onHit?.Invoke(enemy, weakPoint != null); // 마물의 실제 유효 적중만 성장에 전달
                 }
             }

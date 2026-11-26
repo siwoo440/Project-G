@@ -2020,9 +2020,18 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(HudText(hud.Find("PhaseDots/Dot3")), Is.EqualTo("●")); // 마지막 점도 점등
             var fill = (RectTransform)hud.Find("Fill"); // 체력에 비례해 붉은 길이가 변하는 사각형
             float full = fill.rect.width; // 가득 찬 체력 길이
+            Component rapid = pilot.GetComponent("FlightRapidFire"); // 아리아의 실제 속사 누적
+            var boltType = System.Type.GetType("ProjectG.FlightSpellBolt, Assembly-CSharp"); // 기본탄의 실제 피해 경로
+            var applyDamage = boltType.GetMethod("ApplyDamage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 탄환 적중 판정
+            float beforeValidHit = Percent(rapid); // 정상 적중 전 누적
+            applyDamage.Invoke(null, new object[] { life, 1, null, 0f, rapid, null, null }); // 피해가 들어가는 기본탄
+            Assert.That(Percent(rapid), Is.EqualTo(beforeValidHit + 1f)); // 유효 적중의 속사 누적
 
             hit.Invoke(life, new object[] { 3000 }); // 여러 경계를 넘는 큰 단일 피해
             hit.Invoke(life, new object[] { 3000 }); // 같은 프레임의 연속 피해
+            float beforeBlockedHit = Percent(rapid); // 보스 전환 무적 전 누적
+            applyDamage.Invoke(null, new object[] { life, 1, null, 0f, rapid, null, null }); // 전환 무적 중 기본탄 접촉
+            Assert.That(Percent(rapid), Is.EqualTo(beforeBlockedHit)); // 피해 없는 접촉의 누적 제외
             float phaseTwo = StageTime(timeline, "ElapsedSeconds"); // 실제 첫 전환 시각
             Assert.That(Metric(life, "Health"), Is.EqualTo(1000)); // 초과 피해 폐기와 중복 피해 차단
             Assert.That(Metric(pool, "ActiveCount"), Is.Zero); // 첫 패턴의 모든 잔류탄 회수
@@ -7836,12 +7845,22 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             enemy.transform.position = pilot.position + Vector3.forward * 11f; // 추가탄 범위 안의 실제 위치
             apply.Invoke(upgrades, new[] { System.Enum.Parse(reward, "ChaseSecond") }); // 확인된 추격 두 번째 노드 효과
             var ariaHit = weapon.GetType().GetMethod("OnAriaHit", hidden); // 물리 적중이 전달하는 실제 처리
+            var startTask = weapon.GetType().GetMethod("StartFirstTask", hidden); // 실제 출격 과제 초기화
+            var taskReady = weapon.GetType().GetProperty("FirstTaskReady", hidden); // 과제 달성 판정
+            startTask.Invoke(weapon, null); // 아리아의 출격별 적중 초기화
             int shots = Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length; // 기존 탄 수 기준
             for (int i = 0; i < 10; i++) // 한 대상 두 묶음의 같은 프레임 적중
             {
                 ariaHit.Invoke(weapon, new object[] { enemy, false }); // 같은 실제 마물의 피해 관찰
             }
             Assert.That(Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length, Is.EqualTo(shots + 1)); // 다섯 회 충족과 초당 한 번 제한
+            for (int i = 0; i < 39; i++) // 아리아의 마흔아홉 번째 유효 적중까지
+            {
+                ariaHit.Invoke(weapon, new object[] { enemy, false }); // 실제 적중 콜백
+            }
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(false)); // 50회 미만 보상 차단
+            ariaHit.Invoke(weapon, new object[] { enemy, false }); // 쉰 번째 유효 적중
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(true)); // 확정 과제 달성
             apply.Invoke(upgrades, new[] { System.Enum.Parse(reward, "SpreadSecond") }); // 선택한 확산 후속 카드
             weapon.GetType().GetMethod("BeginRapidFire").Invoke(weapon, null); // 실제 Q의 집중 포화 상태 시작
             var nextSpread = weapon.GetType().GetField("nextSpread", hidden); // 첫 0.5초 간격의 발사 시각
@@ -7861,6 +7880,21 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             rianHit.Invoke(weapon, new object[] { enemy, true }); // 첫 유효 약점 피해
             rianHit.Invoke(weapon, new object[] { enemy, true }); // 같은 순간의 중복 약점
             Assert.That(readyAt[0], Is.EqualTo(prior - 0.2f).Within(0.001f)); // 초당 한 번과 정확한 0.2초
+            startTask.Invoke(weapon, null); // 리안의 새 출격 과제 초기화
+            for (int i = 0; i < 10; i++) // 몸통 적중 열 번
+            {
+                rianHit.Invoke(weapon, new object[] { enemy, false }); // 약점이 아닌 실제 피해
+            }
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(false)); // 몸통 적중 제외
+            for (int i = 0; i < 9; i++) // 아홉 번째 약점 적중까지
+            {
+                rianHit.Invoke(weapon, new object[] { enemy, true }); // 유효 약점 콜백
+            }
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(false)); // 열 회 미만 보상 차단
+            rianHit.Invoke(weapon, new object[] { enemy, true }); // 열 번째 약점 적중
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(true)); // 확정 과제 달성
+            startTask.Invoke(weapon, null); // 다음 출격의 과제 초기화
+            Assert.That(taskReady.GetValue(weapon), Is.EqualTo(false)); // 출격 사이 누적 방지
         }
 
         [UnityTest] // 선택형 첫 출격 훈련과 실제 입력

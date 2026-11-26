@@ -940,6 +940,51 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitFrames(88); // 이탈 완료
             Assert.That(aimed.gameObject.activeSelf || fan.gameObject.activeSelf || dive.gameObject.activeSelf, Is.False); // 이탈 후 원본 비활성화
         }
+        [UnityTest] // 이동 방향에 따른 조종사와 빗자루의 공중 자세
+        public IEnumerator BroomAndPilotTiltTogetherWithoutTurningTheAim() // 좌우·상하 이동과 조준 분리
+        {
+            yield return LoadFlight(); // 실제 비행 시험 씬
+            Transform pilot = FindPilot(); // 조준과 충돌의 비행체
+            Transform broom = pilot.Find("TrainingBroom"); // 장착 부품이 달린 빗자루
+            Transform rider = pilot.Find("PilotModels/Aria"); // 현재 조종사 모형
+            Transform broomArt = broom.Find("Handle"); // 발사 지점과 분리된 빗자루 외형
+            Transform muzzle = broom.Find("SpellMuzzle"); // 기존 마법 발사 지점
+            Quaternion broomRest = broomArt.localRotation; // 원래 빗자루 자세
+            Vector3 muzzleRest = pilot.InverseTransformPoint(muzzle.position); // 조종체 기준 발사 위치
+            Quaternion aimRest = pilot.rotation; // 원래 조준 방향
+            SetKeys(Key.D); // 오른쪽 비행 입력
+            yield return WaitFrames(55); // 가속과 자세 회전 대기
+            Assert.That(Quaternion.Angle(broomRest, broomArt.localRotation), Is.GreaterThan(10f)); // 빗자루도 오른쪽으로 기울기
+            Assert.That(Quaternion.Angle(rider.localRotation * broomRest, broomArt.localRotation), Is.LessThan(1f)); // 탑승자와 빗자루의 같은 기울기
+            Assert.That(Quaternion.Angle(aimRest, pilot.rotation), Is.LessThan(0.1f)); // 물리와 조준 회전 보존
+            Assert.That(Vector3.Distance(muzzleRest, pilot.InverseTransformPoint(muzzle.position)), Is.LessThan(0.001f)); // 발사 위치 보존
+            SetKeys(); // 좌우 입력 해제
+            yield return WaitFrames(80); // 제동과 중립 복귀 대기
+            Assert.That(Quaternion.Angle(broomRest, broomArt.localRotation), Is.LessThan(2f)); // 입력 해제 후 원래 자세
+            SetKeys(Key.Space); // 상승 비행 입력
+            yield return WaitFrames(55); // 상승과 자세 회전 대기
+            Assert.That(Quaternion.Angle(broomRest, broomArt.localRotation), Is.GreaterThan(4f)); // 빗자루의 상승 자세
+            Assert.That(Quaternion.Angle(aimRest, pilot.rotation), Is.LessThan(0.1f)); // 상승 중 조준 방향 보존
+            SetKeys(); // 시험 입력 정리
+        }
+
+        [UnityTest] // 실제 출격에서 빗자루 부품과 발사 위치 확인
+        public IEnumerator EquippedBroomBanksWithoutMovingTheMuzzle() // 장착 외형과 발사 판정 분리
+        {
+            yield return LoadOuterIslands(); // 실제 장착 부품이 있는 출격 씬
+            Transform pilot = FindPilot(); // 물리와 조준의 비행체
+            Transform broom = pilot.Find("TrainingBroom"); // 빗자루와 발사 지점
+            Transform mounts = broom.Find("PartMounts"); // 모든 장착 부품의 표시 부모
+            Transform muzzle = broom.Find("SpellMuzzle"); // 실제 제작 마법의 발사 지점
+            Quaternion mountsRest = mounts.localRotation; // 장착 지점의 기본 방향
+            Vector3 muzzleRest = pilot.InverseTransformPoint(muzzle.position); // 비행체 기준 발사 위치
+            SetKeys(Key.A); // 왼쪽 비행 입력
+            yield return WaitFrames(55); // 가속과 외형 회전 대기
+            Assert.That(Quaternion.Angle(mountsRest, mounts.localRotation), Is.GreaterThan(10f)); // 장착 부품의 공중 기울기
+            Assert.That(Vector3.Distance(muzzleRest, pilot.InverseTransformPoint(muzzle.position)), Is.LessThan(0.001f)); // 실제 발사 위치 보존
+            SetKeys(); // 시험 입력 정리
+        }
+
         [UnityTest] // 비행 연습에서 실제 렌더러와 재사용 적탄 확인
         public IEnumerator PilotBankAndThreatAppearancesFollowLiveFlight() // 자세와 피격 형상을 별도 검증
         {
@@ -2249,6 +2294,311 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 수압 파동의 초기 지급 조합과 중복 피해 확인
+        public IEnumerator WaterPressureHitsTheSameTargetOnlyOncePerCast() // 세 파동의 공유 적중 제한
+        {
+            yield return LoadOuterIslands(); // 제작 연습장이 포함된 실제 출격 씬
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 전투 정지 메뉴
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 정지 입력
+            yield return WaitFrames(4); // 정지 화면 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 연습 화면 입장
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            ClickPauseButton(editor, "Preset"); // 수압 파동 기본 구성 선택
+            yield return WaitFrames(2); // 시험 발사 버튼 상태 갱신
+            Assert.That(editor.Find("TestCast").GetComponent<Button>().interactable, Is.True); // 수압 파동 발사 가능
+            Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 피해를 기록하는 연습 표적
+            Component editorComponent = editor.GetComponent("FlightCraftedSpellEditor"); // 연습 발사기 참조
+            var rangeField = editorComponent.GetType().GetField("range", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 연습장 필드
+            Component range = (Component)rangeField.GetValue(editorComponent); // 실제 연습 발사기
+            var muzzleField = range.GetType().GetField("muzzle", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 연습 발사 지점 필드
+            Transform muzzle = (Transform)muzzleField.GetValue(range); // 실제 연습 발사 지점
+            target.transform.position = muzzle.position + muzzle.forward * 3.5f; // 세 파동의 공통 명중 위치
+            target.GetComponent<SphereCollider>().radius = 2f / target.transform.lossyScale.x; // 실제 2미터 반경의 넓은 표적
+            Physics.SyncTransforms(); // 변경한 충돌체의 즉시 반영
+            Assert.That(Physics.SphereCast(muzzle.position, 0.32f, muzzle.forward, out RaycastHit contact, 4f, 1 << 9, QueryTriggerInteraction.Ignore), Is.True, $"표적 {target.transform.position}, 발사점 {muzzle.position}, 축척 {target.transform.lossyScale}, 반경 {target.GetComponent<SphereCollider>().bounds.extents}, 레이어 {target.gameObject.layer}, 활성 {target.gameObject.activeInHierarchy}"); // 표적과 발사선의 물리 충돌
+            Assert.That(contact.collider.gameObject, Is.EqualTo(target.gameObject)); // 첫 충돌체의 표적 확인
+            ClickPauseButton(editor, "TestCast"); // 동일 시전의 세 파동 발사
+            Assert.That(Metric(range, "CastCount"), Is.EqualTo(1)); // 수압 파동 시전 성공
+            yield return WaitFrames(140); // 세 발의 명중과 소멸 대기
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(36)); // 동일 대상은 시전당 한 번만 피해
+        }
+
+        [UnityTest] // 실제 적에게 적용되는 수압 파동 넉백 확인
+        public IEnumerator WaterPressurePushesAHitEnemyAlongTheCastDirection() // 실제 피해와 경로 이동 연결
+        {
+            yield return LoadOuterIslands(); // 실제 마물이 있는 출격 씬
+            Transform enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy"); // 일반 마물의 실제 경로
+            enemy.gameObject.SetActive(true); // 적의 체력과 충돌체 활성화
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 제작 메뉴를 여는 전투 정지
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 정지 입력
+            yield return WaitFrames(4); // 정지 메뉴 준비
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 실제 제작 시험장 진입
+            Transform editor = pause.Find("CraftedSpellEditor"); // 제작 시험 화면
+            ClickPauseButton(editor, "Preset"); // 수압 파동 선택
+            yield return WaitFrames(2); // 발사 가능 상태 갱신
+            Component editorComponent = editor.GetComponent("FlightCraftedSpellEditor"); // 제작 화면 컴포넌트
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 직렬화된 연습 참조 조회
+            Component range = (Component)editorComponent.GetType().GetField("range", hidden).GetValue(editorComponent); // 연습 발사기
+            Transform muzzle = (Transform)range.GetType().GetField("muzzle", hidden).GetValue(range); // 시험 발사 위치
+            Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 기본 연습 표적
+            target.gameObject.SetActive(false); // 일반 마물에만 충돌
+            enemy.position = muzzle.position + muzzle.forward * 3.5f; // 발사선 위에 실제 마물 배치
+            SphereCollider collider = enemy.gameObject.AddComponent<SphereCollider>(); // 시험 전용 넓은 마물 충돌체
+            collider.radius = 2f / enemy.lossyScale.x; // 세 파동의 겹친 충돌 범위
+            Physics.SyncTransforms(); // 표적 위치를 충돌 검사에 반영
+            Vector3 before = enemy.position; // 넉백 전 위치
+            Component life = enemy.GetComponent("FlightEnemy"); // 마물의 실제 체력
+            ClickPauseButton(editor, "TestCast"); // 수압 파동 발사
+            yield return WaitFrames(140); // 파동 명중과 넉백 대기
+            Assert.That(Metric(life, "Health"), Is.EqualTo(44)); // 동일 시전 피해 36 한 번
+            Assert.That(Vector3.Dot(enemy.position - before, muzzle.forward), Is.InRange(1.9f, 2.1f)); // 발사 방향으로 기본 거리 이동
+        }
+
+        [UnityTest] // 정화 결계의 실제 적탄 상쇄와 쿨타임 확인
+        public IEnumerator PurificationClearsAtMostSixteenAndStartsCooldownAfterExpiry() // 고정 결계의 수명과 상쇄 상한
+        {
+            yield return LoadOuterIslands(); // 실제 전투 발사기와 적탄 풀
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 외부 적탄 생성 차단
+            Transform pilot = FindPilot(); // 실제 전투 조종체
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 공격에 의한 외부 변화 차단
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 제작 화면 진입 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 정지 메뉴 열기
+            yield return WaitFrames(4); // 메뉴 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 화면 열기
+            Transform editor = pause.Find("CraftedSpellEditor"); // 편집기의 실제 프리셋
+            ClickPauseButton(editor, "Preset"); // 수압 파동
+            ClickPauseButton(editor, "Preset"); // 가시 산탄
+            ClickPauseButton(editor, "Preset"); // 정화 결계
+            yield return WaitFrames(2); // 버튼 상태 갱신
+            Assert.That(editor.Find("TestCast").GetComponent<Button>().interactable, Is.True); // 결계 구성이 발사 가능
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 실제 구성 조회
+            Component editorComponent = editor.GetComponent("FlightCraftedSpellEditor"); // 편집 화면의 후보 구성
+            object recipe = editorComponent.GetType().GetField("candidate", hidden).GetValue(editorComponent); // 정화 결계의 실제 구성
+            ClickPauseButton(editor, "Back"); // 제작 화면에서 정지 메뉴 복귀
+            ClickPauseButton(pause, "MenuButtons/Continue"); // 전투 시간 재개
+            yield return WaitFrames(2); // 전투 상태 적용
+            Component pool = GetThreatPool(); // 실제 적탄 풀
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 일반 적탄 발사
+            Vector3 center = pilot.position; // 결계가 고정될 시전 좌표
+            for (int i = 0; i < 17; i++) // 상쇄 한도보다 한 발 많은 적탄
+            {
+                Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 결계 안에 활성 적탄 생성
+            }
+            System.Type patternType = pool.GetType().Assembly.GetType("ProjectG.FlightThreatPattern"); // 적탄의 실제 패턴 타입
+            var restrictedFire = pool.GetType().GetMethod("TryFire", hidden, null, new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int), patternType, typeof(bool) }, null); // 상쇄 허용 여부가 있는 발사
+            object pattern = System.Enum.Parse(patternType, "Aimed"); // 기본 조준탄의 형태
+            Assert.That(restrictedFire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 0, pattern, false }), Is.True); // 상쇄를 허용하지 않는 시험 적탄
+            var active = (System.Collections.IList)pool.GetType().GetField("active", hidden).GetValue(pool); // 실제 풀의 활성 적탄
+            Component restricted = (Component)active[active.Count - 1]; // 불허 적탄의 실제 객체
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전 제작 마법 발사기
+            var cast = caster.GetType().GetMethod("Cast", hidden); // 실제 전투 시전
+            var cooldown = caster.GetType().GetMethod("CooldownRemaining", hidden); // 구성 ID의 남은 시간
+            Assert.That(cast.Invoke(caster, new[] { recipe }), Is.True); // 정화 결계 시전 성공
+            yield return WaitFrames(3); // 적탄 상쇄 처리
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(2)); // 불허 탄과 한도 초과 탄 보존
+            Assert.That(restricted.gameObject.activeSelf, Is.True); // 상쇄 불허 탄은 유지
+            Assert.That((float)cooldown.Invoke(caster, new[] { recipe }), Is.GreaterThan(15f)); // 유지 4초와 종료 후 12초
+            yield return WaitFrames(245); // 결계의 4초 유지 종료
+            Assert.That((float)cooldown.Invoke(caster, new[] { recipe }), Is.InRange(11f, 12.1f)); // 결계 종료 후 실제 쿨타임
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 종료된 결계에 새 적탄 진입
+            yield return WaitFrames(3); // 추가 상쇄 여부 확인
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(3)); // 종료 후 적탄 유지
+            pool.GetType().GetMethod("ReturnAll").Invoke(pool, null); // 불허 탄을 포함한 기존 적탄 회수
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 회수한 적탄의 일반 재사용
+            Component reused = (Component)active[0]; // 재사용한 적탄 객체
+            Assert.That(reused.GetType().GetProperty("CanCancel", hidden).GetValue(reused), Is.True); // 이전 불허 상태의 초기화
+        }
+
+        [UnityTest] // 시전 위치에 남는 정화 결계 확인
+        public IEnumerator PurificationRemainsAtItsCastPositionWhenPilotMoves() // 결계와 이동하는 비행체의 위치 분리
+        {
+            yield return LoadOuterIslands(); // 실전 제작 마법과 적탄 풀
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 시험 외의 적탄 생성 차단
+            Transform pilot = FindPilot(); // 실제 조종체
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전 발사기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 시전과 풀 조회
+            System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 문서의 기본 마법 목록
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 읽기 전용 프리셋 목록
+            object recipe = all[11].GetType().GetProperty("Recipe").GetValue(all[11]); // 정화 결계의 실제 구성
+            Vector3 center = pilot.position; // 이동 전 결계 위치
+            Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { recipe }), Is.True); // 고정 결계 시전
+            pilot.position += Vector3.right * 12f; // 결계 밖으로 조종체 이동
+            Physics.SyncTransforms(); // 이동 위치의 판정 반영
+            Component pool = GetThreatPool(); // 같은 전투의 적탄 풀
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 시험용 기본 적탄 발사
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.up * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 원래 결계 안의 적탄
+            Assert.That(fire.Invoke(pool, new object[] { pilot.position + Vector3.up * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 이동한 조종체 부근의 적탄
+            var active = (System.Collections.IList)pool.GetType().GetField("active", hidden).GetValue(pool); // 실제 활성 적탄 목록
+            Component oldLocation = (Component)active[0]; // 원래 결계의 적탄
+            Component newLocation = (Component)active[1]; // 이동한 조종체의 적탄
+            yield return WaitFrames(3); // 결계 범위 상쇄
+            Assert.That(oldLocation.gameObject.activeSelf, Is.False); // 원래 위치의 적탄 상쇄
+            Assert.That(newLocation.gameObject.activeSelf, Is.True); // 조종체 이동 위치의 적탄 보존
+        }
+
+        [UnityTest] // 독립 연습 결계와 실전 적탄 풀 분리
+        public IEnumerator PurificationPracticeDoesNotCancelLiveCombatProjectiles() // 연습 중 실전 적탄 보존
+        {
+            yield return LoadOuterIslands(); // 실제 전투와 독립 제작 연습장
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 외부 적탄 생성 차단
+            Transform pilot = FindPilot(); // 현재 실전 조종체
+            Component pool = GetThreatPool(); // 실제 전투 적탄 풀
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 실제 일반 적탄 발사
+            Assert.That(fire.Invoke(pool, new object[] { pilot.position + Vector3.right * 3f, Vector3.forward, 0.01f, 0 }), Is.True); // 실전에 남겨 둘 적탄
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 제작 연습 진입
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 전투 정지 입력
+            yield return WaitFrames(4); // 정지 화면 표시
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 독립 연습 화면
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            ClickPauseButton(editor, "Preset"); // 수압 파동 선택
+            ClickPauseButton(editor, "Preset"); // 가시 산탄 선택
+            ClickPauseButton(editor, "Preset"); // 정화 결계 선택
+            yield return WaitFrames(2); // 발사 가능 상태 갱신
+            ClickPauseButton(editor, "TestCast"); // 연습 전용 결계 시전
+            yield return WaitFrames(245); // 결계 수명이 끝날 때까지 대기
+            Assert.That(Metric(pool, "ActiveCount"), Is.EqualTo(1)); // 실전 적탄의 상태 보존
+        }
+
+        [UnityTest] // 새 편성의 기본값과 빈 칸 및 중복 저장 확인
+        public IEnumerator CraftedLoadoutPreservesEmptyAndDuplicateSlotsAcrossSorties() // 두 칸의 편성과 무작위 배정
+        {
+            string key = "ProjectG.Crafted.Test." + System.Guid.NewGuid().ToString("N"); // 다른 저장과 격리한 시험 키
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 원래 시험 환경 보관
+            var randomState = Random.state; // 다른 시험의 난수 상태 보관
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 격리된 저장만 사용
+            try // 저장을 검증한 뒤 반드시 시험 키 정리
+            {
+                yield return LoadOuterIslands(); // 실제 출격의 제작 마법 도감
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 실제 편성과 발사 도감
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 편성 API
+                var slot = book.GetType().GetMethod("Slot", hidden); // 출격 전에 저장한 칸
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 실제 출격에서 고정된 칸
+                var clear = book.GetType().GetMethod("ClearSlot", hidden); // 다음 출격의 빈 칸 설정
+                var equip = book.GetType().GetMethod("Equip", hidden); // 다음 출격의 마법 편성
+                var reset = book.GetType().GetMethod("ResetRun", hidden); // 새로운 출격의 무작위 배정
+                object first = slot.Invoke(book, new object[] { 0 }); // 기본 파이어 볼트
+                object second = slot.Invoke(book, new object[] { 1 }); // 기본 가시 산탄
+                Assert.That(first, Is.Not.Null); // 첫 번째 초기 마법 존재
+                Assert.That(second, Is.Not.Null); // 두 번째 초기 마법 존재
+                string firstId = (string)first.GetType().GetProperty("Id").GetValue(first); // 첫 조합의 고유 ID
+                string secondId = (string)second.GetType().GetProperty("Id").GetValue(second); // 둘째 조합의 고유 ID
+                Assert.That(firstId, Is.Not.EqualTo(secondId)); // 서로 다른 초기 마법
+                bool leftFirst = false; // 첫 마법이 왼쪽에 배치된 기록
+                bool leftSecond = false; // 둘째 마법이 왼쪽에 배치된 기록
+                Random.InitState(24680); // 반복 가능한 좌우 배정 시험
+                for (int i = 0; i < 32; i++) // 여러 번 독립 출격 배정
+                {
+                    reset.Invoke(book, null); // 같은 두 장의 새 배정
+                    object left = active.Invoke(book, new object[] { 0 }); // 배정된 왼쪽 마법
+                    object right = active.Invoke(book, new object[] { 1 }); // 배정된 오른쪽 마법
+                    string leftId = (string)left.GetType().GetProperty("Id").GetValue(left); // 실제 왼쪽 식별자
+                    string rightId = (string)right.GetType().GetProperty("Id").GetValue(right); // 실제 오른쪽 식별자
+                    Assert.That(leftId == firstId && rightId == secondId || leftId == secondId && rightId == firstId, Is.True); // 편성한 두 마법만 배치
+                    leftFirst |= leftId == firstId; // 첫 마법이 왼쪽에 온 경우
+                    leftSecond |= leftId == secondId; // 둘째 마법이 왼쪽에 온 경우
+                }
+                Assert.That(leftFirst && leftSecond, Is.True); // 좌우 두 배치가 모두 발생
+                clear.Invoke(book, new object[] { 0 }); // 첫 준비 칸 비우기
+                clear.Invoke(book, new object[] { 1 }); // 둘째 준비 칸 비우기
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.Not.Null); // 진행 중 출격은 원래 편성 고정
+                reset.Invoke(book, null); // 두 빈 칸으로 새 출격
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.Null); // 첫 빈 칸 유지
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 둘째 빈 칸 유지
+                yield return WaitFrames(2); // 빈 칸의 실제 HUD 갱신
+                Transform cards = LocateCombatHud().transform.Find("MagicCards"); // 실제 전투 카드 영역
+                Assert.That(cards.Find("LeftActive").gameObject.activeSelf, Is.False); // 빈 왼쪽 칸은 카드 숨김
+                Assert.That(cards.Find("RightActive").gameObject.activeSelf, Is.False); // 빈 오른쪽 칸은 카드 숨김
+                Assert.That(cards.Find("LeftNext").gameObject.activeSelf || cards.Find("RightNext").gameObject.activeSelf, Is.False); // 시험 덱 미리보기 숨김
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실제 제작 마법 발사기
+                yield return Click(1); // 빈 왼쪽 칸 클릭
+                yield return Click(2); // 빈 오른쪽 칸 클릭
+                Assert.That(Metric(caster, "CastCount"), Is.Zero); // 빈 칸은 마법이나 시험 카드 사용 없음
+                Assert.That(equip.Invoke(book, new[] { (object)0, first }), Is.True); // 첫 칸에 파이어 볼트
+                Assert.That(equip.Invoke(book, new[] { (object)1, first }), Is.True); // 같은 마법의 둘째 장착
+                reset.Invoke(book, null); // 중복 편성으로 새 출격
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.Not.Null); // 첫 중복 칸
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Not.Null); // 둘째 중복 칸
+                Component magic = FindPilot().GetComponent("FlightSkillController"); // 제작 마법의 공용 마력
+                var manaField = magic.GetType().GetField("mana", hidden); // 실제 마력 잔량
+                var use = book.GetType().GetMethod("Use", hidden); // 전투 카드와 같은 실제 시전
+                manaField.SetValue(magic, 0f); // 마력 부족 조건
+                object beforeFailure = active.Invoke(book, new object[] { 0 }); // 부족 시도 전 현재 마법
+                use.Invoke(book, new object[] { 0 }); // 부족한 마력의 실제 시전 시도
+                Assert.That(Metric(caster, "CastCount"), Is.Zero); // 실패한 시전은 발사하지 않음
+                Assert.That(Metric(magic, "Mana"), Is.Zero); // 실패한 시전은 마력을 소비하지 않음
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.SameAs(beforeFailure)); // 실패해도 마법 순서 유지
+                manaField.SetValue(magic, 100f); // 두 시전을 시도할 충분한 마력
+                use.Invoke(book, new object[] { 0 }); // 첫 중복 마법 시전
+                use.Invoke(book, new object[] { 1 }); // 같은 ID의 두 번째 시전 시도
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 중복 마법은 대기시간 공유
+                yield return LoadOuterIslands(); // 저장을 읽어 새 출격 재진입
+                book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 다시 생성된 마법 도감
+                object restoredLeft = slot.Invoke(book, new object[] { 0 }); // 첫 저장 칸 복원
+                object restoredRight = slot.Invoke(book, new object[] { 1 }); // 둘째 저장 칸 복원
+                Assert.That((string)restoredLeft.GetType().GetProperty("Id").GetValue(restoredLeft), Is.EqualTo(firstId)); // 첫 중복 마법 복원
+                Assert.That((string)restoredRight.GetType().GetProperty("Id").GetValue(restoredRight), Is.EqualTo(firstId)); // 둘째 중복 마법 복원
+            }
+            finally // 시험 저장과 전역 난수 상태 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 격리 시험 키만 삭제
+                PlayerPrefs.Save(); // 시험 키 제거 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 원래 환경 복원
+                Random.state = randomState; // 다른 시험의 난수 복원
+            }
+        }
+
+        [UnityTest] // 이전 저장과 신규 빈 슬롯의 구분
+        public IEnumerator CraftedLoadoutReadsLegacySavesWithoutOverwritingThem() // 기존 ID와 빈 슬롯 저장 호환
+        {
+            string key = "ProjectG.Crafted.Test." + System.Guid.NewGuid().ToString("N"); // 사용자 저장과 격리된 키
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 환경 변수
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 이 시험의 저장만 사용
+            try // 시험한 데이터만 정리
+            {
+                yield return LoadOuterIslands(); // 기본 마법 구성의 실제 ID 조회
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 실제 저장 도감
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 슬롯 확인
+                var slot = book.GetType().GetMethod("Slot", hidden); // 준비한 마법 칸
+                object fire = slot.Invoke(book, new object[] { 0 }); // 기본 파이어 볼트 구성
+                string fireId = (string)fire.GetType().GetProperty("Id").GetValue(fire); // 이전 저장에 넣을 정확한 ID
+                string legacy = "{\"recipe\":\"" + fireId + "\",\"left\":null,\"right\":\"" + fireId + "\"}"; // 이전 저장 형식과 한 칸의 마법
+                PlayerPrefs.SetString(key, legacy); // 이전 버전의 저장 기록
+                PlayerPrefs.Save(); // 실제 재진입에서 읽을 내용 확정
+                yield return LoadOuterIslands(); // 이전 형식을 읽는 새 출격
+                book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 복원한 도감
+                Assert.That(slot.Invoke(book, new object[] { 0 }), Is.Null); // 이전 미장착 칸 보존
+                object restored = slot.Invoke(book, new object[] { 1 }); // 이전 장착 마법
+                Assert.That((string)restored.GetType().GetProperty("Id").GetValue(restored), Is.EqualTo(fireId)); // 유효한 이전 구성 ID 복원
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(legacy)); // 읽기만 한 저장을 덮어쓰지 않음
+                string trialDeck = "{\"recipe\":\"" + fireId + "\",\"left\":null,\"right\":null}"; // 이전 양쪽 시험 덱 저장
+                PlayerPrefs.SetString(key, trialDeck); // 시험 덱을 쓰던 기존 기록
+                PlayerPrefs.Save(); // 이전 형식 확정
+                yield return LoadOuterIslands(); // 시험 덱 저장의 기본 편성 전환
+                book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 새 출격 도감
+                Assert.That(slot.Invoke(book, new object[] { 0 }), Is.Not.Null); // 기본 파이어 볼트 적용
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.Not.Null); // 기본 가시 산탄 적용
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(trialDeck)); // 이전 원본 저장 보존
+                string empty = "{\"version\":2,\"recipe\":\"" + fireId + "\",\"left\":null,\"right\":null}"; // 명시적으로 비운 두 칸
+                PlayerPrefs.SetString(key, empty); // 최신 버전의 빈 편성
+                PlayerPrefs.Save(); // 재시작 데이터 확정
+                yield return LoadOuterIslands(); // 빈 편성 복원
+                book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 다시 생성된 도감
+                Assert.That(slot.Invoke(book, new object[] { 0 }), Is.Null); // 첫 빈 칸 복원
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.Null); // 둘째 빈 칸 복원
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(empty)); // 명시적인 빈 저장 보존
+            }
+            finally // 다른 사용자 데이터에 영향 없는 종료
+            {
+                PlayerPrefs.DeleteKey(key); // 격리 키만 삭제
+                PlayerPrefs.Save(); // 삭제 기록 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 원래 환경 복구
+            }
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {
@@ -2259,6 +2609,10 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             {
                 yield return LoadOuterIslands(); // 실전 항로의 실제 HUD와 마법 슬롯
                 Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 실전 정지 메뉴
+                Component initialBook = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 이번 출격의 고정 편성
+                var initialActive = initialBook.GetType().GetMethod("ActiveSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 실제 사용 슬롯 조회
+                object originalLeft = initialActive.Invoke(initialBook, new object[] { 0 }); // 출격 때 배정된 왼쪽
+                object originalRight = initialActive.Invoke(initialBook, new object[] { 1 }); // 출격 때 배정된 오른쪽
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 ESC 입력
                 yield return WaitFrames(4); // 정지 메뉴 전환
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 중복된 정지 입력 방지
@@ -2299,10 +2653,16 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 ClickPauseButton(editor, "EquipRight"); // 다음 출격의 우측 편성
                 Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 저장과 현재 편성을 분리하는 도감
                 var activeLane = book.GetType().GetMethod("ActiveSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 현재 출격에서 쓰는 마법
-                Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.Null); // 시작한 전투에서는 이전 편성 유지
+                Assert.That(activeLane.Invoke(book, new object[] { 0 }), Is.SameAs(originalLeft)); // 출격 중 왼쪽 편성 유지
+                Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.SameAs(originalRight)); // 출격 중 오른쪽 편성 유지
                 ClickPauseButton(editor, "Back"); // 출격 제어로 이동
                 ClickPauseButton(pause, "MenuButtons/Restart"); // 다음 출격 시작
-                Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.Not.Null); // 저장된 다음 조합이 적용
+                object saved = book.GetType().GetProperty("Saved").GetValue(book); // 편집기에서 저장한 파이어 볼트
+                string savedId = (string)saved.GetType().GetProperty("Id").GetValue(saved); // 저장한 실제 구성 ID
+                object newLeft = activeLane.Invoke(book, new object[] { 0 }); // 새 출격의 왼쪽 마법
+                object newRight = activeLane.Invoke(book, new object[] { 1 }); // 새 출격의 오른쪽 마법
+                Assert.That((string)newLeft.GetType().GetProperty("Id").GetValue(newLeft), Is.EqualTo(savedId)); // 첫 중복 편성의 실제 반영
+                Assert.That((string)newRight.GetType().GetProperty("Id").GetValue(newRight), Is.EqualTo(savedId)); // 둘째 중복 편성의 실제 반영
             }
             finally // 격리된 시험 데이터만 정리
             {

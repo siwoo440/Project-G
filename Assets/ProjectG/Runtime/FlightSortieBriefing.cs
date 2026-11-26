@@ -198,7 +198,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private string SlotName(int index) // 현재 제작 마법의 출격 표시
         {
             CraftedSpellRecipe recipe = book.Slot(index); // 저장한 왼쪽과 오른쪽
-            return recipe == null ? "초기 전투 카드" : FlightCraftedSpellBook.NameOf(recipe); // 출격에 반영할 실제 마법
+            return recipe == null ? "빈 슬롯" : FlightCraftedSpellBook.NameOf(recipe); // 출격에 반영할 실제 마법
         }
 
         private void OpenWorkshop() // 현재 조종사의 조립 화면

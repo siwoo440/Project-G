@@ -193,7 +193,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private string LaneName(int index) // 양쪽 카드 칸의 이름
         {
             CraftedSpellRecipe recipe = book.Slot(index); // 실제 제작 마법 편성
-            return recipe != null ? FlightCraftedSpellBook.NameOf(recipe) : "초기 전투 카드"; // 시험 덱과 제작 슬롯 상태
+            return recipe != null ? FlightCraftedSpellBook.NameOf(recipe) : "빈 슬롯"; // 시험 덱과 제작 슬롯 상태
         }
 
         private void Save() // 현재 규칙을 통과한 제작 마법 보존

@@ -107,8 +107,15 @@ namespace ProjectG // 프로젝트 게임 영역
 
             public void Render(int mana, CraftedSpellRecipe recipe, FlightCraftedSpellBook book, int slot, Lane opposite) // 기존 순환 또는 직접 편성한 마법
             {
-                if (recipe != null) // 사용자가 직접 저장하여 선택한 칸
+                if (book != null) // 실제 출격의 제작 마법 두 칸
                 {
+                    next.root.gameObject.SetActive(false); // 한 장 이하인 덱의 미리보기 숨김
+                    active.root.gameObject.SetActive(recipe != null); // 빈 슬롯은 카드 자체를 숨김
+                    if (recipe == null) // 편성하지 않은 실제 전투 칸
+                    {
+                        craftedId = null; // 다음에 장착할 마법의 표시 준비
+                        return; // 시험 카드와 시전 가능 표시 없음
+                    }
                     if (craftedId != recipe.Id) // 제작 마법을 새로 편성한 상태
                     {
                         craftedId = recipe.Id; // 변경 시 한 번만 이미지 적용
@@ -189,11 +196,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void UseLane(Lane lane, int index) // 편성 정보에 맞는 실제 클릭 처리
         {
-            if (crafted?.ActiveSlot(index) != null) // 직접 편성된 게임의 제작 마법
+            if (crafted != null) // 실제 출격에서 사용하는 제작 마법 도감
             {
-                crafted.Use(index); // 현재 고정 조합을 시전
+                crafted.Use(index); // 빈 칸이면 아무 동작 없이 유지
             }
-            else // 기존 초기 카드 시험 덱
+            else // 제작 마법 도감이 없는 독립 비행 시험 덱
             {
                 lane.TryUse(magic); // 지금까지의 독립 카드 순환
             }

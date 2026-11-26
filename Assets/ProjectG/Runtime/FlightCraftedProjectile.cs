@@ -19,14 +19,18 @@ namespace ProjectG // 프로젝트 게임 영역
         private FlightIrisCombat resonance; // 실제 체력을 바꿨는지 공명에 전달
         private FlightSeraCombat meleeSource; // 피격 시점의 세라와 적 사이 거리 계산
         private bool explodes; // 폭발 선택 여부
+        private HashSet<Component> sharedHits; // 같은 시전의 공유 적중 기록
+        private bool knocksBack; // 선택한 넉백 효과
 
-        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice) // 장착 마법을 실제 탄환에 적용
+        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null) // 장착 마법을 실제 탄환에 적용
         {
             recipe = cast; // 발사 중 편집에 영향 없는 원본
             profile = stats; // 한 발의 실제 이동과 피해
             layers = hitLayers; // 해당 장면에 허용된 충돌
             remaining = stats.Range; // 수명 대신 사용하는 최대 이동 거리
             practice = isPractice; // 연습에서만 일시정지와 독립
+            sharedHits = castHits; // 같은 시전의 파동 적중 기록
+            knocksBack = cast.FirstEffect == "knockback" || cast.SecondEffect == "knockback"; // 넉백 선택 여부
             pierces = cast.FirstEffect == "pierce" || cast.SecondEffect == "pierce"; // 관통 효과의 한 발당 처리
             explodes = cast.FirstEffect == "explode" || cast.SecondEffect == "explode"; // 명중점 폭발
             MaterialPropertyBlock block = new MaterialPropertyBlock(); // 기존 공유 재질을 전환하지 않는 탄환 색
@@ -80,7 +84,17 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     continue; // 관통 중 같은 대상의 중복 피해 방지
                 }
+                if (sharedHits != null && !sharedHits.Add(target)) // 같은 시전의 다른 파동에 이미 적중
+                {
+                    Destroy(gameObject); // 중복 피해 없이 접촉한 파동 종료
+                    return; // 뒤쪽 대상으로 관통하지 않음
+                }
+                int previousHealth = target is FlightEnemy beforeHit ? beforeHit.Health : 0; // 실제 피해 전 체력
                 Damage(target, profile.Damage); // 실제 표적 직격
+                if (knocksBack && target is FlightEnemy enemy && enemy.Health > 0 && enemy.Health < previousHealth && enemy.LootTier == FlightLootTier.Normal && enemy.TryGetComponent(out FlightEnemyRoute route)) // 피해를 받은 일반 적의 경로 확인
+                {
+                    route.ApplyCraftedKnockback(transform.forward * 2f); // 일반 적의 기본 넉백 거리
+                }
                 if (explodes) // 충돌한 지점에서만 폭발
                 {
                     Splash(contact.point); // 범위 피해는 별도 1회

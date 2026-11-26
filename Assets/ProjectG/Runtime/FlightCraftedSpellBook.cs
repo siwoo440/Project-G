@@ -8,6 +8,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [Serializable] // 현재 저장 마법과 장착 슬롯
         private sealed class SaveData
         {
+            public int version; // 빈 칸과 시험 덱을 구분하는 저장 버전
             public string recipe; // 편집 화면에 복원할 저장된 조합
             public string left; // 왼쪽 전투 슬롯의 조합 ID
             public string right; // 오른쪽 전투 슬롯의 조합 ID
@@ -25,39 +26,44 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public CraftedSpellRecipe Saved { get; private set; } // 편집기로 불러올 가장 최근 조합
         internal int MagicBudget => 100 + Mathf.RoundToInt(equipment.GetBonus(FlightBroomStat.MagicPower)); // 실전 편성 기준과 장착 효과
-        internal bool AppliesNow => encounter == null || encounter.IsPreparing; // 준비 씬 또는 첫 웨이브 전의 편성
+        internal bool AppliesNow => encounter == null; // 출격 준비 씬에서만 현재 편성 변경
 
-        private void Awake() // 저장된 제작 마법과 좌우 편성 읽기
+        private void Awake() // 저장된 제작 마법과 편성 읽기
         {
+            lanes[0] = CraftedSpellPresets.All[0].Recipe; // 기획서의 기본 파이어 볼트
+            lanes[1] = CraftedSpellPresets.All[7].Recipe; // 기획서의 기본 가시 산탄
             string key = SaveKey; // 현재 실행 환경의 저장 키
-            if (string.IsNullOrEmpty(key) || !PlayerPrefs.HasKey(key)) // 첫 플레이와 독립 테스트
+            if (!string.IsNullOrEmpty(key) && PlayerPrefs.HasKey(key)) // 이전 저장이 있는 경우
             {
-                return; // 이전 제작 슬롯 없음
+                try // 손상된 저장은 기본 편성 보존
+                {
+                    SaveData data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(key)); // 슬롯과 저장 조합 읽기
+                    if (data != null) // 읽을 수 있는 저장만 복원
+                    {
+                        if (CraftedSpellRules.TryRead(data.recipe, out CraftedSpellRecipe saved)) // 유효한 편집기 조합
+                        {
+                            Saved = saved; // 최근 저장한 구성 복원
+                        }
+                        bool legacyTrialDeck = data.version < 2 && string.IsNullOrEmpty(data.left) && string.IsNullOrEmpty(data.right); // 이전 저장의 기본 시험 덱
+                        if (!legacyTrialDeck) // 이전 시험 덱 이외의 명시적인 편성
+                        {
+                            lanes[0] = CraftedSpellRules.TryRead(data.left, out CraftedSpellRecipe left) && FlightCraftedSpellCaster.Supports(left) ? left : null; // 첫 칸 또는 빈 칸 복원
+                            lanes[1] = CraftedSpellRules.TryRead(data.right, out CraftedSpellRecipe right) && FlightCraftedSpellCaster.Supports(right) ? right : null; // 둘째 칸 또는 빈 칸 복원
+                        }
+                    }
+                }
+                catch (ArgumentException) // 손상된 저장 텍스트
+                {
+                    Saved = null; // 안전한 기본 편성 사용
+                }
             }
-            try // 읽을 수 없는 저장은 기본 카드에서 시작
+            if (AppliesNow) // 아직 출격하지 않은 준비 화면
             {
-                SaveData data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(key)); // 슬롯과 저장 조합을 함께 읽기
-                if (data == null) // 데이터가 없는 파일
-                {
-                    return; // 기본 카드 사용
-                }
-                if (CraftedSpellRules.TryRead(data.recipe, out CraftedSpellRecipe saved)) // 원래 규칙을 통과한 저장값
-                {
-                    Saved = saved; // 편집기의 저장 조합
-                }
-                if (CraftedSpellRules.TryRead(data.left, out CraftedSpellRecipe left) && FlightCraftedSpellCaster.Supports(left)) // 실제 구현한 좌측 마법
-                {
-                    lanes[0] = left; // 왼쪽 슬롯 복원
-                }
-                if (CraftedSpellRules.TryRead(data.right, out CraftedSpellRecipe right) && FlightCraftedSpellCaster.Supports(right)) // 실제 구현한 우측 마법
-                {
-                    lanes[1] = right; // 오른쪽 슬롯 복원
-                }
-                Array.Copy(lanes, runningLanes, lanes.Length); // 복원한 편성을 첫 출격에 적용
+                Array.Copy(lanes, runningLanes, lanes.Length); // 선택 순서 그대로 준비 화면에 반영
             }
-            catch (ArgumentException) // 손상된 저장 텍스트
+            else // 실제 출격 시작 시점
             {
-                return; // 첫 플레이 기본 카드 사용
+                AssignRunLanes(); // 두 칸의 무작위 좌우 배정
             }
         }
 
@@ -114,7 +120,14 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void ResetRun() // 다시하기 선택한 출격의 발사 초기화
         {
             caster.ResetCasts(); // 이전 탄환과 쿨타임 제거
-            Array.Copy(lanes, runningLanes, lanes.Length); // 다음 출격에 보존한 편성 적용
+            AssignRunLanes(); // 새 출격마다 보존한 편성을 무작위 배정
+        }
+
+        private void AssignRunLanes() // 출격 때 편성한 마법의 좌우 배정
+        {
+            int first = UnityEngine.Random.Range(0, 2); // 첫 마법의 무작위 위치
+            runningLanes[0] = lanes[first]; // 첫 번째 전투 칸
+            runningLanes[1] = lanes[1 - first]; // 나머지 전투 칸
         }
 
         private void ApplyDuringPreparation() // 전투에서 이미 쓰는 조합과 저장한 조합 분리
@@ -157,7 +170,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 사용자 설정 파일을 건드리지 않음
             }
-            var data = new SaveData { recipe = Saved?.Id, left = lanes[0]?.Id, right = lanes[1]?.Id }; // 선택과 장착을 함께 복원하는 데이터
+            var data = new SaveData { version = 2, recipe = Saved?.Id, left = lanes[0]?.Id, right = lanes[1]?.Id }; // 선택과 장착을 함께 복원하는 데이터
             PlayerPrefs.SetString(key, JsonUtility.ToJson(data)); // 하나의 저장 항목으로 적용
             PlayerPrefs.Save(); // 종료와 재실행 후 복원
         }

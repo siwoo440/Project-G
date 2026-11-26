@@ -5,6 +5,10 @@
 
 47일차에는 현재 마법 덱·저장 형식과 이전 시험 번들을 비교했다. 기존 구현과 48일차 이식 범위는 [47일차 기록](docs/development/3d-day-47.md)에 정리했다.
 
+UI의 작은 굵은 글자와 화면 픽셀 정렬을 조정했다. 확인한 화면과 아직 확인하지 못한 해상도는 [UI 선명도 수정 기록](docs/development/ui-clarity-followup.md)에 정리했다.
+
+장비 상점과 강화 공방의 캐릭터 선택에는 투명 초상화와 캐릭터별 단색 배경을 사용한다. 이름과 초상화, 배경색은 마을 씬에서 각각 편집할 수 있다.
+
 ---
 ## 메인 화면
 
@@ -76,7 +80,7 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 �
 
 ![루미 3D 비행 모형과 하늘섬 항로](docs/screenshots/3d-day-38-lumi-flight.png)
 
-일곱 조종사의 저폴리곤 비행 모형은 `AriaPilot/PilotModels`에서 편집합니다. 비행 방향에 따라 몸과 옷자락이 움직이고, 조종사는 화면 중앙의 조준점 왼쪽 아래에 있습니다. 적탄은 주황 조준 구체, 금빛 부채꼴 사각탄, 분홍 고리 결정, 붉은 나선 결정으로 구분합니다. [네 탄막 비교](docs/screenshots/3d-day-38-bullet-shapes.png) · [1024×576 탄막](docs/screenshots/3d-day-38-bullet-shapes-1024.png) · [일반 마물 실루엣](docs/screenshots/3d-day-38-enemy-shapes.png) · [38일차 기록](docs/development/3d-day-38.md)
+일곱 조종사의 저폴리곤 비행 모형은 `AriaPilot/PilotModels`에서 편집합니다. 좌우 이동과 상승·하강 속도에 맞춰 조종사와 빗자루 외형이 함께 기울고, 조준과 발사 위치는 유지됩니다. 옷자락이 움직이고, 조종사는 화면 중앙의 조준점 왼쪽 아래에 있습니다. 적탄은 주황 조준 구체, 금빛 부채꼴 사각탄, 분홍 고리 결정, 붉은 나선 결정으로 구분합니다. [네 탄막 비교](docs/screenshots/3d-day-38-bullet-shapes.png) · [1024×576 탄막](docs/screenshots/3d-day-38-bullet-shapes-1024.png) · [일반 마물 실루엣](docs/screenshots/3d-day-38-enemy-shapes.png) · [38일차 기록](docs/development/3d-day-38.md)
 
 타이틀 설정은 16:9 창과 1280×800, 1024×768을 지원합니다. [소형 16:9 전투](docs/screenshots/3d-day-27-hud-1024.png) · [16:10 전투](docs/screenshots/3d-day-27-hud-16x10.png) · [4:3 전투](docs/screenshots/3d-day-27-hud-4x3.png)
 
@@ -103,7 +107,7 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 �
 
 ![프로젝트 G 3D 22일차 제작 마법과 3D 시험장](docs/screenshots/3d-day-22-editor.png)
 
-하늘섬 외곽 항로에서 `Esc → 마법 제작`을 열면 마법 구성을 편집하고, 3D 시험장에서 피해와 연습 마력을 확인할 수 있습니다. 조합을 저장한 뒤 좌우 칸에 편성하면 실제 마우스 클릭으로 시전합니다. 첫 웨이브가 시작된 뒤 저장한 편성은 다음 출격에서 적용됩니다. [1024×576 제작 화면](docs/screenshots/3d-day-22-editor-1024.png) · [22일차 기록](docs/development/3d-day-22.md)
+하늘섬 외곽 항로에서 `Esc → 마법 제작`을 열면 마법 구성을 편집하고, 3D 시험장에서 피해와 연습 마력을 확인할 수 있습니다. 기본 편성은 파이어 볼트와 가시 산탄이며, 출격 전에 마법을 최대 두 칸에 선택할 수 있습니다. 빈 칸과 같은 마법의 중복 장착을 허용하고 출격마다 두 칸을 좌우에 무작위로 배정합니다. 출격 중 저장한 편성은 다음 출격에서 적용됩니다. 수압 파동은 일반 적에게 넉백을 적용하며 정화 결계는 허용된 적탄을 최대 16발 상쇄합니다. [48일차 기록](docs/development/3d-day-48.md) · [1024×576 제작 화면](docs/screenshots/3d-day-22-editor-1024.png) · [22일차 기록](docs/development/3d-day-22.md)
 
 `Esc → 빗자루 조립`에서는 현재 캐릭터의 8개 부위를 확인합니다. 후보를 고르면 3D 외형과 현재 조합에서 바뀌는 능력치가 표시되고, 장착 확정으로 저장한 조합은 재실행 후에도 복원됩니다. [조립 화면](docs/screenshots/3d-day-20-workshop.png) · [1024×576 재실행 화면](docs/screenshots/3d-day-20-reload-1024.png) · [20일차 기록](docs/development/3d-day-20.md)
 

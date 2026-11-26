@@ -115,6 +115,21 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             Assert.That(Vector3.Angle(Vector3.forward, heading), Is.EqualTo(30f).Within(0.01f)); // 화면 경과 시간에 따른 추적 한도
         }
 
+        [Test] // 수압 파동의 수평과 수직 발사 범위
+        public void WaterPressureSpreadsAcrossDocumentedHorizontalAndVerticalAngles() // 세 파동의 입체 배열
+        {
+            Type presets = Runtime("CraftedSpellPresets"); // 문서의 기본 마법 목록
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 고정 프리셋 목록
+            object recipe = all[3].GetType().GetProperty("Recipe").GetValue(all[3]); // 수압 파동의 실제 구성
+            var direction = Runtime("CraftedSpellVectors").GetMethod("Direction"); // 전투의 실제 발사 방향
+            var first = (Vector3)direction.Invoke(null, new[] { recipe, (object)Quaternion.identity, 0, 60f }); // 첫 번째 파동 방향
+            var middle = (Vector3)direction.Invoke(null, new[] { recipe, (object)Quaternion.identity, 1, 60f }); // 가운데 파동 방향
+            var last = (Vector3)direction.Invoke(null, new[] { recipe, (object)Quaternion.identity, 2, 60f }); // 마지막 파동 방향
+            Assert.That(Vector3.Angle(Vector3.ProjectOnPlane(first, Vector3.up), Vector3.ProjectOnPlane(last, Vector3.up)), Is.EqualTo(60f).Within(0.01f)); // 수평 전체 육십 도
+            Assert.That(first.y - last.y, Is.EqualTo(2f * Mathf.Sin(10f * Mathf.Deg2Rad)).Within(0.001f)); // 수직 양끝의 십 도 분산
+            Assert.That(middle.y, Is.EqualTo(0f).Within(0.001f)); // 가운데 파동의 중립 고도
+        }
+
         private static object Value(object recipe, string property) // 검증 결과 속성 읽기
         {
             Assert.That(recipe, Is.Not.Null, "유효한 제작 조합"); // 앞 단계의 조합 성공 확인

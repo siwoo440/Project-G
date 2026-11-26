@@ -81,6 +81,22 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal void ApplyCraftedKnockback(Vector3 delta) // 장애물과 출현 경로를 고려한 넉백
+        {
+            if (delta.sqrMagnitude < 0.0001f) // 이동할 거리가 없는 경우
+            {
+                return; // 기존 경로 유지
+            }
+            if (Physics.SphereCast(transform.position, 0.12f, delta.normalized, out RaycastHit hit, delta.magnitude, 1 << 8, QueryTriggerInteraction.Ignore)) // 지형에 막히는 거리 확인
+            {
+                delta = delta.normalized * Mathf.Max(0f, hit.distance - 0.12f); // 장애물 앞에서 이동 제한
+            }
+            runEntry += delta; // 진입 경로의 새 기준점
+            runAttack += delta; // 공격 경로의 새 기준점
+            runExit += delta; // 이탈 경로의 새 기준점
+            transform.position += delta; // 현재 위치에 넉백 적용
+        }
+
         private void Face(Vector3 forward) // 높이 변화에도 안정적인 마물 방향
         {
             if (forward.sqrMagnitude > 0.0001f) // 조준 방향의 최소 길이

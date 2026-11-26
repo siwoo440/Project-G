@@ -37,6 +37,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private Button nextPage; // 다음 개별 부품 페이지
         private Text pageLabel; // 현재 목록과 전체 페이지
         private int page; // 같은 슬롯의 현재 부품 페이지
+        private Button confirmDefaults; // 기본 부품 전체 복원 확정
+        private Button cancelDefaults; // 기본 부품 외형 미리보기 취소
+        private string[] pendingDefaults; // 확인 전의 여덟 기본 부품
         private Action close; // 현재 메뉴의 뒤로 가기
 
         internal void Initialize(Action closeWorkshop) // 정지 메뉴의 준비 단계에서 연결
@@ -44,6 +47,11 @@ namespace ProjectG // 프로젝트 게임 영역
             Camera previewCamera = GetComponentInChildren<Camera>(true); // 조립 화면의 전용 카메라
             previewCamera.enabled = SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; // 실제 그래픽 장치가 있을 때만 미리보기 렌더
             close = closeWorkshop; // 되돌아갈 실제 메뉴
+            gameObject.AddComponent<FlightBroomPresetPanel>().Initialize(equipment, back, heading.font, transform, PreviewDefaults, () => SelectSlot(slot)); // 같은 장비와 갱신을 공유하는 프리셋 화면
+            confirmDefaults = DefaultButton(equip, "ConfirmDefaults", "기본 복원 확정"); // 기존 확정 위치의 실제 확인 버튼
+            cancelDefaults = DefaultButton(remove, "CancelDefaults", "취소"); // 기존 미리보기 위치의 취소 버튼
+            confirmDefaults.onClick.AddListener(ConfirmDefaults); // 여덟 부품을 검증 후 함께 확정
+            cancelDefaults.onClick.AddListener(CancelDefaults); // 실제 장착은 바꾸지 않고 복귀
             back.onClick.AddListener(() => close()); // 뒤로 버튼에서 연결
             equip.onClick.AddListener(Confirm); // 장착을 확정할 때만 변경
             remove.onClick.AddListener(() => SelectPart(-1)); // 빈 슬롯을 미리 확인
@@ -74,6 +82,73 @@ namespace ProjectG // 프로젝트 게임 영역
             pageRect.sizeDelta = new Vector2(100f, 40f); // 읽기 쉬운 페이지 너비
             pageLabel.alignment = TextAnchor.MiddleCenter; // 페이지 숫자 중앙 정렬
             pageLabel.raycastTarget = false; // 양옆 버튼 입력 가림 방지
+        }
+
+        private Button DefaultButton(Button template, string name, string label) // 기존 조립 위치의 기본 복원 확인 버튼
+        {
+            Button button = Instantiate(template, transform, false); // 기존 이미지와 위치 재사용
+            button.name = name; // 실제 화면과 시험 식별자
+            button.onClick = new Button.ButtonClickedEvent(); // 원래 버튼의 조작 제거
+            button.GetComponentInChildren<Text>().text = label; // 사용자가 선택할 확인 동작
+            FlightCraftedUi.FitLabel(button); // 버튼에 맞는 선명한 글자
+            button.gameObject.SetActive(false); // 기본 미리보기 전에는 숨김
+            return button; // 실제 확인 동작 연결
+        }
+
+        private void PreviewDefaults() // 기본 부품 전체의 외형만 먼저 확인
+        {
+            string[] ids = equipment.StarterParts(); // 현재 캐릭터의 여덟 시작 부품
+            if (Array.Exists(ids, string.IsNullOrEmpty)) // 캐릭터의 기본 부품 정의 누락
+            {
+                status.text = "기본 부품 구성을 확인하세요."; // 불완전한 기본 조합 안내
+                return; // 확인 버튼과 실제 장착 변경 없음
+            }
+            if (!equipment.ShowPresetPreview(previewMounts, ids, out string reason)) // 미보유·다른 캐릭터 장착·미리보기 검사
+            {
+                status.text = reason; // 실패한 부위와 장착 충돌 안내
+                return; // 확인 버튼과 실제 장착 변경 없음
+            }
+            pendingDefaults = ids; // 사용자 확인을 기다리는 전체 부품
+            SetDefaultPending(true); // 다른 편집을 막고 확인·취소 표시
+            status.text = "기본 부품 미리보기 · 확정 또는 취소"; // 실제 장착 전임을 명확히 표시
+        }
+
+        private void ConfirmDefaults() // 확인한 기본 부품의 전체 장착
+        {
+            bool applied = pendingDefaults != null && equipment.ApplyPresetParts((int)equipment.ActivePilot, pendingDefaults); // 최신 소유와 충돌을 다시 검사
+            SetDefaultPending(false); // 일괄 확인 버튼 정리
+            pendingDefaults = null; // 이전 미리보기 후보 제거
+            SelectSlot(slot); // 실제 장착과 미리보기 다시 읽기
+            status.text = applied ? "기본 부품을 모두 장착했습니다." : "기본 부품을 적용하지 못했습니다."; // 실제 확정 결과
+        }
+
+        private void CancelDefaults() // 실제 장착을 변경하지 않는 미리보기 취소
+        {
+            SetDefaultPending(false); // 일괄 확인 버튼 정리
+            pendingDefaults = null; // 취소한 후보 제거
+            SelectSlot(slot); // 원래 실제 장착의 외형 복원
+            status.text = "기본 부품 복원을 취소했습니다."; // 실제 변경이 없음을 안내
+        }
+
+        private void SetDefaultPending(bool pending) // 일괄 미리보기 중 다른 조립 입력 제어
+        {
+            confirmDefaults.gameObject.SetActive(pending); // 확정 버튼 표시
+            cancelDefaults.gameObject.SetActive(pending); // 취소 버튼 표시
+            equip.gameObject.SetActive(!pending); // 일반 장착 확정은 잠시 숨김
+            remove.gameObject.SetActive(!pending); // 단일 해제 미리보기는 잠시 숨김
+            back.interactable = !pending; // 확인 또는 취소 전 화면 이탈 방지
+            foreach (Button button in slotButtons) // 여덟 부위 선택
+            {
+                button.interactable = !pending; // 일괄 미리보기 중 선택 변경 방지
+            }
+            foreach (Button button in partButtons) // 보유 부품 행
+            {
+                button.interactable = !pending; // 일괄 미리보기 중 후보 변경 방지
+            }
+            previousPage.interactable = !pending && page > 0; // 기존 페이지 경계 유지
+            int pages = Mathf.Max(1, (options.Count + partButtons.Length - 1) / partButtons.Length); // 현재 후보의 전체 페이지
+            nextPage.interactable = !pending && page + 1 < pages; // 다음 페이지의 기존 경계 유지
+            transform.Find("OpenPresets").GetComponent<Button>().interactable = !pending; // 일괄 확인 중 다른 프리셋 진입 방지
         }
 
         private static Button PageButton(Button template, Transform parent, string name, Vector2 position, string label) // 기존 조립 버튼과 같은 페이지 조작

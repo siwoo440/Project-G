@@ -22,6 +22,9 @@ namespace ProjectG // 프로젝트 게임 영역
             public int priorityRight; // 둘째 슬롯의 유지 우선순위
             public int orderLeft; // 첫 슬롯의 최근 편성 순서
             public int orderRight; // 둘째 슬롯의 최근 편성 순서
+            public string selectedKey; // 편집 중인 개별 도감 사본
+            public string leftKey; // 왼쪽 슬롯의 개별 마법 사본
+            public string rightKey; // 오른쪽 슬롯의 개별 마법 사본
         }
 
         [Serializable] // 이름이 다른 같은 구성도 별도로 보존
@@ -38,6 +41,8 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightEnemyEncounter encounter; // 실제 출격 시작 여부
         [SerializeField] private Texture2D[] elements; // 기존 카드의 5개 속성 이미지
         private readonly CraftedSpellRecipe[] lanes = new CraftedSpellRecipe[2]; // 좌우 편성 ID 복원본
+        private readonly string[] laneReferences = new string[2]; // 각 슬롯의 개별 도감 사본 ID
+        private string selectedReference; // 편집 중인 개별 도감 사본 ID
         private readonly CraftedSpellRecipe[] runningLanes = new CraftedSpellRecipe[2]; // 이번 출격의 고정 편성
         private readonly CraftedSpellRecipe[] desiredRun = new CraftedSpellRecipe[2]; // 자동 복구할 이번 출격의 원래 편성
         private readonly bool[] suspended = new bool[2]; // 자동 해제된 슬롯만 복구할 표시
@@ -108,6 +113,12 @@ namespace ProjectG // 프로젝트 게임 영역
                         {
                             gallery.Add(NewEntry(Saved, NameOf(Saved))); // 기존 조합을 도감 한 장으로 이관
                         }
+                        if (data.version >= 5) // 개별 사본 참조가 포함된 저장
+                        {
+                            selectedReference = data.selectedKey; // 편집 중인 사본의 원래 ID
+                            laneReferences[0] = data.leftKey; // 첫 슬롯의 원래 사본 ID
+                            laneReferences[1] = data.rightKey; // 둘째 슬롯의 원래 사본 ID
+                        }
                         bool legacyTrialDeck = data.version < 2 && string.IsNullOrEmpty(data.left) && string.IsNullOrEmpty(data.right); // 이전 저장의 기본 시험 덱
                         if (!legacyTrialDeck) // 이전 시험 덱 이외의 명시적인 편성
                         {
@@ -141,6 +152,11 @@ namespace ProjectG // 프로젝트 게임 영역
             return lanes[index]; // 현재 좌우 칸의 유효 마법
         }
 
+        internal string SlotReference(int index) // 저장 슬롯이 가리키는 개별 도감 사본
+        {
+            return (uint)index < 2 ? laneReferences[index] : null; // 범위 밖과 이전 저장은 개별 참조 없음
+        }
+
         internal CraftedSpellRecipe ActiveSlot(int index) // 이번 출격의 실제 사용 마법
         {
             ReconcileBudget(); // 장비 변경 직후에도 실제 한도 반영
@@ -156,7 +172,13 @@ namespace ProjectG // 프로젝트 게임 영역
             Saved = recipe; // 마법 도감의 시험 저장 위치
             if (!gallery.Exists(entry => entry.recipe == recipe.Id)) // 같은 구성의 기존 저장이 없는 경우
             {
-                gallery.Add(NewEntry(recipe, NameOf(recipe))); // 실제 검증한 조합을 새 도감에 추가
+                GalleryEntry entry = NewEntry(recipe, NameOf(recipe)); // 실제 검증한 조합의 새 도감 사본
+                gallery.Add(entry); // 같은 구성의 첫 저장
+                selectedReference = entry.key; // 방금 저장한 정확한 사본 선택
+            }
+            else if (!gallery.Exists(entry => entry.key == selectedReference && entry.recipe == recipe.Id)) // 기존 선택이 다른 구성이거나 없는 경우
+            {
+                selectedReference = gallery.Find(entry => entry.recipe == recipe.Id)?.key; // 기존 구성의 실제 도감 사본 선택
             }
             Write(); // 편집 화면을 떠나도 내용 복원
         }
@@ -174,6 +196,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 현재 편집 저장 보존
             }
             Saved = recipe; // 같은 구성의 저장 편집 대상
+            selectedReference = entry.key; // 선택한 복제본의 정확한 식별자
             Write(); // 다음 진입에서도 마지막 선택 복원
             return true; // 유효한 도감 선택
         }
@@ -206,11 +229,26 @@ namespace ProjectG // 프로젝트 게임 영역
         internal bool DeleteGallery(int index) // 편성 참조가 없는 저장 카드 삭제
         {
             GalleryEntry entry = GalleryAt(index); // 삭제할 실제 항목
-            if (entry == null || Array.Exists(lanes, lane => lane != null && lane.Id == entry.recipe)) // 현재 편성에서 참조 중인 구성
+            if (entry == null) // 없는 도감 사본
             {
-                return false; // 먼저 명시적으로 편성을 해제하도록 보존
+                return false; // 다른 저장을 변경하지 않음
+            }
+            if (new FlightBroomPresetStore().References(entry.key)) // 어떤 캐릭터의 저장 프리셋이 참조하는 사본
+            {
+                return false; // 프리셋 참조를 사용자가 먼저 정리하도록 보존
+            }
+            for (int lane = 0; lane < lanes.Length; lane++) // 실제 편성된 두 슬롯
+            {
+                if (laneReferences[lane] == entry.key || string.IsNullOrEmpty(laneReferences[lane]) && lanes[lane] != null && lanes[lane].Id == entry.recipe) // 참조 중인 사본 또는 사본이 불명확한 이전 저장
+                {
+                    return false; // 명시적으로 비우거나 이전 저장을 재편성하도록 보존
+                }
             }
             gallery.RemoveAt(index); // 해당 복제본만 목록에서 제거
+            if (selectedReference == entry.key) // 편집 중인 사본을 삭제한 경우
+            {
+                selectedReference = gallery.Find(value => value.recipe == entry.recipe)?.key; // 같은 구성의 남은 사본 또는 빈 선택
+            }
             if (Saved != null && Saved.Id == entry.recipe && !gallery.Exists(value => value.recipe == entry.recipe)) // 마지막으로 저장된 같은 구성까지 삭제
             {
                 Saved = null; // 더 이상 존재하지 않는 편집 저장 해제
@@ -232,6 +270,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 기존 슬롯 보존
             }
             lanes[index] = recipe; // 지정한 슬롯의 새 마법
+            laneReferences[index] = gallery.Exists(entry => entry.key == selectedReference && entry.recipe == recipe.Id) ? selectedReference : null; // 선택한 실제 사본 또는 이전 기본 구성
             equipOrder[index] = ++nextOrder; // 같은 우선순위에서 최근 편성한 슬롯
             ApplyDuringPreparation(index); // 전투 전 선택 슬롯만 바꾸고 다른 정상 편성 보존
             Write(); // 장착 직후 유효 조합 저장
@@ -262,6 +301,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void ClearSlot(int index) // 제작 마법 슬롯 비우기
         {
             lanes[index] = null; // 해당 조합의 사용 중단
+            laneReferences[index] = null; // 직접 비운 슬롯의 사본 참조 제거
             ApplyDuringPreparation(index); // 직접 해제한 슬롯을 복구 대상에서도 제거
             Write(); // 게임 재실행 후에도 편성 유지
         }
@@ -299,6 +339,66 @@ namespace ProjectG // 프로젝트 게임 영역
         internal bool HasEmissionRoom(CraftedSpellRecipe recipe) // 카드의 실제 발사체 생성 여유
         {
             return caster.HasEmissionRoom(recipe); // 현재 플레이어의 생성 한도 확인
+        }
+
+        internal bool UsesEquipment(FlightBroomEquipment value) // 프리셋과 마법이 같은 장비를 보는지 확인
+        {
+            return equipment == value; // 다른 캐릭터 또는 다른 씬의 장비 혼용 방지
+        }
+
+        internal bool PreparePreset(string[] recipes, string[] references, int[] values, float magicAttack, out CraftedSpellRecipe[] prepared, out string reason) // 마법 사본과 적용 후 공격력의 사전 검사
+        {
+            prepared = null; // 실패할 때 적용할 구성 없음
+            reason = null; // 성공 시 실패 사유 없음
+            if (!AppliesNow || recipes == null || recipes.Length != 2 || references == null || references.Length != 2 || values == null || values.Length != 2 || Array.Exists(values, value => value < 0 || value > 2)) // 출격 준비 상태와 저장 구조
+            {
+                reason = "출격 준비 상태와 마법 슬롯을 확인하세요."; // 전투 중 변경이나 손상된 구성 안내
+                return false; // 저장과 현재 슬롯 보존
+            }
+            var result = new CraftedSpellRecipe[2]; // 검증된 양쪽 마법 구성
+            for (int i = 0; i < result.Length; i++) // 각 슬롯의 구성과 개별 사본
+            {
+                if (string.IsNullOrEmpty(recipes[i])) // 명시적으로 비운 슬롯
+                {
+                    if (!string.IsNullOrEmpty(references[i])) // 구성이 없는 사본 참조
+                    {
+                        reason = "마법 구성과 저장 사본이 일치하지 않습니다."; // 손상된 빈 슬롯 안내
+                        return false; // 한 슬롯도 변경하지 않음
+                    }
+                    continue; // 정상적인 빈 칸 보존
+                }
+                if (!CraftedSpellRules.TryRead(recipes[i], out CraftedSpellRecipe recipe) || !FlightCraftedSpellCaster.Supports(recipe) || !ResearchUnlocked(recipe)) // 구성·실제 지원·연구 자격
+                {
+                    reason = "마법 구성이 없거나 연구가 필요합니다."; // 확인할 마법 상태 안내
+                    return false; // 유효하지 않은 조합 차단
+                }
+                if (!string.IsNullOrEmpty(references[i]) && !gallery.Exists(entry => entry.key == references[i] && entry.recipe == recipe.Id)) // 저장된 정확한 사본과 구성 불일치
+                {
+                    reason = "프리셋이 참조하는 마법 사본이 없습니다."; // 삭제되거나 바뀐 사본 안내
+                    return false; // 다른 같은 구성 사본으로 임의 교체 금지
+                }
+                result[i] = recipe; // 검증을 통과한 실제 구성 보관
+            }
+            if (!CraftedSpellRules.CanEquip(result[0], result[1], Mathf.FloorToInt(Mathf.Max(0f, magicAttack)))) // 적용 후보의 실제 소수 공격력과 전체 비용
+            {
+                reason = "프리셋의 마법 공격력이 부족합니다."; // 적용 후 한도 부족 안내
+                return false; // 현재 장비와 마법 모두 보존
+            }
+            prepared = result; // 모든 검증을 통과한 두 슬롯
+            return true; // 부품 적용 전의 마법 검사 완료
+        }
+
+        internal void ApplyPresetMagic(CraftedSpellRecipe[] prepared, string[] references, int[] values) // 사전 검증한 두 슬롯을 함께 확정
+        {
+            for (int i = 0; i < lanes.Length; i++) // 두 마법의 저장 슬롯
+            {
+                lanes[i] = prepared[i]; // 같은 시점에 검증한 실제 구성
+                laneReferences[i] = references[i]; // 개별 저장 사본 참조
+                priorities[i] = values[i]; // 사용자가 저장한 유지 우선순위
+                equipOrder[i] = ++nextOrder; // 복원한 슬롯의 실제 편성 순서
+            }
+            ApplyDuringPreparation(); // 현재 준비 슬롯을 한 번에 다시 구성
+            Write(); // 두 슬롯과 개별 참조를 함께 저장
         }
 
         internal bool WithinBudget() // 현재 출격의 편성 비용 한도
@@ -519,7 +619,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 사용자 설정 파일을 건드리지 않음
             }
-            var data = new SaveData { version = 4, recipe = Saved?.Id, left = lanes[0]?.Id, right = lanes[1]?.Id, gallery = gallery.ToArray(), priorityLeft = priorities[0], priorityRight = priorities[1], orderLeft = equipOrder[0], orderRight = equipOrder[1] }; // 도감과 편성·유지 순서를 함께 복원하는 데이터
+            var data = new SaveData { version = 5, recipe = Saved?.Id, left = lanes[0]?.Id, right = lanes[1]?.Id, gallery = gallery.ToArray(), priorityLeft = priorities[0], priorityRight = priorities[1], orderLeft = equipOrder[0], orderRight = equipOrder[1], selectedKey = selectedReference, leftKey = laneReferences[0], rightKey = laneReferences[1] }; // 도감·개별 참조·편성과 유지 순서 저장
             PlayerPrefs.SetString(key, JsonUtility.ToJson(data)); // 하나의 저장 항목으로 적용
             PlayerPrefs.Save(); // 종료와 재실행 후 복원
         }

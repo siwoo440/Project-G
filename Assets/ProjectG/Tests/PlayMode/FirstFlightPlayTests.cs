@@ -5580,6 +5580,430 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 기본 부품 일괄 복원의 실제 미리보기
+        public IEnumerator BroomDefaultRestorePreviewsBeforeCancelOrConfirm() // 취소 시 기존 장착과 외형 유지
+        {
+            string broomKey = "ProjectG.Broom.Defaults." + System.Guid.NewGuid().ToString("N"); // 사용자의 장비와 분리한 저장
+            string presetKey = "ProjectG.Broom.Defaults.Presets." + System.Guid.NewGuid().ToString("N"); // 분리된 프리셋 저장
+            string oldBroom = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY"); // 이전 장착 환경
+            string oldPreset = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 이전 프리셋 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", broomKey); // 실제 장착의 독립 저장
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", presetKey); // 독립 프리셋 저장
+            try // 실제 조립 화면의 기본 복원 흐름
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비
+                yield return WaitFrames(4); // 장비와 화면 초기화
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 출격 준비의 실제 화면
+                ClickPauseButton(briefing, "Ready/EditGear"); // 실제 빗자루 조립
+                Transform workshop = briefing.Find("BroomWorkshop"); // 여덟 부위의 실제 화면
+                Component controller = workshop.GetComponent("FlightBroomWorkshop"); // 실제 조립 제어
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 장비와 미리보기
+                Component gear = (Component)controller.GetType().GetField("equipment", hidden).GetValue(controller); // 현재 캐릭터의 장비
+                object aria = System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 선택 캐릭터
+                object body = System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"), "Body"); // 실제 몸체 위치
+                var get = gear.GetType().GetMethod("GetEquippedId"); // 실제 장착 사본 조회
+                Assert.That(gear.GetType().GetMethod("ConfirmPart", hidden).Invoke(gear, new[] { body, (object)"trial.storm-body:1" }), Is.True); // 현재 실제 몸체 변경
+                controller.GetType().GetMethod("SelectSlot", hidden).Invoke(controller, new[] { body }); // 현재 장착 외형으로 미리보기 갱신
+                MeshRenderer[] preview = (MeshRenderer[])controller.GetType().GetField("previewMounts", hidden).GetValue(controller); // 실제 여덟 미리보기 렌더러
+                Material originalAppearance = preview[0].sharedMaterial; // 현재 장착된 몸체의 미리보기 외형
+                object rian = System.Enum.Parse(aria.GetType(), "Rian"); // 부품 충돌을 만드는 다른 캐릭터
+                Assert.That(gear.GetType().GetMethod("TryEquip").Invoke(gear, new[] { rian, body, (object)"aria.body:1" }), Is.True); // 기본 몸체를 다른 캐릭터에 장착
+                ClickPauseButton(workshop, "OpenPresets"); // 프리셋 관리 화면
+                Transform panel = workshop.Find("BroomPresets"); // 조립 위의 실제 패널
+                Assert.That(panel.Find("RestoreDefault"), Is.Not.Null); // 기본 부품 일괄 복원 진입
+                ClickPauseButton(panel, "RestoreDefault"); // 충돌하는 기본 부품 미리보기 시도
+                Text status = (Text)controller.GetType().GetField("status", hidden).GetValue(controller); // 실제 조립 화면의 안내
+                Assert.That(status.text, Does.Contain("다른 캐릭터")); // 실제 충돌 원인 표시
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 충돌 시 현재 장착 보존
+                Assert.That(gear.GetType().GetMethod("Unequip").Invoke(gear, new[] { rian, body }), Is.True); // 다른 캐릭터의 충돌 해제
+                ClickPauseButton(workshop, "OpenPresets"); // 기본 복원 화면 재진입
+                ClickPauseButton(panel, "RestoreDefault"); // 실제 여덟 부위 미리보기
+                Assert.That(preview[0].sharedMaterial, Is.Not.SameAs(originalAppearance)); // 실제 미리보기 외형만 기본 부품으로 변경
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 확인 전 실제 장착 보존
+                Assert.That(workshop.Find("CancelDefaults").gameObject.activeSelf, Is.True); // 미리보기 취소 버튼 표시
+                ClickPauseButton(workshop, "CancelDefaults"); // 전체 기본 복원 취소
+                Assert.That(preview[0].sharedMaterial, Is.SameAs(originalAppearance)); // 취소 후 원래 장착 외형 복원
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 취소 후 기존 몸체 보존
+                ClickPauseButton(workshop, "OpenPresets"); // 다시 프리셋 화면 열기
+                ClickPauseButton(panel, "RestoreDefault"); // 실제 기본 외형 재미리보기
+                ClickPauseButton(workshop, "ConfirmDefaults"); // 사용자가 실제 장착 확정
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("aria.body:1")); // 캐릭터 기본 몸체 복원
+                foreach (object slot in System.Enum.GetValues(body.GetType())) // 여덟 부위의 실제 장착
+                {
+                    Assert.That((string)get.Invoke(gear, new[] { aria, slot }), Does.StartWith("aria.")); // 모든 시작 부품을 같은 캐릭터 것으로 복원
+                }
+                Assert.That(workshop.Find("ConfirmDefaults").gameObject.activeSelf, Is.False); // 완료한 확인 버튼 숨김
+            }
+            finally // 독립 장착과 프리셋 저장 제거
+            {
+                PlayerPrefs.DeleteKey(broomKey); // 시험 장착 삭제
+                PlayerPrefs.DeleteKey(presetKey); // 시험 프리셋 삭제
+                PlayerPrefs.Save(); // 삭제 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", oldBroom); // 원래 장착 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", oldPreset); // 원래 프리셋 환경 복구
+            }
+        }
+
+        [UnityTest] // 실제 빗자루 조립의 프리셋 화면
+        public IEnumerator BroomPresetScreenSavesRenamesCopiesAndApplies() // 실제 버튼과 저장 상태 연결
+        {
+            string presetKey = "ProjectG.Broom.PresetUI." + System.Guid.NewGuid().ToString("N"); // 프리셋 화면 시험 저장
+            string broomKey = "ProjectG.Broom.PresetUI.Gear." + System.Guid.NewGuid().ToString("N"); // 부품 화면 시험 저장
+            string magicKey = "ProjectG.Broom.PresetUI.Magic." + System.Guid.NewGuid().ToString("N"); // 마법 화면 시험 저장
+            string oldPreset = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 이전 프리셋 환경
+            string oldBroom = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY"); // 이전 장착 환경
+            string oldMagic = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 마법 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", presetKey); // 시험 전용 프리셋
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", broomKey); // 시험 전용 부품
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", magicKey); // 시험 전용 마법
+            try // 실제 출격 준비 UI의 입력과 버튼
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비
+                yield return WaitFrames(4); // 준비 화면 초기화
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 준비 화면
+                ClickPauseButton(briefing, "Ready/EditGear"); // 실제 조립 화면 열기
+                Transform workshop = briefing.Find("BroomWorkshop"); // 기존 여덟 부위 조립 화면
+                Assert.That(workshop.Find("OpenPresets"), Is.Not.Null); // 프리셋 화면 진입 버튼
+                ClickPauseButton(workshop, "OpenPresets"); // 실제 프리셋 화면 열기
+                Transform panel = workshop.Find("BroomPresets"); // 조립 화면 위의 프리셋 패널
+                Assert.That(panel, Is.Not.Null); // 실제 사용자가 볼 화면
+                Assert.That(panel.gameObject.activeInHierarchy, Is.True); // 실제 표시 상태
+                InputField name = panel.Find("Name").GetComponent<InputField>(); // 사용자가 직접 입력할 이름
+                name.text = "기본 비행"; // 새 프리셋의 이름
+                ClickPauseButton(panel, "Save"); // 현재 부품과 마법 저장
+                Assert.That(HudText(panel.Find("Row0/Label")), Does.Contain("기본 비행")); // 실제 저장 목록의 이름
+                Component panelController = workshop.GetComponent("FlightBroomPresetPanel"); // 실제 프리셋 화면 제어
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 저장 목록 확인
+                object store = panelController.GetType().GetField("store", hidden).GetValue(panelController); // 현재 화면의 저장 목록
+                System.Type storeType = store.GetType(); // 실제 프리셋 저장소 유형
+                object saved = storeType.GetMethod("At", hidden).Invoke(store, new object[] { 0, 0 }); // 첫 저장 기록
+                System.Type savedType = saved.GetType(); // 실제 프리셋 필드
+                string[] missing = (string[])((string[])savedType.GetField("parts").GetValue(saved)).Clone(); // 원본과 분리된 부품 목록
+                missing[0] = "missing.body:1"; // 적용할 수 없는 부품 사본
+                Assert.That(storeType.GetMethod("Add", hidden).Invoke(store, new object[] { 0, "적용 불가", missing, savedType.GetField("recipes").GetValue(saved), savedType.GetField("references").GetValue(saved), savedType.GetField("priorities").GetValue(saved) }), Is.True); // 불가 기록의 저장
+                Assert.That(panel.Find("Filter"), Is.Not.Null); // 실제 적용 가능 필터 버튼
+                Assert.That(panel.Find("Compare"), Is.Not.Null); // 실제 능력치 비교 버튼
+                ClickPauseButton(panel, "Filter"); // 실제 적용 가능한 프리셋만 표시
+                Assert.That(panel.Find("Row1").gameObject.activeSelf, Is.False); // 누락된 부품의 프리셋 숨김
+                ClickPauseButton(panel, "Filter"); // 전체 기록 다시 표시
+                Assert.That(panel.Find("Row1").gameObject.activeSelf, Is.True); // 적용 불가 기록도 다시 표시
+                ClickPauseButton(panel, "Row1"); // 적용 불가 기록 선택
+                ClickPauseButton(panel, "Delete"); // 시험 기록만 삭제
+                ClickPauseButton(panel, "Row0"); // 저장한 첫 기록 선택
+                ClickPauseButton(panel, "Compare"); // 전체 장착 능력치 비교
+                Assert.That(HudText(panel.Find("Detail")), Does.Contain("능력치")); // 비교 모드의 명확한 설명
+                ClickPauseButton(panel, "Compare"); // 부품과 마법 상세로 복귀
+                ClickPauseButton(panel, "Copy"); // 현재 기록의 독립 복제
+                Assert.That(HudText(panel.Find("Row1/Label")), Does.Contain("복제")); // 새 복제본 표시
+                ClickPauseButton(panel, "Row1"); // 복제한 기록 선택
+                name.text = "두 번째 비행"; // 복제본의 새 이름
+                ClickPauseButton(panel, "Rename"); // 실제 이름 저장
+                Assert.That(HudText(panel.Find("Row1/Label")), Does.Contain("두 번째 비행")); // 선택한 사본의 이름 변경
+                ClickPauseButton(panel, "Delete"); // 선택한 프리셋 기록 삭제
+                Assert.That(panel.Find("Row1").gameObject.activeSelf, Is.False); // 남은 한 개만 표시
+                ClickPauseButton(panel, "Row0"); // 원래 프리셋 선택
+                Component workshopController = workshop.GetComponent("FlightBroomWorkshop"); // 실제 조립 목록 제어
+                Component gear = (Component)workshopController.GetType().GetField("equipment", hidden).GetValue(workshopController); // 실제 현재 장비
+                object body = System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"), "Body"); // 실제 몸체 슬롯
+                Assert.That(gear.GetType().GetMethod("ConfirmPart", hidden).Invoke(gear, new[] { body, (object)"trial.storm-body:1" }), Is.True); // 다른 실제 몸체 장착
+                workshopController.GetType().GetMethod("SelectSlot", hidden).Invoke(workshopController, new[] { body }); // 조립 목록의 변경 상태 표시
+                ClickPauseButton(panel, "Apply"); // 저장한 전체 장착과 마법 복원
+                Assert.That(HudText(panel.Find("Notice")), Does.Contain("적용")); // 사용자에게 실제 결과 안내
+                ClickPauseButton(panel, "Close"); // 실제 조립 화면으로 복귀
+                Assert.That(HudText(workshop.Find("Parts/Part0/Label")), Does.Contain("청록 정찰 몸체")); // 복원된 실제 몸체로 목록 갱신
+                Assert.That(HudText(workshop.Find("Parts/Part0/Label")), Does.Contain("장착")); // 실제 현재 장착 표시 갱신
+                string[] actions = { "Save", "Apply", "Copy", "Rename", "Delete" }; // 한 줄에 배치한 프리셋 작업
+                for (int i = 1; i < actions.Length; i++) // 인접 버튼의 실제 영역 비교
+                {
+                    RectTransform left = panel.Find(actions[i - 1]).GetComponent<RectTransform>(); // 앞선 실제 버튼
+                    RectTransform right = panel.Find(actions[i]).GetComponent<RectTransform>(); // 다음 실제 버튼
+                    Assert.That(right.anchoredPosition.x - left.anchoredPosition.x, Is.GreaterThanOrEqualTo((left.sizeDelta.x + right.sizeDelta.x) * 0.5f)); // 글자와 클릭 영역 겹침 방지
+                }
+            }
+            finally // 독립 시험의 저장 환경 복구
+            {
+                PlayerPrefs.DeleteKey(presetKey); // 화면 시험 프리셋 삭제
+                PlayerPrefs.DeleteKey(broomKey); // 화면 시험 부품 저장 삭제
+                PlayerPrefs.DeleteKey(magicKey); // 화면 시험 마법 저장 삭제
+                PlayerPrefs.Save(); // 삭제 기록 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", oldPreset); // 이전 프리셋 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", oldBroom); // 이전 장착 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", oldMagic); // 이전 마법 환경 복구
+            }
+        }
+
+        [UnityTest] // 프리셋의 전체 적용과 장착 충돌
+        public IEnumerator BroomPresetApplyRestoresBothSystemsOrChangesNeither() // 실제 여덟 부품·마법과 타 캐릭터 충돌
+        {
+            string presetKey = "ProjectG.Broom.Apply." + System.Guid.NewGuid().ToString("N"); // 프리셋 시험 저장
+            string broomKey = "ProjectG.Broom.Loadouts." + System.Guid.NewGuid().ToString("N"); // 장착 시험 저장
+            string magicKey = "ProjectG.Crafted.Apply." + System.Guid.NewGuid().ToString("N"); // 마법 시험 저장
+            string oldPreset = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 이전 프리셋 환경
+            string oldBroom = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY"); // 이전 장착 환경
+            string oldMagic = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 마법 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", presetKey); // 이 시험의 프리셋 저장
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", broomKey); // 이 시험의 장착 저장
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", magicKey); // 이 시험의 마법 저장
+            try // 실제 준비 화면의 양쪽 저장 적용
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비
+                yield return WaitFrames(4); // 장비와 마법 저장 초기화
+                Transform editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 실제 제작 마법 화면
+                Component component = editor.GetComponent("FlightCraftedSpellEditor"); // 도감과 장비 연결
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 저장 API
+                Component book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 실제 마법 편성
+                Component gear = (Component)book.GetType().GetField("equipment", hidden).GetValue(book); // 같은 캐릭터의 실제 빗자루
+                System.Type storeType = gear.GetType().Assembly.GetType("ProjectG.FlightBroomPresetStore"); // 실제 프리셋 저장소
+                object store = System.Activator.CreateInstance(storeType, true); // 독립 프리셋 목록
+                var save = storeType.GetMethod("SaveCurrent", hidden); // 현재 장비와 마법의 저장
+                var apply = storeType.GetMethod("TryApply", hidden); // 전체 검증과 확정
+                Assert.That(save, Is.Not.Null); // 현재 상태 저장 기능
+                Assert.That(apply, Is.Not.Null); // 전체 적용 기능
+                object aria = System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 캐릭터
+                object rian = System.Enum.Parse(aria.GetType(), "Rian"); // 충돌을 만드는 다른 캐릭터
+                object body = System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"), "Body"); // 몸체 부위
+                var get = gear.GetType().GetMethod("GetEquippedId"); // 실제 개별 장착 조회
+                string original = (string)get.Invoke(gear, new[] { aria, body }); // 저장할 시작 몸체
+                object second = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }); // 저장할 둘째 마법
+                Assert.That(save.Invoke(store, new object[] { gear, book, "원래 조합" }), Is.True); // 실제 여덟 부품과 두 마법 저장
+                Assert.That(gear.GetType().GetMethod("ConfirmPart", hidden).Invoke(gear, new[] { body, (object)"trial.storm-body:1" }), Is.True); // 실제 다른 몸체로 교체
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 실제 마법 슬롯 비우기
+                object[] request = { 0, 0, gear, book, null }; // 아리아 첫 기록의 전체 적용
+                Assert.That(apply.Invoke(store, request), Is.True, request[4] as string); // 유효한 조합 전체 적용
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo(original)); // 저장한 개별 몸체 복원
+                object restoredMagic = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }); // 다시 읽은 실제 마법
+                Assert.That(restoredMagic.GetType().GetProperty("Id").GetValue(restoredMagic), Is.EqualTo(second.GetType().GetProperty("Id").GetValue(second))); // 같은 구성의 마법 복원
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 저장 후 출격 준비 재진입
+                yield return WaitFrames(4); // 장비와 마법의 저장 복원
+                editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 다시 생성된 제작 화면
+                component = editor.GetComponent("FlightCraftedSpellEditor"); // 다시 생성된 마법 도감
+                book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 재실행 후 실제 마법
+                gear = (Component)book.GetType().GetField("equipment", hidden).GetValue(book); // 재실행 후 실제 장비
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo(original)); // 적용한 부품의 영구 복원
+                restoredMagic = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }); // 복원된 마법 슬롯
+                Assert.That(restoredMagic.GetType().GetProperty("Id").GetValue(restoredMagic), Is.EqualTo(second.GetType().GetProperty("Id").GetValue(second))); // 적용한 마법의 영구 복원
+                Assert.That(gear.GetType().GetMethod("ConfirmPart", hidden).Invoke(gear, new[] { body, (object)"trial.storm-body:1" }), Is.True); // 실패 전 현재 몸체 변경
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 실패 전 현재 마법 비움
+                Assert.That(gear.GetType().GetMethod("TryEquip").Invoke(gear, new[] { rian, body, (object)original }), Is.True); // 저장 부품을 다른 캐릭터가 장착
+                request = new object[] { 0, 0, gear, book, null }; // 충돌하는 이전 프리셋 적용
+                Assert.That(apply.Invoke(store, request), Is.False); // 충돌은 적용 전 전체 거부
+                Assert.That(request[4] as string, Is.Not.Null.And.Not.Empty); // 사용자에게 표시할 실패 원인
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 기존 몸체 그대로 유지
+                Assert.That(get.Invoke(gear, new[] { rian, body }), Is.EqualTo(original)); // 다른 캐릭터 장착 보존
+                Assert.That(book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }), Is.Null); // 마법도 일부 복원하지 않음
+                Assert.That(storeType.GetMethod("Count", hidden).Invoke(store, new object[] { 0 }), Is.EqualTo(1)); // 저장 프리셋 자체 보존
+                Assert.That(gear.GetType().GetMethod("Unequip").Invoke(gear, new[] { rian, body }), Is.True); // 다른 캐릭터의 충돌 해제
+                object saved = storeType.GetMethod("At", hidden).Invoke(store, new object[] { 0, 0 }); // 실제 저장 프리셋
+                System.Type savedType = saved.GetType(); // 프리셋의 실제 필드
+                string[] savedParts = (string[])savedType.GetField("parts").GetValue(saved); // 저장된 여덟 부품
+                string[] savedRecipes = (string[])savedType.GetField("recipes").GetValue(saved); // 저장된 두 마법
+                string[] savedReferences = (string[])savedType.GetField("references").GetValue(saved); // 저장된 개별 사본
+                int[] savedPriorities = (int[])savedType.GetField("priorities").GetValue(saved); // 저장된 유지 우선순위
+                string[] missingParts = (string[])savedParts.Clone(); // 원본과 독립적인 잘못된 부품 목록
+                missingParts[0] = "missing.body:1"; // 분해 또는 미보유 부품의 식별자
+                var add = storeType.GetMethod("Add", hidden); // 오류가 포함된 저장 기록 준비
+                Assert.That(add.Invoke(store, new object[] { 0, "없는 부품", missingParts, savedRecipes, savedReferences, savedPriorities }), Is.True); // 누락된 사본의 기존 프리셋 상황
+                request = new object[] { 0, 1, gear, book, null }; // 부품이 사라진 프리셋
+                Assert.That(apply.Invoke(store, request), Is.False); // 부품 누락의 적용 거부
+                Assert.That(request[4] as string, Does.Contain("몸체")); // 누락한 부위를 사용자가 이해할 수 있게 안내
+                string[] missingReferences = (string[])savedReferences.Clone(); // 원본과 독립적인 마법 참조
+                missingReferences[0] = "missing.magic.copy"; // 이미 삭제된 개별 마법 사본
+                Assert.That(add.Invoke(store, new object[] { 0, "없는 마법", savedParts, savedRecipes, missingReferences, savedPriorities }), Is.True); // 사본이 사라진 프리셋 상황
+                request = new object[] { 0, 2, gear, book, null }; // 마법 사본이 없는 프리셋
+                Assert.That(apply.Invoke(store, request), Is.False); // 마법 참조 누락의 전체 거부
+                Assert.That(request[4] as string, Does.Contain("마법 사본")); // 실제 참조 실패 원인
+                Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 실패 뒤 현재 몸체 유지
+                Assert.That(book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }), Is.Null); // 실패 뒤 현재 마법 유지
+                object catalog = gear.GetType().GetField("catalog", hidden).GetValue(gear); // 실제 부품 카탈로그
+                object bodyDefinition = catalog.GetType().GetMethod("Find", hidden).Invoke(catalog, new object[] { "aria.body" }); // 복원 후보의 기본 몸체
+                var penalty = bodyDefinition.GetType().GetField("penalty"); // 시험용 공격력 불이익
+                var penaltyStat = bodyDefinition.GetType().GetField("penaltyStat"); // 시험용 불이익 종류
+                object oldPenalty = penalty.GetValue(bodyDefinition); // 원래 불이익 저장
+                object oldPenaltyStat = penaltyStat.GetValue(bodyDefinition); // 원래 종류 저장
+                try // 미완성된 장비 수치의 실제 경계 시험
+                {
+                    object[] preview = { 0, savedParts, 0f, null }; // 저장 조합의 예상 공격력
+                    Assert.That(gear.GetType().GetMethod("CanApplyPreset", hidden).Invoke(gear, preview), Is.True); // 원래 후보 부품 검증
+                    object firstMagic = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 실제 첫 마법 비용
+                    int total = (int)firstMagic.GetType().GetProperty("Cost").GetValue(firstMagic) + (int)second.GetType().GetProperty("Cost").GetValue(second); // 두 구성의 전체 비용
+                    penaltyStat.SetValue(bodyDefinition, System.Enum.Parse(gear.GetType().Assembly.GetType("ProjectG.FlightBroomStat"), "MagicPower")); // 시험용 마법 공격력 불이익
+                    penalty.SetValue(bodyDefinition, total - 1f - (float)preview[2]); // 적용 후보를 비용보다 1 낮게 조정
+                    request = new object[] { 0, 0, gear, book, null }; // 공격력이 부족한 원래 프리셋
+                    Assert.That(apply.Invoke(store, request), Is.False); // 한도 부족이면 전체 적용 거부
+                    Assert.That(request[4] as string, Does.Contain("공격력")); // 실제 한도 부족 안내
+                    Assert.That(get.Invoke(gear, new[] { aria, body }), Is.EqualTo("trial.storm-body:1")); // 기존 몸체를 일부 교체하지 않음
+                    Assert.That(book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }), Is.Null); // 기존 마법도 일부 변경하지 않음
+                }
+                finally // 임시 시험값이 실제 카탈로그에 남지 않도록 복구
+                {
+                    penalty.SetValue(bodyDefinition, oldPenalty); // 이전 불이익 값 복원
+                    penaltyStat.SetValue(bodyDefinition, oldPenaltyStat); // 이전 불이익 종류 복원
+                }
+            }
+            finally // 이번 시험의 환경과 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(presetKey); // 프리셋 시험 저장 삭제
+                PlayerPrefs.DeleteKey(broomKey); // 장착 시험 저장 삭제
+                PlayerPrefs.DeleteKey(magicKey); // 마법 시험 저장 삭제
+                PlayerPrefs.Save(); // 삭제 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", oldPreset); // 기존 프리셋 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY", oldBroom); // 기존 장착 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", oldMagic); // 기존 마법 환경 복구
+            }
+        }
+
+        [UnityTest] // 같은 구성의 서로 다른 마법 사본 참조
+        public IEnumerator CraftedSlotsRememberTheSelectedGalleryCopy() // 개별 사본 식별·재실행·삭제 보호
+        {
+            string key = "ProjectG.Crafted.CopyRefs." + System.Guid.NewGuid().ToString("N"); // 사용자 마법과 분리한 저장
+            string presetKey = "ProjectG.Broom.CopyRefs." + System.Guid.NewGuid().ToString("N"); // 프리셋 참조의 독립 저장
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 마법 저장 환경
+            string previousPreset = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 기존 프리셋 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 이번 시험의 독립 마법 저장
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", presetKey); // 이번 시험의 독립 프리셋 저장
+            try // 실제 준비 화면과 영구 저장
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 출격 준비의 제작 마법
+                yield return WaitFrames(4); // 실제 편성과 도감 초기화
+                Transform editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 실제 제작 화면
+                Component component = editor.GetComponent("FlightCraftedSpellEditor"); // 마법 도감 참조
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 API
+                Component book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 실제 마법 저장
+                object fire = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 기본 파이어 볼트
+                book.GetType().GetMethod("Save", hidden).Invoke(book, new[] { fire }); // 구성의 첫 저장 사본
+                Assert.That(book.GetType().GetMethod("DuplicateGallery", hidden).Invoke(book, new object[] { 0 }), Is.True); // 같은 구성의 다른 사본
+                object first = book.GetType().GetMethod("GalleryAt", hidden).Invoke(book, new object[] { 0 }); // 원래 저장 사본
+                object second = book.GetType().GetMethod("GalleryAt", hidden).Invoke(book, new object[] { 1 }); // 같은 구성의 복제본
+                string firstKey = (string)first.GetType().GetField("key").GetValue(first); // 원본 사본 식별자
+                string secondKey = (string)second.GetType().GetField("key").GetValue(second); // 복제본 식별자
+                Assert.That(secondKey, Is.Not.EqualTo(firstKey)); // 서로 다른 저장 사본
+                Assert.That(book.GetType().GetMethod("LoadGallery", hidden).Invoke(book, new object[] { 1 }), Is.True); // 사용자가 복제본 선택
+                Assert.That(book.GetType().GetMethod("Equip", hidden).Invoke(book, new[] { (object)0, fire }), Is.True); // 선택한 사본을 실제 슬롯에 편성
+                var reference = book.GetType().GetMethod("SlotReference", hidden); // 슬롯의 개별 사본 조회
+                Assert.That(reference, Is.Not.Null); // 실제 사본 참조 API
+                Assert.That(reference.Invoke(book, new object[] { 0 }), Is.EqualTo(secondKey)); // 선택한 복제본 ID 기록
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 저장 재진입
+                yield return WaitFrames(4); // 저장 복원 완료
+                editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 새 제작 화면
+                component = editor.GetComponent("FlightCraftedSpellEditor"); // 새 마법 도감
+                book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 복원한 편성
+                Assert.That(reference.Invoke(book, new object[] { 0 }), Is.EqualTo(secondKey)); // 재실행 후 같은 사본 참조
+                var remove = book.GetType().GetMethod("DeleteGallery", hidden); // 실제 도감 삭제
+                System.Type storeType = book.GetType().Assembly.GetType("ProjectG.FlightBroomPresetStore"); // 실제 프리셋 저장소
+                object store = System.Activator.CreateInstance(storeType, true); // 같은 시험 키의 프리셋 기록
+                string[] parts = new string[8]; // 빈 부위도 보존하는 저장 구조
+                string[] recipes = { (string)fire.GetType().GetProperty("Id").GetValue(fire), null }; // 첫 마법의 구성 참조
+                string[] references = { firstKey, null }; // 장착되지 않은 원본의 프리셋 참조
+                int[] priorities = { 1, 1 }; // 저장된 유지 순서
+                Assert.That(storeType.GetMethod("Add", hidden).Invoke(store, new object[] { 0, "참조 시험", parts, recipes, references, priorities }), Is.True); // 실제 프리셋 참조 기록
+                Assert.That(remove.Invoke(book, new object[] { 0 }), Is.False); // 프리셋이 참조하는 원본 삭제 거부
+                Assert.That(storeType.GetMethod("Remove", hidden).Invoke(store, new object[] { 0, 0 }), Is.True); // 프리셋 기록만 삭제
+                Assert.That(remove.Invoke(book, new object[] { 0 }), Is.True); // 참조가 없는 같은 구성 원본 삭제
+                Assert.That(reference.Invoke(book, new object[] { 0 }), Is.EqualTo(secondKey)); // 장착한 복제본은 그대로 유지
+                Assert.That(remove.Invoke(book, new object[] { 0 }), Is.False); // 실제 장착 중인 복제본은 삭제 거부
+            }
+            finally // 독립 저장 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 이 시험의 마법 저장 삭제
+                PlayerPrefs.DeleteKey(presetKey); // 이 시험의 프리셋 저장 삭제
+                PlayerPrefs.Save(); // 삭제 기록 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 마법 환경 복구
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", previousPreset); // 이전 프리셋 환경 복구
+            }
+        }
+
+        [UnityTest] // 손상되거나 미래 버전인 프리셋 원본 보호
+        public IEnumerator BroomPresetsDoNotOverwriteUnknownSavedData() // 복원 실패 시 쓰기 차단
+        {
+            string key = "ProjectG.Broom.Future." + System.Guid.NewGuid().ToString("N"); // 사용자와 분리한 저장 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 이전 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", key); // 독립 시험 환경
+            try // 읽을 수 없는 기존 데이터의 보존
+            {
+                yield return LoadOuterIslands(); // 실제 저장소를 포함한 게임 어셈블리
+                System.Type type = FindPilot().GetComponent("FlightBroomEquipment").GetType().Assembly.GetType("ProjectG.FlightBroomPresetStore"); // 실제 저장소 유형
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 저장 API
+                string[] inputs = { "{잘못된 저장", "{\"version\":99,\"items\":[]}" }; // 손상된 저장과 미래 버전
+                foreach (string original in inputs) // 각각의 이전 사용자 데이터
+                {
+                    PlayerPrefs.SetString(key, original); // 읽어야 할 기존 원본 저장
+                    object store = System.Activator.CreateInstance(type, true); // 실제 복원 시도
+                    bool saved = (bool)type.GetMethod("Add", hidden).Invoke(store, new object[] { 0, "새 조합", new string[8], new string[2], new string[2], new int[2] }); // 새 프리셋 저장 시도
+                    Assert.That(saved, Is.False); // 알 수 없는 기존 기록 덮어쓰기 차단
+                    Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(original)); // 원본 텍스트 그대로 보존
+                }
+            }
+            finally // 시험 저장과 환경만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 시험 키 삭제
+                PlayerPrefs.Save(); // 삭제 기록 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", previous); // 이전 환경 복구
+            }
+        }
+
+        [UnityTest] // 캐릭터별 프리셋의 저장과 개별 복제
+        public IEnumerator BroomPresetsPersistPerPilotAndEnforceFiveLimit() // 다섯 개 상한과 사본 독립성
+        {
+            string key = "ProjectG.Broom.Presets." + System.Guid.NewGuid().ToString("N"); // 사용자 저장과 분리한 프리셋 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY"); // 이전 시험 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", key); // 이 시험의 독립 저장
+            try // 프리셋 기록의 실제 저장과 복원
+            {
+                yield return LoadOuterIslands(); // 실제 게임 어셈블리 로드
+                System.Type type = FindPilot().GetComponent("FlightBroomEquipment").GetType().Assembly.GetType("ProjectG.FlightBroomPresetStore"); // 실제 프리셋 저장소 유형
+                Assert.That(type, Is.Not.Null); // 프리셋 저장 기능 존재
+                object store = System.Activator.CreateInstance(type, true); // 격리 키를 읽는 실제 저장소
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 저장 API
+                var add = type.GetMethod("Add", hidden); // 저장한 현재 조합 추가
+                var copy = type.GetMethod("Copy", hidden); // 독립 기록 복제
+                var rename = type.GetMethod("Rename", hidden); // 개별 이름 변경
+                var count = type.GetMethod("Count", hidden); // 캐릭터별 기록 수
+                var at = type.GetMethod("At", hidden); // 실제 저장 순서 조회
+                var remove = type.GetMethod("Remove", hidden); // 기록만 삭제
+                string[] parts = { "body:1", "grip:1", "stone:1", "join:1", "drive:1", "ornament:1", "tip:1", "stabilizer:1" }; // 여덟 개별 부품 참조
+                string[] recipes = { "fire.recipe", "thorn.recipe" }; // 두 슬롯의 구성 참조
+                string[] references = { "fire.copy.1", "thorn.copy.2" }; // 이름이 같은 복제본의 독립 식별자
+                int[] priorities = { 2, 0 }; // 각 슬롯의 실제 유지 순서
+                Assert.That(add.Invoke(store, new object[] { 0, "첫 조합", parts, recipes, references, priorities }), Is.True); // 첫 캐릭터의 명명된 기록
+                parts[0] = "changed"; // 원래 입력 배열의 이후 변경
+                recipes[0] = "changed"; // 원래 마법 배열의 이후 변경
+                references[0] = "changed"; // 원래 복제본 배열의 이후 변경
+                priorities[0] = 0; // 원래 우선순위 배열의 이후 변경
+                Assert.That(copy.Invoke(store, new object[] { 0, 0 }), Is.True); // 다른 식별자의 복제본
+                Assert.That(rename.Invoke(store, new object[] { 0, 1, "복제 조합" }), Is.True); // 복제본만 이름 변경
+                Assert.That(count.Invoke(store, new object[] { 0 }), Is.EqualTo(2)); // 원본과 복제본 보존
+                object first = at.Invoke(store, new object[] { 0, 0 }); // 첫 번째 저장 기록
+                object second = at.Invoke(store, new object[] { 0, 1 }); // 독립 복제 기록
+                System.Type preset = first.GetType(); // 실제 프리셋 데이터 유형
+                Assert.That(preset.GetField("id").GetValue(first), Is.Not.EqualTo(preset.GetField("id").GetValue(second))); // 개별 프리셋 식별자
+                Assert.That(preset.GetField("name").GetValue(first), Is.EqualTo("첫 조합")); // 원본 이름 보존
+                Assert.That(preset.GetField("name").GetValue(second), Is.EqualTo("복제 조합")); // 복제본의 새 이름
+                Assert.That(((string[])preset.GetField("parts").GetValue(first))[0], Is.EqualTo("body:1")); // 원본 배열의 변경과 분리
+                Assert.That(((string[])preset.GetField("recipes").GetValue(first))[0], Is.EqualTo("fire.recipe")); // 실제 저장한 마법 구성
+                Assert.That(((string[])preset.GetField("references").GetValue(first))[0], Is.EqualTo("fire.copy.1")); // 개별 복제본 참조 보존
+                Assert.That(((int[])preset.GetField("priorities").GetValue(first))[0], Is.EqualTo(2)); // 저장 당시 유지 우선순위 보존
+                for (int i = 0; i < 3; i++) // 같은 캐릭터에 다섯 개까지 기록
+                {
+                    Assert.That(copy.Invoke(store, new object[] { 0, 0 }), Is.True); // 다섯 개 이하의 독립 복제
+                }
+                Assert.That(copy.Invoke(store, new object[] { 0, 0 }), Is.False); // 여섯 번째 기록 거부
+                Assert.That(count.Invoke(store, new object[] { 0 }), Is.EqualTo(5)); // 기존 다섯 기록 유지
+                Assert.That(add.Invoke(store, new object[] { 1, "다른 캐릭터", parts, recipes, references, priorities }), Is.True); // 다른 캐릭터의 독립 상한
+                object restored = System.Activator.CreateInstance(type, true); // 디스크에서 실제 재복원
+                Assert.That(count.Invoke(restored, new object[] { 0 }), Is.EqualTo(5)); // 첫 캐릭터의 다섯 기록 복원
+                Assert.That(count.Invoke(restored, new object[] { 1 }), Is.EqualTo(1)); // 다른 캐릭터의 기록 복원
+                Assert.That(remove.Invoke(restored, new object[] { 0, 1 }), Is.True); // 하나의 기록만 삭제
+                Assert.That(count.Invoke(restored, new object[] { 0 }), Is.EqualTo(4)); // 나머지 기록 유지
+                Assert.That(count.Invoke(restored, new object[] { 1 }), Is.EqualTo(1)); // 다른 캐릭터 기록 유지
+            }
+            finally // 이번 시험의 저장만 제거
+            {
+                PlayerPrefs.DeleteKey(key); // 프리셋 시험 키 삭제
+                PlayerPrefs.Save(); // 삭제 기록 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_BROOM_PRESET_TEST_KEY", previous); // 기존 저장 환경 복구
+            }
+        }
+
         [UnityTest] // 소수점 공격력 경계와 동일 우선순위
         public IEnumerator CraftedBudgetUsesActualFractionAndSuspendsMostRecentSlot() // 실제 비용 초과와 순서 보존
         {

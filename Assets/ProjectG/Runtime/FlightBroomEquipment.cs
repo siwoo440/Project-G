@@ -7,6 +7,8 @@ namespace ProjectG // 프로젝트 게임 영역
     [DisallowMultipleComponent] // 비행체별 장착 구성 한 개
     public sealed class FlightBroomEquipment : MonoBehaviour // 보유 부품과 캐릭터별 조합 관리
     {
+        private static readonly string[] SlotNames = { "몸체", "손잡이", "마력석", "결합부", "추진부", "마법 장식", "선단부", "안정기" }; // 오류 안내의 실제 부위 이름
+
         private sealed class OwnedPart // 같은 종류도 분리한 개별 보유 부품
         {
             public string Id; // 종류와 개체 순번을 포함한 ID
@@ -481,6 +483,137 @@ namespace ProjectG // 프로젝트 게임 영역
             return applied; // 적용 결과 표시
         }
 
+        internal string[] PresetParts() // 현재 캐릭터의 여덟 개별 장착 참조
+        {
+            var result = new string[equipped.GetLength(1)]; // 빈 슬롯을 포함한 저장 배열
+            for (int slot = 0; slot < result.Length; slot++) // 실제 부착 부위 순서
+            {
+                result[slot] = equipped[(int)ActivePilot, slot]?.Id; // 개별 보유 ID 또는 빈 칸
+            }
+            return result; // 원래 장착을 변경하지 않는 독립 배열
+        }
+
+        internal string[] StarterParts() // 현재 캐릭터의 기획된 여덟 시작 부품
+        {
+            var ids = new string[equipped.GetLength(1)]; // 기본 부위 순서의 개별 사본
+            foreach (FlightBroomPart part in catalog.Parts) // 실제 카탈로그의 시작 부품
+            {
+                if (part.starter && part.pilot == ActivePilot) // 현재 캐릭터 전용 부품
+                {
+                    ids[(int)part.slot] = part.id + ":1"; // 최초로 지급한 개별 사본
+                }
+            }
+            return ids; // 실제 소유·중복은 적용 전에 검증
+        }
+
+        internal bool ShowPresetPreview(MeshRenderer[] preview, string[] ids, out string reason) // 여덟 부품의 외형만 미리 표시
+        {
+            if (preview == null || preview.Length != equipped.GetLength(1)) // 실제 미리보기 부착점 검사
+            {
+                reason = "미리보기 상태를 확인하세요."; // 표시할 위치가 없는 경우 안내
+                return false; // 실제 장착과 외형 보존
+            }
+            if (!CanApplyPreset((int)ActivePilot, ids, out _, out reason)) // 누락과 다른 캐릭터 장착 검사
+            {
+                return false; // 구체적인 부품 문제를 그대로 안내
+            }
+            for (int slot = 0; slot < preview.Length; slot++) // 여덟 미리보기 부착점
+            {
+                OwnedPart item = string.IsNullOrEmpty(ids[slot]) ? null : owned[ids[slot]]; // 검증한 개별 사본
+                ApplyAppearance(preview[slot], item, slot); // 실제 기체가 아닌 미리보기 렌더러만 변경
+            }
+            reason = null; // 성공한 미리보기의 오류 없음
+            return true; // 후보 외형 표시 완료
+        }
+
+        internal bool CanApplyPreset(int pilot, string[] ids, out float magicAttack, out string reason) // 여덟 부품의 사전 검증과 예상 마법 공격력
+        {
+            magicAttack = 0f; // 실패할 때 유효한 공격력 없음
+            reason = null; // 성공 시 실패 사유 없음
+            if (pilot != (int)ActivePilot || ids == null || ids.Length != equipped.GetLength(1)) // 현재 캐릭터와 부위 수 확인
+            {
+                reason = "현재 캐릭터 또는 부품 슬롯을 확인하세요."; // 적용 불가능한 조합 안내
+                return false; // 실제 장착을 바꾸지 않음
+            }
+            var selected = new OwnedPart[ids.Length]; // 실제로 적용할 독립 후보 배열
+            var seen = new HashSet<string>(); // 같은 개별 사본 중복 방지
+            for (int slot = 0; slot < ids.Length; slot++) // 여덟 부위의 현재 보유 확인
+            {
+                string id = ids[slot]; // 해당 위치의 저장 사본
+                if (string.IsNullOrEmpty(id)) // 사용자가 저장한 빈 슬롯
+                {
+                    continue; // 빈 부착부는 그대로 허용
+                }
+                if (!seen.Add(id)) // 동일한 사본을 두 부위에 지정한 경우
+                {
+                    reason = "같은 부품을 여러 부위에 장착할 수 없습니다."; // 중복된 조합 안내
+                    return false; // 한 부위도 바꾸지 않음
+                }
+                if (!owned.TryGetValue(id, out OwnedPart item)) // 분해되었거나 보유하지 않은 사본
+                {
+                    reason = SlotNames[slot] + " 부품을 보유하지 않습니다."; // 사용자가 확인할 실제 부위
+                    return false; // 한 부위도 바꾸지 않음
+                }
+                if ((int)item.Definition.slot != slot) // 다른 위치에 장착하는 부품
+                {
+                    reason = SlotNames[slot] + " 부위에 사용할 수 없는 부품입니다."; // 부위 불일치 안내
+                    return false; // 한 부위도 바꾸지 않음
+                }
+                if (item.Owner >= 0 && item.Owner != pilot) // 다른 조종사가 쓰는 실제 사본
+                {
+                    reason = item.Definition.displayName + " 부품을 다른 캐릭터가 장착 중입니다."; // 실제 부품 이름과 충돌 안내
+                    return false; // 다른 캐릭터의 장착 보존
+                }
+                selected[slot] = item; // 검증된 개별 사본 보관
+            }
+            RefreshConditions(); // 같은 시점의 집중과 마력 조건 확인
+            var result = new float[bonuses.Length]; // 기존 장착을 건드리지 않는 예상 능력치
+            CalculateBonuses(pilot, -1, null, result, selected); // 여덟 후보와 세트·조건부 효과 동시 합산
+            magicAttack = Mathf.Max(0f, 100f + result[(int)FlightBroomStat.MagicPower]); // 실제 소수 마법 공격력
+            return true; // 모든 부품과 예상 공격력 확인
+        }
+
+        internal bool ComparePreset(int pilot, string[] ids, float[] difference, out string reason) // 전체 프리셋과 현재 조합의 능력치 비교
+        {
+            if (difference == null || difference.Length != bonuses.Length || !CanApplyPreset(pilot, ids, out _, out reason)) // 후보와 실제 능력치 배열 검증
+            {
+                reason = "비교할 부품 조합을 확인하세요."; // 유효하지 않은 후보 안내
+                return false; // 현재 장착과 출력 보존
+            }
+            var selected = new OwnedPart[ids.Length]; // 모든 부위의 검증된 후보
+            for (int slot = 0; slot < ids.Length; slot++) // 여덟 개별 부품
+            {
+                selected[slot] = string.IsNullOrEmpty(ids[slot]) ? null : owned[ids[slot]]; // 실제 보유 사본 또는 빈 칸
+            }
+            var proposed = new float[bonuses.Length]; // 후보 조합의 전체 수치
+            CalculateBonuses(pilot, -1, null, proposed, selected); // 세트와 현재 조건까지 포함한 계산
+            for (int i = 0; i < proposed.Length; i++) // 실제 능력치 항목별 차이
+            {
+                difference[i] = proposed[i] - bonuses[i]; // 현재 조합 대비 증가와 감소
+            }
+            reason = null; // 성공한 비교의 오류 없음
+            return true; // 전체 능력치 비교 완료
+        }
+
+        internal bool ApplyPresetParts(int pilot, string[] ids) // 검증한 여덟 부품의 동시 교체와 현재 장착 저장
+        {
+            if (!CanApplyPreset(pilot, ids, out _, out _)) // 적용 직전에도 소유·충돌 재검사
+            {
+                return false; // 실제 장착과 저장 보존
+            }
+            for (int slot = 0; slot < ids.Length; slot++) // 현재 캐릭터의 기존 부품 반환
+            {
+                Equip(null, pilot, slot); // 다른 캐릭터의 장착은 변경하지 않음
+            }
+            for (int slot = 0; slot < ids.Length; slot++) // 이미 검증한 전체 후보 확정
+            {
+                Equip(string.IsNullOrEmpty(ids[slot]) ? null : owned[ids[slot]], pilot, slot); // 개별 사본 또는 빈 슬롯
+            }
+            ApplyLoadout(); // 여덟 부위의 외형과 효과를 한 번에 갱신
+            SaveLoadouts(); // 현재 장착 상태의 영구 저장
+            return true; // 전체 부품 적용 완료
+        }
+
         internal float ComparePart(FlightBroomSlot slot, string id, FlightBroomStat stat) // 후보 장착 시 활성 조합과의 차이
         {
             RefreshConditions(); // 현재 집중과 마력 조건을 미리보기에도 적용
@@ -539,14 +672,14 @@ namespace ProjectG // 프로젝트 게임 영역
             CalculateBonuses(pilot, -1, null, bonuses); // 현재 장착의 부품과 세트 효과를 중복 없이 계산
         }
 
-        private void CalculateBonuses(int pilot, int replaceSlot, OwnedPart candidate, float[] result) // 실제 장착 또는 후보 조합의 순수 수치 계산
+        private void CalculateBonuses(int pilot, int replaceSlot, OwnedPart candidate, float[] result, OwnedPart[] proposed = null) // 현재 장착 또는 전체 후보의 순수 수치 계산
         {
             Array.Clear(result, 0, result.Length); // 이전 계산값을 누적하지 않음
             var sets = new Dictionary<string, int>(); // 이 캐릭터의 세트별 실제 장착 수
             var passive = new FlightBroomPassiveEffects(); // 같은 능력치의 상위 두 개별 상시 효과
             for (int slot = 0; slot < equipped.GetLength(1); slot++) // 서로 다른 여덟 부위
             {
-                OwnedPart item = slot == replaceSlot ? candidate : equipped[pilot, slot]; // 후보 교체 또는 현재 실제 장착
+                OwnedPart item = proposed != null ? proposed[slot] : slot == replaceSlot ? candidate : equipped[pilot, slot]; // 전체 후보·단일 교체·현재 장착
                 if (item == null) // 미장착 상태
                 {
                     continue; // 부품과 세트 수에 포함하지 않음

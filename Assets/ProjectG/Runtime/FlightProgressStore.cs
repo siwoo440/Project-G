@@ -1,4 +1,5 @@
 using System; // 저장 수명과 출격 고유 ID
+using System.Collections.Generic; // 보류 중인 연구 보상 목록
 using System.IO; // 파일 교체와 배타 저장
 using System.Text; // JSON 저장 문자 인코딩
 using UnityEngine; // JSON 변환과 독립 시험 분리
@@ -41,6 +42,14 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public int upgrade; // 실제 공방에서 강화한 단계
         }
 
+        [Serializable] // 출격 또는 스테이지 최초 격파의 영구 선택권
+        private sealed class ResearchReward // 자격과 선행 조건을 기다리는 보상 건
+        {
+            public string id; // 중복 지급을 막는 원래 보상 식별자
+            public int tier; // 선택할 수 있는 일반·심화·특수 단계
+            public bool claimed; // 수령 또는 해당 단계 소진 처리 여부
+        }
+
         [Serializable] // 한 번에 교체하는 단일 저장 스냅샷
         private sealed class Save // 진행 중인 출격과 보유 재화
         {
@@ -54,6 +63,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public FlightProgressReceipt recent; // 마지막 지급의 중복 요청 확인
             public string[] unlocks = { "pilot.aria", "pilot.rian" }; // 기존 출격 선택에서 제공하는 기본 해금
             public BroomProgress[] brooms = Array.Empty<BroomProgress>(); // 시작 부품 이후 추가한 개별 보유와 강화 내역
+            public ResearchReward[] researchRewards = Array.Empty<ResearchReward>(); // 출격·스테이지별 무료 선택권
         }
 
         private const int MarkInterval = 60; // 전용 재료의 시험 숙련도 간격
@@ -138,7 +148,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         internal bool IsResearchUnlocked(CraftedSpellGroup group, string id) // 계정 공용 제작 요소의 해금 상태
         {
             FlightCraftedResearchNode node = FlightCraftedResearchCatalog.Find(group, id); // 해당 분류의 실제 연구 항목
-            return IsUnlockedNode(node); // 기본 지급과 선행 연동을 포함한 상태
+            return IsUnlockedNode(state, node); // 기본 지급과 선행 연동을 포함한 상태
         }
 
         internal bool IsRecipeResearchUnlocked(CraftedSpellRecipe recipe) // 저장 조합의 모든 구성 요소 해금 여부
@@ -156,7 +166,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 && IsResearchUnlocked(CraftedSpellGroup.Effect, recipe.SecondEffect); // 둘째 효과와 효과 없음
         }
 
-        private bool IsUnlockedNode(FlightCraftedResearchNode node) // 유효한 연구 노드의 실제 해금
+        private static bool IsUnlockedNode(Save profile, FlightCraftedResearchNode node) // 저장 스냅샷의 실제 연구 해금
         {
             if (node == null) // 존재하지 않는 연구 요소
             {
@@ -170,29 +180,22 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             {
                 foreach (string parent in node.Parents) // 연동에 필요한 모든 선행 연구
                 {
-                    if (!IsUnlockedNode(FlightCraftedResearchCatalog.FindKey(parent))) // 아직 닫힌 실제 선행 요소
+                    if (!IsUnlockedNode(profile, FlightCraftedResearchCatalog.FindKey(parent))) // 아직 닫힌 실제 선행 요소
                     {
                         return false; // 선행 연구가 열리기 전까지 잠금
                     }
                 }
                 return true; // 선행 연구와 함께 자동 해금
             }
-            return HasUnlock("research." + node.Key); // 분류까지 포함한 계정 공용 영구 ID
+            return Array.IndexOf(profile.unlocks, "research." + node.Key) >= 0; // 분류까지 포함한 계정 공용 영구 ID
         }
 
         internal bool BuyResearch(CraftedSpellGroup group, string id) // 동일 자격과 선행 연구를 통과한 영구 해금
         {
             FlightCraftedResearchNode node = FlightCraftedResearchCatalog.Find(group, id); // 실제 연구 표의 해당 구성
-            if (node == null || node.Tier < 1 || node.Tier > 3 || node.Linked || IsUnlockedNode(node) || ResearchTier() < node.Tier) // 초기·연동·중복과 연구 자격 확인
+            if (!CanAcquireResearch(node)) // 연구 자격과 실제 선행 요소 확인
             {
                 return false; // 비용이나 저장을 변경하지 않음
-            }
-            foreach (string parent in node.Parents) // 같은 단계와 다른 분류의 모든 선행 연구
-            {
-                if (!IsUnlockedNode(FlightCraftedResearchCatalog.FindKey(parent))) // 아직 열리지 않은 실제 선행 요소
-                {
-                    return false; // 한 선행이라도 부족하면 연구 불가
-                }
             }
             int crystals = node.Tier == 1 ? 3 : node.Tier == 2 ? 6 : 12; // 일반·심화·특수 연구의 결정 비용
             int gold = node.Tier == 1 ? 300 : node.Tier == 2 ? 600 : 1200; // 일반·심화·특수 연구의 골드 비용
@@ -203,9 +206,106 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             Save next = Copy(); // 실패해도 이전 파일을 보존할 새 상태
             next.crystals -= crystals; // 성공할 연구의 결정 비용
             next.gold -= gold; // 성공할 연구의 골드 비용
-            Array.Resize(ref next.unlocks, next.unlocks.Length + 1); // 기존 해금을 보존하며 한 칸 확장
-            next.unlocks[next.unlocks.Length - 1] = "research." + node.Key; // 분류별 공용 영구 해금 ID
+            UnlockResearch(next, node); // 분류별 공용 영구 해금과 소진 보상 처리
             return Write(next); // 비용과 해금을 하나의 원자 저장으로 확정
+        }
+
+        internal bool BuyResearchShop(CraftedSpellGroup group, string id) // 고정 상점의 일반·심화 요소 구매
+        {
+            FlightCraftedResearchNode node = FlightCraftedResearchCatalog.Find(group, id); // 실제 연구 표의 동일 구성
+            if (!CanAcquireResearch(node) || node.Tier > 2) // 자격·선행·중복과 특수 판매 제외
+            {
+                return false; // 구매할 수 없는 요소의 재화 보존
+            }
+            int gold = node.Tier == 1 ? 900 : 1800; // 일반·심화 고정 상점 가격
+            if (state.gold < gold) // 현재 계정의 실제 보유 골드
+            {
+                return false; // 부족할 때 해금과 비용 변경 금지
+            }
+            Save next = Copy(); // 실패 시 기존 프로필 보호
+            next.gold -= gold; // 해당 상점 경로의 골드만 차감
+            UnlockResearch(next, node); // 연구와 공유하는 동일 해금 ID
+            return Write(next); // 골드와 해금을 한 파일에 확정
+        }
+
+        internal string[] PendingResearchRewards(int tier) // 해당 단계의 미수령 무료 보상 건
+        {
+            var pending = new List<string>(); // 실제로 남아 있는 보상 ID
+            foreach (ResearchReward reward in state.researchRewards) // 이 계정에 확정된 보상 기록
+            {
+                if (reward.tier == tier && !reward.claimed) // 같은 단계의 아직 수령하지 않은 보상
+                {
+                    pending.Add(reward.id); // 기존 보상 건을 그대로 유지
+                }
+            }
+            return pending.ToArray(); // 선택 화면에서 사용할 보류 ID
+        }
+
+        internal bool ClaimResearchReward(string rewardId, CraftedSpellGroup group, string id) // 보류된 보상으로 구성 요소 하나 무료 해금
+        {
+            ResearchReward reward = Array.Find(state.researchRewards, value => value.id == rewardId); // 실제 존재하는 원래 보상 건
+            FlightCraftedResearchNode node = FlightCraftedResearchCatalog.Find(group, id); // 선택한 실제 제작 요소
+            if (reward == null || reward.claimed || !CanAcquireResearch(node) || reward.tier != node.Tier) // 남은 보상과 같은 단계의 적격 요소
+            {
+                return false; // 미적격·중복 선택의 보상과 재화 보존
+            }
+            Save next = Copy(); // 같은 저장에서 선택과 수령을 확정
+            ResearchReward chosen = Array.Find(next.researchRewards, value => value.id == rewardId); // 복사본의 같은 보상 건
+            chosen.claimed = true; // 이 보상은 더 이상 재사용 금지
+            UnlockResearch(next, node); // 다른 경로와 같은 무료 영구 해금 ID
+            return Write(next); // 보상 소비와 해금을 함께 저장
+        }
+
+        private bool CanAcquireResearch(FlightCraftedResearchNode node) // 연구·상점·무료 선택의 공통 자격
+        {
+            if (node == null || node.Tier < 1 || node.Tier > 3 || node.Linked || IsUnlockedNode(state, node) || ResearchTier() < node.Tier) // 실제 연구 대상과 계정 자격
+            {
+                return false; // 기본·연동·중복·자격 부족 거절
+            }
+            foreach (string parent in node.Parents) // 같은 단계와 다른 분류의 모든 선행 연구
+            {
+                if (!IsUnlockedNode(state, FlightCraftedResearchCatalog.FindKey(parent))) // 아직 잠긴 실제 선행 요소
+                {
+                    return false; // 하나라도 부족하면 선택 불가
+                }
+            }
+            return true; // 모든 경로에서 같은 적격 요소
+        }
+
+        private static void UnlockResearch(Save profile, FlightCraftedResearchNode node) // 새 해금과 해당 단계의 보류 보상 정리
+        {
+            Array.Resize(ref profile.unlocks, profile.unlocks.Length + 1); // 기존 공용 해금 보존
+            profile.unlocks[profile.unlocks.Length - 1] = "research." + node.Key; // 모든 획득 경로가 공유하는 ID
+            CloseExhaustedRewards(profile, node.Tier); // 해당 단계에 남은 요소가 없으면 보류 건 종료
+        }
+
+        private static void CloseExhaustedRewards(Save profile, int tier) // 단계의 모든 요소 획득 이후 보류 건 종료
+        {
+            foreach (FlightCraftedResearchNode node in FlightCraftedResearchCatalog.All) // 해당 단계의 독립 연구 요소
+            {
+                if (node.Tier == tier && !node.Linked && !IsUnlockedNode(profile, node)) // 아직 획득하지 않은 실제 선택지
+                {
+                    return; // 당장 적격 후보가 없어도 보상 계속 보류
+                }
+            }
+            foreach (ResearchReward reward in profile.researchRewards) // 해당 단계의 기존 미수령 보상
+            {
+                if (reward.tier == tier) // 소진된 단계에 해당하는 보상 건
+                {
+                    reward.claimed = true; // 다른 단계는 유지하고 이 단계만 종료
+                }
+            }
+        }
+
+        private static void QueueResearchReward(Save profile, string id, int tier) // 출격당 또는 스테이지 최초 보상 건 등록
+        {
+            if (string.IsNullOrEmpty(id) || Array.Exists(profile.researchRewards, value => value.id == id)) // 이미 기록했거나 잘못된 보상 건
+            {
+                return; // 같은 조건의 중복 발급 금지
+            }
+            Array.Resize(ref profile.researchRewards, profile.researchRewards.Length + 1); // 기존 보류와 수령 이력 보존
+            profile.researchRewards[profile.researchRewards.Length - 1] = new ResearchReward { id = id, tier = tier }; // 원래 보상의 지속 식별자
+            CloseExhaustedRewards(profile, tier); // 이미 모든 요소를 가진 단계만 즉시 종료
         }
 
         internal bool BuyGrowthNode(string id, FlightBroomPilot pilot) // 공통 결정과 해당 조종사의 증표로 후속 카드 자격 구매
@@ -301,20 +401,25 @@ namespace ProjectG // 프로젝트 영구 성장 영역
 
         internal FlightProgressReceipt CompleteWithTask(string id, bool cleared, bool taskEligible) // 실제 전투 결과까지 인정한 첫 과제
         {
-            return Settle(id, cleared, false, taskEligible, false, 0, false); // 기존 과제와 출격을 원자적으로 기록
+            return Settle(id, cleared, false, taskEligible, false, 0, false, false, 0, null); // 기존 과제와 출격을 원자적으로 기록
         }
 
         internal FlightProgressReceipt CompleteWithResearch(string id, bool cleared, bool taskEligible, int normalKills, bool midBoss) // 실제 정상 출격의 연구 과제 정산
         {
-            return Settle(id, cleared, false, taskEligible, true, normalKills, midBoss); // 숙련도·연구 과제를 같은 저장에 확정
+            return Settle(id, cleared, false, taskEligible, true, normalKills, midBoss, false, 0, null); // 기존 과제 정산 경로 유지
+        }
+
+        internal FlightProgressReceipt CompleteWithResearchRewards(string id, bool cleared, bool taskEligible, int normalKills, int eliteKills, bool midBoss, string stageId) // 지정 처치 보상까지 포함한 정상 정산
+        {
+            return Settle(id, cleared, false, taskEligible, true, normalKills, midBoss, true, eliteKills, stageId); // 연구 과제와 보상 건을 같은 저장에 확정
         }
 
         public FlightProgressReceipt Recover() // 다음 실행에서만 중단 출격의 참여 보상 지급
         {
-            return Settle(state.pendingId, false, true, false, false, 0, false); // 중단 출격은 기본 참여분만 지급
+            return Settle(state.pendingId, false, true, false, false, 0, false, false, 0, null); // 중단 출격은 기본 참여분만 지급
         }
 
-        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss) // 보상과 기록을 같은 저장에 추가
+        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss, bool rewardsRecorded, int eliteKills, string stageId) // 보상과 기록을 같은 저장에 추가
         {
             if (string.IsNullOrEmpty(id)) // 아직 전투 참여 전 또는 이미 복구됨
             {
@@ -350,6 +455,29 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 progress.researchNormal |= normalKills >= 10; // 한 출격의 지정 일반 적 열 마리
                 progress.researchAdvanced |= midBoss; // 실제 중간 보스 격파
                 progress.researchSpecial |= cleared; // 실제 최종 보스 클리어
+            }
+            if (rewardsRecorded && !recovered) // 정상 클리어 또는 실패의 지정 격파 보상
+            {
+                if (normalKills >= 30) // 한 출격의 일반 적 서른 마리
+                {
+                    QueueResearchReward(next, "run:" + id + ":normal", 1); // 이 출격의 일반 무료 선택권
+                }
+                if (eliteKills > 0) // 한 출격의 지정 정예 첫 처치
+                {
+                    QueueResearchReward(next, "run:" + id + ":elite", 2); // 이 출격의 심화 무료 선택권
+                }
+                if (!string.IsNullOrEmpty(stageId)) // 실제 스테이지 식별자가 있는 경우
+                {
+                    string stage = "stage:" + stageId.Length + ":" + stageId; // 다른 스테이지와 충돌하지 않는 안정 ID
+                    if (midBoss) // 해당 스테이지의 실제 중간 보스 격파
+                    {
+                        QueueResearchReward(next, stage + ":mid", 2); // 스테이지별 최초 심화 보상
+                    }
+                    if (cleared) // 해당 스테이지의 정상 최종 보스 클리어
+                    {
+                        QueueResearchReward(next, stage + ":final", 3); // 스테이지별 최초 특수 보상
+                    }
+                }
             }
             progress.marks += receipt.Marks; // 캐릭터 전용 증표 누적
             next.crystals += receipt.Crystals; // 모든 캐릭터에서 공용 재료 증가
@@ -398,6 +526,15 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 }
                 saved.clearedStory |= saved.recent?.Cleared == true; // 기존 형식의 마지막 확정 클리어 복원
                 saved.brooms ??= Array.Empty<BroomProgress>(); // 26~29일차의 골드 없는 기존 프로필을 보존
+                saved.researchRewards ??= Array.Empty<ResearchReward>(); // 연구 보상이 없던 이전 프로필 보존
+                var rewardIds = new HashSet<string>(); // 원래 보상 건의 중복 확인
+                foreach (ResearchReward reward in saved.researchRewards) // 실제 저장된 보류와 수령 이력
+                {
+                    if (reward == null || string.IsNullOrEmpty(reward.id) || reward.tier < 1 || reward.tier > 3 || !rewardIds.Add(reward.id)) // 유효한 단계와 유일한 보상 ID
+                    {
+                        return null; // 잘못된 보상 기록의 원본 보존
+                    }
+                }
                 if (Array.Exists(saved.brooms, part => part == null || string.IsNullOrEmpty(part.id) || part.upgrade < 0 || part.upgrade > 5)) // 개별 저장의 허용 강화 범위
                 {
                     return null; // 잘못된 부품 정보를 덮어쓰지 않고 이전 저장 검색

@@ -3783,6 +3783,48 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 본편 지정 일반·정예 처치의 보상 정산
+        public IEnumerator StoryKillsQueueResearchRewardsOnceAtSettlement() // 실제 처치 이벤트와 무료 선택권
+        {
+            System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 씬이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리 자동 시험의 프로필 초기화
+            progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 자동 시험의 메모리 프로필 분리
+            try // 실제 웨이브 처치와 정상 실패 정산
+            {
+                yield return LoadOuterIslands(); // 본편 웨이브의 실제 출격 씬
+                Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 지정 웨이브와 정산 경로
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 출격과 웨이브 조회
+                encounter.GetType().GetProperty("ElapsedSeconds").GetSetMethod(true).Invoke(encounter, new object[] { 100f }); // 첫 웨이브 도달 시각
+                yield return WaitFrames(3); // 실제 출격 ID와 첫 웨이브 시작
+                var waves = (System.Collections.IList)encounter.GetType().GetField("stageWaves", hidden).GetValue(encounter); // 씬에 지정된 본편 웨이브
+                var firstRoutes = (System.Collections.IList)waves[0].GetType().GetField("enemies").GetValue(waves[0]); // 첫 웨이브의 지정 일반 적
+                Component first = ((Component)firstRoutes[0]).GetComponent("FlightEnemy"); // 실제 마물의 체력과 처치 이벤트
+                encounter.GetType().GetField("researchNormalKills", hidden).SetValue(encounter, 29); // 같은 출격의 이전 일반 적 스물아홉 처치
+                first.GetType().GetMethod("ReceiveHit").Invoke(first, new object[] { 100000 }); // 서른 번째 일반 적의 실제 처치
+                Assert.That(encounter.GetType().GetField("researchNormalKills", hidden).GetValue(encounter), Is.EqualTo(30)); // 일반 보상 기준의 실제 집계
+                yield return WaitFrames(4); // 다음 지정 웨이브의 실제 출현
+                var nextRoutes = (System.Collections.IList)waves[1].GetType().GetField("enemies").GetValue(waves[1]); // 다음 웨이브의 지정 마물
+                Component elite = ((Component)nextRoutes[0]).GetComponent("FlightEnemy"); // 정예로 지정할 실제 마물
+                Assert.That(elite.gameObject.activeInHierarchy, Is.True); // 다음 웨이브의 실제 출현
+                elite.GetType().GetField("elite", hidden).SetValue(elite, true); // 시험 대상의 정예 구분
+                elite.GetType().GetMethod("ReceiveHit").Invoke(elite, new object[] { 100000 }); // 실제 정예 처치 이벤트
+                Assert.That(encounter.GetType().GetField("researchEliteKills", hidden).GetValue(encounter), Is.EqualTo(1)); // 정예 보상 조건 한 번 집계
+                Assert.That(encounter.GetType().GetField("researchNormalKills", hidden).GetValue(encounter), Is.EqualTo(30)); // 정예를 일반 적 수에 중복하지 않음
+                object store = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 현재 본편의 실제 영구 프로필
+                var pending = store.GetType().GetMethod("PendingResearchRewards", hidden); // 단계별 보류 선택권
+                Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.Zero); // 정상 정산 전 보상 미발급
+                Assert.That(encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }), Is.Not.Null); // 실제 정상 실패 정산
+                Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.EqualTo(1)); // 일반 처치 보상 한 건
+                Assert.That(((string[])pending.Invoke(store, new object[] { 2 })).Length, Is.EqualTo(1)); // 정예 처치 보상 한 건
+                encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }); // 같은 출격의 정산 재요청
+                Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.EqualTo(1)); // 같은 출격의 중복 지급 방지
+            }
+            finally // 이 자동 시험의 메모리 프로필만 정리
+            {
+                progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 시험에 임시 보상 상태를 넘기지 않음
+            }
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {

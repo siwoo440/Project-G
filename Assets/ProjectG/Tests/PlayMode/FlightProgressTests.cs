@@ -489,6 +489,115 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
             }
         }
 
+        [Test] // 상점과 무료 보상이 공유하는 실제 해금
+        public void ResearchRewardsWaitForEligibilityAndNeverDuplicate() // 최초 보스 보상과 일반 선택권의 영구 보류
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 영구 성장 저장소
+            Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+            Type group = Type.GetType("ProjectG.CraftedSpellGroup, Assembly-CSharp", true); // 기존 제작 분류
+            object aria = Enum.Parse(pilot, "Aria"); // 연구 과제를 진행할 조종사
+            object shape = Enum.Parse(group, "Shape"); // 탄환 형태 분류
+            object formation = Enum.Parse(group, "Formation"); // 발사 배열 분류
+            string directory = Path.Combine(Application.temporaryCachePath, "ResearchReward-" + Guid.NewGuid().ToString("N")); // 사용자 저장과 분리한 폴더
+            string path = Path.Combine(directory, "progress.json"); // 재실행에서 확인할 실제 파일
+            try // 정상 실패·클리어와 선택권 저장
+            {
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 실제 프로필과 공용 재화
+                {
+                    string early = (string)Call(type, store, "Begin", aria); // 첫 중간 보스 격파 출격
+                    Assert.That(Call(type, store, "CompleteWithResearchRewards", early, false, false, 0, 0, true, "outer"), Is.Not.Null); // 정상 실패에서도 중간 보스 기록
+                    var advanced = (string[])Call(type, store, "PendingResearchRewards", 2); // 심화 단계의 미수령 보상
+                    Assert.That(advanced.Length, Is.EqualTo(1)); // 자격이 없어도 첫 보상 보류
+                    Assert.That(Call(type, store, "ClaimResearchReward", advanced[0], shape, "disc"), Is.False); // 심화 자격이 없으면 무료 수령 금지
+                    string run = (string)Call(type, store, "Begin", aria); // 일반 적 처치와 정상 클리어
+                    Assert.That(Call(type, store, "CompleteWithResearchRewards", run, true, false, 30, 1, true, "outer"), Is.Not.Null); // 일반·정예·중간·최종 결과의 원자 정산
+                    Assert.That(Call(type, store, "CompleteWithResearchRewards", run, true, false, 30, 1, true, "outer"), Is.Not.Null); // 같은 출격 결과의 중복 요청
+                    var general = (string[])Call(type, store, "PendingResearchRewards", 1); // 일반 보상의 미수령 목록
+                    advanced = (string[])Call(type, store, "PendingResearchRewards", 2); // 보류된 심화 보상 목록
+                    var special = (string[])Call(type, store, "PendingResearchRewards", 3); // 최초 최종 보스의 미수령 보상
+                    Assert.That(general.Length, Is.EqualTo(1)); // 같은 출격의 일반 보상 한 번
+                    Assert.That(advanced.Length, Is.EqualTo(2)); // 첫 중간 보스와 첫 정예 보상만 각 한 번
+                    Assert.That(special.Length, Is.EqualTo(1)); // 스테이지 첫 클리어 보상 한 번
+                    Assert.That(Call(type, store, "ClaimResearchReward", general[0], formation, "converge"), Is.False); // 선행 없는 무료 선택도 차단
+                    int crystals = Crystals(type, store); // 무료 선택 직전 결정
+                    int gold = (int)type.GetProperty("Gold").GetValue(store); // 무료 선택 직전 골드
+                    Assert.That(Call(type, store, "ClaimResearchReward", general[0], shape, "small"), Is.True); // 적격 일반 요소 하나 무료 선택
+                    Assert.That(Crystals(type, store), Is.EqualTo(crystals)); // 선택권은 결정을 소모하지 않음
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.EqualTo(gold)); // 선택권은 골드를 소모하지 않음
+                    Assert.That(Call(type, store, "ClaimResearchReward", general[0], shape, "large"), Is.False); // 같은 선택권 재사용 금지
+                    string more = (string)Call(type, store, "Begin", aria); // 고정 상점 골드를 모을 출격
+                    Call(type, store, "CompleteWithResearchRewards", more, true, false, 0, 0, false, "outer"); // 같은 스테이지 재클리어
+                    Assert.That(((string[])Call(type, store, "PendingResearchRewards", 3)).Length, Is.EqualTo(1)); // 같은 스테이지의 최종 보상 중복 금지
+                    Assert.That(Call(type, store, "BuyResearchShop", shape, "large"), Is.True); // 일반 요소의 골드 구백 상점 구매
+                    Assert.That(Call(type, store, "BuyResearchShop", shape, "large"), Is.False); // 연구·보상·상점의 동일 ID 중복 방지
+                    Assert.That(Call(type, store, "BuyResearchShop", shape, "summon"), Is.False); // 특수 연구는 상점 판매 제외
+                    string pending = (string)Call(type, store, "Begin", aria); // 중단 복구를 가정한 출격
+                    Assert.That(Call(type, store, "Recover"), Is.Not.Null); // 참여 보상만 복구
+                    Assert.That(Call(type, store, "CompleteWithResearchRewards", pending, true, false, 30, 1, true, "other"), Is.Not.Null); // 같은 출격의 중복 결과 조회
+                    Assert.That(((string[])Call(type, store, "PendingResearchRewards", 1)).Length, Is.Zero); // 강제 종료의 일반 보상 발급 금지
+                    Assert.That(((string[])Call(type, store, "PendingResearchRewards", 2)).Length, Is.EqualTo(2)); // 강제 종료의 정예·보스 보상 발급 금지
+                }
+                using (var reopened = (IDisposable)Activator.CreateInstance(type, path)) // 재실행한 동일 프로필
+                {
+                    Assert.That(Call(type, reopened, "IsResearchUnlocked", shape, "small"), Is.True); // 무료 보상으로 얻은 공용 해금 보존
+                    Assert.That(Call(type, reopened, "IsResearchUnlocked", shape, "large"), Is.True); // 상점으로 얻은 같은 형식의 해금 보존
+                    Assert.That(((string[])Call(type, reopened, "PendingResearchRewards", 2)).Length, Is.EqualTo(2)); // 조건 미충족 보상의 영구 보류
+                    Assert.That(((string[])Call(type, reopened, "PendingResearchRewards", 3)).Length, Is.EqualTo(1)); // 최초 최종 보스 보류 보존
+                }
+            }
+            finally // 현재 시험에서 만든 파일만 제거
+            {
+                if (Directory.Exists(directory)) // 독립 시험 폴더 존재 여부
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 저장과 백업·잠금 파일
+                    {
+                        File.Delete(file); // 사용자 저장과 무관한 임시 파일 제거
+                    }
+                    Directory.Delete(directory); // 비운 시험 폴더 제거
+                }
+            }
+        }
+
+        [Test] // 단계별 모든 구성 요소를 얻은 뒤 보류 종료
+        public void ExhaustedResearchTierClosesOnlyItsOwnPendingRewards() // 남은 보상의 단계별 독립 처리
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 영구 성장 저장소
+            Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+            Type group = Type.GetType("ProjectG.CraftedSpellGroup, Assembly-CSharp", true); // 기존 제작 분류
+            Type catalog = Type.GetType("ProjectG.FlightCraftedResearchCatalog, Assembly-CSharp", true); // 확정된 전체 연구 표
+            object aria = Enum.Parse(pilot, "Aria"); // 정상 정산할 조종사
+            object shape = Enum.Parse(group, "Shape"); // 남은 소형탄의 제작 분류
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 격리 시험의 기존 해금 설정
+            using (var store = (IDisposable)Activator.CreateInstance(type, new object[] { null })) // 사용자 파일과 분리한 메모리 프로필
+            {
+                object state = type.GetField("state", hidden).GetValue(store); // 같은 원자 저장의 현재 스냅샷
+                var unlockField = state.GetType().GetField("unlocks"); // 계정 공용 해금 ID 목록
+                var unlocks = new System.Collections.Generic.List<string>((string[])unlockField.GetValue(state)); // 기존 기본 해금 보존
+                var nodes = (System.Collections.IList)catalog.GetProperty("All", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 실제 연구 목록
+                foreach (object node in nodes) // 한 요소만 남기고 일반 단계 해금을 준비
+                {
+                    Type nodeType = node.GetType(); // 실제 연구 노드 형식
+                    string key = (string)nodeType.GetProperty("Key").GetValue(node); // 분류를 포함한 안정 ID
+                    if ((int)nodeType.GetField("Tier").GetValue(node) == 1 && key != "Shape.small") // 선택할 소형탄 이외의 일반 요소
+                    {
+                        unlocks.Add("research." + key); // 이미 획득한 공용 해금 기록
+                    }
+                }
+                unlockField.SetValue(state, unlocks.ToArray()); // 실제 저장의 선택지 소진 직전 상태
+                string first = (string)Call(type, store, "Begin", aria); // 일반과 정예 보상 조건을 만족할 출격
+                Call(type, store, "CompleteWithResearchRewards", first, true, false, 30, 1, false, "outer"); // 일반·심화 보상과 일반 자격
+                string second = (string)Call(type, store, "Begin", aria); // 별도 일반 보상을 받을 출격
+                Call(type, store, "CompleteWithResearchRewards", second, false, false, 30, 0, false, "outer"); // 두 번째 일반 보상
+                var general = (string[])Call(type, store, "PendingResearchRewards", 1); // 아직 열려 있는 일반 보상
+                Assert.That(general.Length, Is.EqualTo(2)); // 일반 요소가 남아 있는 동안 두 건 보류
+                Assert.That(((string[])Call(type, store, "PendingResearchRewards", 2)).Length, Is.EqualTo(1)); // 별도 심화 보상 보류
+                Assert.That(Call(type, store, "ClaimResearchReward", general[0], shape, "small"), Is.True); // 마지막 일반 요소 무료 선택
+                Assert.That(((string[])Call(type, store, "PendingResearchRewards", 1)).Length, Is.Zero); // 소진된 일반 단계의 나머지 보상 종료
+                Assert.That(((string[])Call(type, store, "PendingResearchRewards", 2)).Length, Is.EqualTo(1)); // 다른 심화 단계의 보상 유지
+                Assert.That(Call(type, store, "ClaimResearchReward", general[1], shape, "small"), Is.False); // 종료한 보상 재사용 금지
+            }
+        }
+
         private static object Call(Type type, object store, string method, params object[] supplied) // 실제 게임 어셈블리의 정산 호출
         {
             return type.GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Invoke(store, supplied); // 참조 없는 테스트 조립과 연결

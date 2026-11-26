@@ -35,6 +35,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private string sortieId; // 실제 첫 전투부터 유효한 영구 정산 ID
         private FlightWeapon playerWeapon; // 해당 출격의 실제 유효 적중 기록
         private int researchNormalKills; // 이번 본편 출격의 지정 일반 적 처치 수
+        private int researchEliteKills; // 이번 본편 출격의 지정 정예 적 처치 수
         private bool researchMidBoss; // 이번 본편 출격의 실제 중간 보스 격파
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
@@ -195,6 +196,7 @@ namespace ProjectG // 프로젝트 게임 영역
             playerWeapon?.StopFirstTask(); // 다음 출격에서 누적 적중 횟수 재시작
             sortieId = null; // 새 출격은 첫 웨이브에서 별도 ID 발급
             researchNormalKills = 0; // 이전 출격의 일반 적 과제 초기화
+            researchEliteKills = 0; // 이전 출격의 정예 보상 조건 초기화
             researchMidBoss = false; // 이전 출격의 보스 과제 초기화
             StopTrial(); // 이전 웨이브 정리
             WaveNumber = IsStage ? 0 : 1; // 실전 준비 또는 시험 첫 웨이브
@@ -216,7 +218,8 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightProgressReceipt Conclude(bool cleared) // 결과, 일시정지 포기와 재출격의 공통 정산
         {
-            return sortieId == null ? null : FlightProgress.Current.CompleteWithResearch(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchMidBoss); // 정상 보상과 실제 연구 과제의 원자 정산
+            string stageId = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path; // 현재 본편 스테이지의 안정적인 씬 경로
+            return sortieId == null ? null : FlightProgress.Current.CompleteWithResearchRewards(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchEliteKills, researchMidBoss, stageId); // 정상 보상과 연구 과제·선택권의 원자 정산
         }
 
         internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
@@ -334,9 +337,16 @@ namespace ProjectG // 프로젝트 게임 영역
         private void OnResearchEnemyDefeated(FlightEnemy enemy) // 실제 본편 웨이브의 지정 적 처치
         {
             enemy.Defeated -= OnResearchEnemyDefeated; // 같은 출현의 중복 집계 방지
-            if (Mode == FlightSortieMode.Story && sortieId != null && enemy.LootTier == FlightLootTier.Normal && !enemy.IsElite) // 일반 적만 연구 과제에 포함
+            if (Mode == FlightSortieMode.Story && sortieId != null && enemy.LootTier == FlightLootTier.Normal) // 본편의 실제 일반·정예 적만 집계
             {
-                researchNormalKills++; // 이번 출격의 단일 처치 누적
+                if (enemy.IsElite) // 일반 마물과 구분되는 정예
+                {
+                    researchEliteKills++; // 이번 출격의 정예 보상 조건
+                }
+                else // 지정된 일반 마물
+                {
+                    researchNormalKills++; // 연구 과제와 일반 보상 조건 누적
+                }
             }
         }
 

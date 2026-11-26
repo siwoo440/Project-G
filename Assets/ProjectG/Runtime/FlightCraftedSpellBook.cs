@@ -151,6 +151,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             if (CanCast(index) && skills.CanSpendCraftedMana() && caster.Cast(runningLanes[index])) // 실패 시 효과와 비용 모두 유지
             {
+                caster.SetBeamLane(runningLanes[index], index); // 유지형 마법의 실제 좌우 입력 연결
                 skills.SpendCraftedMana(caster.EffectiveStats(runningLanes[index]).Mana); // 유효한 시전에만 실제 마력 소비
             }
         }
@@ -199,10 +200,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 Upgrade.Damage => profile.Damage > 0, // 피해가 있는 마법만 화력 강화
                 Upgrade.Cooldown => profile.Cooldown > 0f, // 대기시간이 있는 마법
                 Upgrade.Mana => profile.Mana > 0f, // 마력을 소비하는 마법
-                Upgrade.Count => recipe.InitialShots > 1 && recipe.InitialShots + UpgradeSteps(recipe, kind) < CraftedSpellRules.MaxInitial, // 여러 발 공격과 최초 생성 상한
+                Upgrade.Count => recipe.InitialShots > 1 && recipe.Id != CraftedSpellPresets.All[12].Recipe.Id && recipe.InitialShots + UpgradeSteps(recipe, kind) < CraftedSpellRules.MaxInitial, // 방어 위성을 제외한 다중 공격의 최초 생성 상한
                 Upgrade.Pierce => (recipe.FirstEffect == "pierce" || recipe.SecondEffect == "pierce") && 3 + UpgradeSteps(recipe, kind) < 5, // 원래 관통과 최대 다섯 명
                 Upgrade.Width => profile.Radius > 0f || profile.Spread > 0f || recipe.FirstEffect == "explode" || recipe.SecondEffect == "explode", // 기존 판정 범위가 있는 마법
-                Upgrade.Duration => (recipe.Id == CraftedSpellPresets.All[11].Recipe.Id || recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) && 4f + UpgradeSteps(recipe, kind) * 0.5f < 6f, // 유지 시간이 있는 결계와 덩굴 영역
+                Upgrade.Duration => recipe.Id == CraftedSpellPresets.All[10].Recipe.Id ? 3f + UpgradeSteps(recipe, kind) * 0.5f < 6f : (recipe.Id == CraftedSpellPresets.All[11].Recipe.Id || recipe.Id == CraftedSpellPresets.All[6].Recipe.Id || recipe.Id == CraftedSpellPresets.All[12].Recipe.Id) && 4f + UpgradeSteps(recipe, kind) * 0.5f < 6f, // 광선과 결계·영역·위성의 유지 상한
                 _ => false // 등록하지 않은 수치
             };
         }

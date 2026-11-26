@@ -61,6 +61,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool TryFire(Vector3 position, Vector3 direction, float speed, int damage, FlightThreatPattern pattern, bool canCancel = true) // 형태와 이동을 포함한 실제 적탄 발사
         {
+            return TryFire(position, direction, speed, damage, pattern, canCancel, true); // 일반 적탄의 독립 흡수 허용
+        }
+
+        internal bool TryFire(Vector3 position, Vector3 direction, float speed, int damage, FlightThreatPattern pattern, bool canCancel, bool canAbsorb) // 상쇄와 흡수 허용을 분리한 실제 적탄 발사
+        {
             if (target.IsDefeated || active.Count >= capacity || speed <= 0f || direction.sqrMagnitude < 0.0001f) // 살아 있는 기체와 유효한 속도·방향
             {
                 return false; // 잘못된 탄창 또는 용량 초과를 건너뜀
@@ -68,7 +73,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
             FlightThreatBolt bolt = idle.Count > 0 ? idle.Pop() : CreateBolt(); // 이미 회수한 물리 객체 우선 사용
             bolt.Location.SetPositionAndRotation(position, Quaternion.LookRotation(direction)); // 적탄의 출발 위치와 실제 방향
-            bolt.Begin(targetPosition.position, speed, damage, pattern, canCancel); // 현재 기체 위치와 새 탄의 수명·외형
+            bolt.Begin(targetPosition.position, speed, damage, pattern, canCancel, canAbsorb); // 적탄별 상호작용과 수명·외형
             active.Add(bolt); // 활성 목록에서 같은 발사 순서 유지
             bolt.View.SetActive(true); // 기존 씬 오브젝트 표시
             return true; // 새 탄 발사 확인
@@ -130,6 +135,22 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
             }
             return count; // 이번 프레임의 상쇄 수
+        }
+
+        internal int AbsorbWithin(Vector3 origin, float radius, int maximum) // 흡수가 허용된 적탄만 정해진 수까지 회수
+        {
+            float limit = radius * radius; // 위성 중심의 제곱 반경
+            int count = 0; // 실제로 흡수한 적탄 수
+            for (int index = active.Count - 1; index >= 0 && count < maximum; index--) // 현재 활성 적탄과 남은 한도
+            {
+                FlightThreatBolt bolt = active[index]; // 현재 살아 있는 적탄
+                if (bolt.CanAbsorb && (bolt.Location.position - origin).sqrMagnitude <= limit) // 독립 흡수 허용과 거리 확인
+                {
+                    Recycle(index); // 이후 중복 흡수가 불가능한 풀 회수
+                    count++; // 이번 위성의 실제 흡수 수
+                }
+            }
+            return count; // 이번 프레임의 유효한 흡수 수
         }
 
         public void ClearAlongBeam(Vector3 start, Vector3 direction, float length, float radius) // 지형 앞까지 광선에 닿은 탄을 회수

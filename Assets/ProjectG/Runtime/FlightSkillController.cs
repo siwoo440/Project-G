@@ -222,6 +222,20 @@ namespace ProjectG // 프로젝트 게임 영역
             return mana >= cost; // 실제 보유량과 비용 비교
         }
 
+        internal void RestoreCraftedMana(float amount) // 허용 적탄 흡수의 실제 마력 회복
+        {
+            mana = Mathf.Min(MaxMana, mana + Mathf.Max(0f, amount)); // 최대 마력 안에서만 회복
+            ShowResources(); // 실제 전투 자원 표시 갱신
+        }
+
+        internal float ConsumeCraftedMaintenance(float amount) // 유지 마법의 연속 마력 소모
+        {
+            float spent = Mathf.Min(mana, Mathf.Max(0f, amount)); // 실제 보유량 안에서만 소비
+            mana -= spent; // 소수점 마력까지 반영
+            ShowResources(); // 실전 자원 표시 갱신
+            return spent; // 유지할 수 있었던 실제 소비량
+        }
+
         internal void SpendCraftedMana(float cost) // 성공한 제작 마법의 실제 소비
         {
             FlightAudio.Play(FlightSfx.MagicCard); // 제작 조합을 실제로 발사한 소리

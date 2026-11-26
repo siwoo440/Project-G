@@ -114,14 +114,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 int previousHealth = target is FlightEnemy beforeHit ? beforeHit.Health : 0; // 실제 피해 전 체력
                 Damage(target, profile.Damage); // 실제 표적 직격
-                bool burnHit = target is FlightCraftedTarget || target is FlightEnemy burned && burned.Health > 0 && burned.Health < previousHealth; // 실제 피해를 받은 마물 또는 연습 표적
-                if (recipe.Id == CraftedSpellPresets.All[1].Recipe.Id && burnHit) // 플레임 스파이럴의 유효 직격
+                bool statusHit = target is FlightCraftedTarget || target is FlightEnemy affected && affected.Health > 0 && affected.Health < previousHealth; // 실제 피해를 받은 마물 또는 연습 표적
+                bool flame = recipe.Id == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 화상
+                bool shadow = recipe.Id == CraftedSpellPresets.All[13].Recipe.Id; // 그림자 낙인의 저주
+                if ((flame || shadow) && statusHit) // 선택한 지속 효과가 있는 유효 직격
                 {
-                    if (!target.TryGetComponent(out FlightCraftedStatus burn)) // 이 대상의 공통 상태 관리자
+                    if (!target.TryGetComponent(out FlightCraftedStatus status)) // 이 대상의 공통 상태 관리자
                     {
-                        burn = target.gameObject.AddComponent<FlightCraftedStatus>(); // 첫 화상에서 독립 상태 연결
+                        status = target.gameObject.AddComponent<FlightCraftedStatus>(); // 첫 지속 효과에서 독립 상태 연결
                     }
-                    burn.TryApply("burn", recipe.Element, 3f * profile.DamageScale, 0.5f, 4, 3, practice); // 시전 피해를 저장한 최대 세 화상 중첩
+                    status.TryApply(flame ? "burn" : "curse", recipe.Element, (flame ? 3f : 8f) * profile.DamageScale, 0.5f, flame ? 4 : 6, flame ? 3 : 1, practice); // 독립 화상 또는 중복 불가 저주
                 }
                 if (knocksBack && target is FlightEnemy enemy && enemy.Health > 0 && enemy.Health < previousHealth) // 실제로 피해를 받은 살아 있는 마물
                 {

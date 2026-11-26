@@ -1,5 +1,6 @@
 using System.Collections.Generic; // 시전 중 같은 대상과 발사량 관리
 using UnityEngine; // 마법 사격 위치와 충돌
+using UnityEngine.InputSystem; // 유지 광선의 실제 마우스 입력
 
 namespace ProjectG // 프로젝트 게임 영역
 {
@@ -83,7 +84,31 @@ namespace ProjectG // 프로젝트 게임 영역
             public Material material; // 경로 선의 임시 색상 재질
         }
 
-        private static readonly int[] Implemented = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14 }; // 실제 판정이 완성된 기획 마법
+        private sealed class Orbit // 시전당 한 개의 방어 위성 묶음
+        {
+            public CraftedSpellRecipe recipe; // 시전 시점의 제작 구성
+            public Profile profile; // 흡수 반경과 재사용 수치
+            public readonly List<GameObject> satellites = new(); // 함께 공전하는 네 위성
+            public float started; // 공전 시작 시각
+            public float endsAt; // 위성 묶음의 유지 종료 시각
+            public int absorbed; // 이 시전에서 흡수한 적탄 수
+        }
+
+        private sealed class Beam // 한 번 유지하는 조준 광선
+        {
+            public CraftedSpellRecipe recipe; // 시전 당시 제작 구성
+            public Profile profile; // 고정된 피해와 마력 수치
+            public FlightCraftedProjectile source; // 실제 대상 피해 처리
+            public GameObject view; // 유지 중인 광선 표시 객체
+            public LineRenderer line; // 실제 조준 경로의 선
+            public Material material; // 이 광선만 사용하는 임시 재질
+            public float lastTime; // 유지 마력을 계산한 마지막 시각
+            public float endsAt; // 최대 유지 종료 시각
+            public float nextTick; // 다음 지속 피해 시각
+            public int lane = -1; // 실제 유지 입력의 좌우 슬롯
+        }
+
+        private static readonly int[] Implemented = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }; // 실제 판정이 완성된 기획 마법
         [SerializeField] private FlightCraftedProjectile projectile; // 제작 마법의 공유 프리팹
         [SerializeField] private Transform muzzle; // 이 장면의 실제 발사 위치
         [SerializeField] private LayerMask hitLayers = (1 << 8) | (1 << 9); // 지형과 표적 레이어
@@ -98,7 +123,11 @@ namespace ProjectG // 프로젝트 게임 영역
         private readonly List<Burst> bursts = new(); // 시전 후 시간에 따라 발사하는 마법
         private readonly List<Placement> placements = new(); // 지연 중인 고정 설치체
         private readonly List<Trail> trails = new(); // 경로를 기록하고 남기는 잿불 영역
+        private readonly List<Orbit> orbits = new(); // 유지 중인 방어 위성 묶음
+        private readonly List<Beam> beams = new(); // 유지 중인 광선 묶음
         private FlightThreatPool threatPool; // 실전 적탄만 관리하는 풀
+        private FlightSkillController skills; // 적탄 흡수의 실제 마력 보상
+        private FirstFlightController pilot; // 생존 상태와 위성 유지 조건
         private float practiceTime; // 연습에서만 흐르는 시각
         private float practiceMana = 100f; // 실전 출격과 분리한 연습 마력
         public int CastCount { get; private set; } // 이 발사기에서 성공한 시전 수
@@ -110,6 +139,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Awake() // 발사기와 같은 실제 전투 비행체
         {
             TryGetComponent(out weapon); // 독립 제작 시험장에서는 비어 있는 실제 무기
+            TryGetComponent(out skills); // 실제 출격의 마력 관리
+            TryGetComponent(out pilot); // 실제 출격 조종체 상태
             if (!practice) // 독립 연습에서는 실전 적탄에 접근하지 않음
             {
                 threatPool = FindFirstObjectByType<FlightThreatPool>(); // 현재 출격의 실제 적탄 풀
@@ -127,6 +158,8 @@ namespace ProjectG // 프로젝트 게임 영역
             UpdateBursts(); // 실전 또는 독립 연습의 순차 발사
             UpdatePlacements(); // 정지된 설치체의 지연 효과
             UpdateTrails(); // 비행 경로 기록과 독립 지속 피해
+            UpdateOrbits(); // 방어 위성 공전과 허용 적탄 흡수
+            UpdateBeams(); // 조준 광선의 유지 마력과 지속 피해
         }
 
         internal static bool Supports(CraftedSpellRecipe recipe) // 판정과 확정된 수치가 모두 준비된 마법
@@ -172,6 +205,18 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal static Profile Stats(CraftedSpellRecipe recipe) // 지원하는 조합의 초기 시험 성능
         {
+            if (recipe.Id == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 확정 수치
+            {
+                return new Profile(10, 22, 10f, 0f, 30f, 0.35f, 0f); // 시작 마력과 지속 피해·길이·반경
+            }
+            if (recipe.Id == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 확정 수치
+            {
+                return new Profile(30, 0, 14f, 180f, 2.2f, 0.6f, 0f); // 마력과 공전 속도·거리·흡수 반경
+            }
+            if (recipe.Id == CraftedSpellPresets.All[13].Recipe.Id) // 그림자 낙인의 확정 수치
+            {
+                return new Profile(18, 14, 5f, 30f, 28f, 0.12f, 0f); // 마력과 직격 피해·탄속·사거리
+            }
             if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 잿불 항로의 확정 수치
             {
                 return new Profile(25, 9, 8f, 0f, 12f, 1.3f, 0f); // 마력과 지속 피해·기록 거리·반경
@@ -249,13 +294,13 @@ namespace ProjectG // 프로젝트 게임 영역
             active.RemoveAll(shot => shot == null); // 이미 종료된 실제 발사체 제외
             int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 이 시전의 전체 최초 생성 수
             int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사는 처음 한 발만 즉시 생성
-            return count <= CraftedSpellRules.MaxInitial && emissions.CanBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count, Clock); // 실제 첫 발과 최초 상한 확인
+            return count <= CraftedSpellRules.MaxInitial && emissions.CanBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count + orbits.Count * 4 + beams.Count, Clock); // 실제 첫 발과 최초 상한 확인
         }
 
         internal bool TryContinueEmission(FlightCraftedEmissionBudget.CastToken token, int count) // 같은 시전의 후속 생성 한도 예약
         {
             active.RemoveAll(shot => shot == null); // 종료한 발사체는 활성 한도에서 제외
-            return emissions.TryContinue(token, count, active.Count + barriers.Count + placements.Count + trails.Count, Clock); // 시전 누적과 플레이어 전체 한도 확인
+            return emissions.TryContinue(token, count, active.Count + barriers.Count + placements.Count + trails.Count + orbits.Count * 4 + beams.Count, Clock); // 시전 누적과 플레이어 전체 한도 확인
         }
 
         internal float CooldownRemaining(CraftedSpellRecipe recipe) // 슬롯과 연습 UI의 재사용 시간
@@ -288,7 +333,7 @@ namespace ProjectG // 프로젝트 게임 영역
             active.RemoveAll(shot => shot == null); // 회수한 발사체는 활성 한도에서 제외
             int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 결계 또는 강화한 최초 생성 수
             int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사의 처음 한 발만 예약
-            if (count > CraftedSpellRules.MaxInitial || !emissions.TryBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
+            if (count > CraftedSpellRules.MaxInitial || !emissions.TryBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count + orbits.Count * 4 + beams.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
             {
                 return false; // 일부 발사나 자원 차감 없이 거절
             }
@@ -309,6 +354,66 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             float now = Clock; // 이번 시전의 시간
             Quaternion aim = AimRotation(profile.Range, spawn); // 실제 생성 위치에서 조준 목표 보정
+            if (recipe.Id == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 유지 광선
+            {
+                GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 광선 피해와 표시의 공통 객체
+                FlightCraftedProjectile source = view.GetComponent<FlightCraftedProjectile>(); // 공용 속성 피해 경로
+                source.Begin(recipe, profile, hitLayers, practice, null, 3, token); // 시전 당시 공격력과 속성 보존
+                source.enabled = false; // 발사체 이동과 직접 충돌 차단
+                if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 실전 지속 광선
+                {
+                    source.SetMeleeSource(weapon.Sword); // 실제 표적 거리의 피해 보정
+                }
+                else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 이리스의 실전 지속 광선
+                {
+                    source.SetResonance(weapon.Resonance); // 유효 피해의 공명 처리
+                }
+                view.GetComponentInChildren<Renderer>().enabled = false; // 구체 대신 광선 경로 표시
+                LineRenderer line = view.AddComponent<LineRenderer>(); // 조준선의 임시 광선
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"); // 지원하는 단색 표시 셰이더
+                Material material = shader != null ? new Material(shader) : null; // 이 시전의 독립 광선 재질
+                if (material != null) // 사용 가능한 표시 재질
+                {
+                    material.color = new Color(1f, 0.9f, 0.5f); // 빛 속성의 밝은 금색
+                    line.sharedMaterial = material; // 유지 중인 광선에 재질 적용
+                }
+                line.useWorldSpace = true; // 이동 중인 총구와 실제 조준선 사용
+                line.widthMultiplier = profile.Radius * 2f; // 실제 판정 반경의 광선 폭
+                line.positionCount = 2; // 광선의 시작점과 접점
+                float duration = Mathf.Min(6f, 3f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f); // 유지 강화와 공통 시간 상한
+                var beam = new Beam { recipe = recipe, profile = profile, source = source, view = view, line = line, material = material, lastTime = now, endsAt = now + duration, nextTick = now + 0.5f }; // 광선의 시전 당시 상태
+                beams.Add(beam); // 현재 유지 중인 같은 마법 기록
+                readyAt[recipe.Id] = beam.endsAt + profile.Cooldown; // 예상 종료와 이후 재사용 시간
+                if (practice) // 독립 연습의 시작 마력
+                {
+                    practiceMana -= profile.Mana; // 실제 연습 시전 비용
+                }
+                EmissionCount++; // 실제 생성한 유지 광선 한 개
+                CastCount++; // 하나의 성공한 마법 시전
+                return true; // 광선 유지 시작
+            }
+            if (recipe.Id == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 방어 위성
+            {
+                float duration = Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f); // 강화와 공통 상한을 적용한 유지 시간
+                var orbit = new Orbit { recipe = recipe, profile = profile, started = now, endsAt = now + duration }; // 시전 시점의 공전 수치 고정
+                for (int i = 0; i < 4; i++) // 기획서의 방어 위성 네 개
+                {
+                    GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 실제 위치에 생성한 위성 외형
+                    FlightCraftedProjectile satellite = view.GetComponent<FlightCraftedProjectile>(); // 공통 속성 표시 사용
+                    satellite.Begin(recipe, profile, hitLayers, practice, null, 3, token); // 어둠 속성과 시전 기록 적용
+                    satellite.enabled = false; // 접촉 피해와 직선 이동 차단
+                    orbit.satellites.Add(view); // 같은 시전의 네 위성 관리
+                }
+                orbits.Add(orbit); // 공전 수명과 공통 흡수 한도 관리
+                readyAt[recipe.Id] = orbit.endsAt + profile.Cooldown; // 유지 종료 후 재사용 시간
+                if (practice) // 독립 연습의 마력
+                {
+                    practiceMana -= profile.Mana; // 실제 연습 시전 비용
+                }
+                EmissionCount += 4; // 실제 생성한 위성 네 개 기록
+                CastCount++; // 하나의 성공한 마법 시전
+                return true; // 공전 시작
+            }
             if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 이동 경로를 기록하는 잿불 항로
             {
                 GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 시전 시점의 독립 영역 표시
@@ -452,7 +557,9 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     if (!TryContinueEmission(burst.token, 1)) // 이 시전과 플레이어의 남은 생성 한도
                     {
-                        break; // 한도가 비워질 때까지 후속 탄환 대기
+                        burst.next++; // 초과한 예정 탄환의 발사 순번 소진
+                        burst.nextAt += 0.1f; // 다음 예정 발사의 원래 시각 유지
+                        continue; // 초과 탄환의 지연 생성 금지
                     }
                     SpawnShot(burst.recipe, burst.profile, muzzle.position, burst.aim, burst.next, burst.count, null, null, 3, burst.token); // 이동 중인 현재 발사점에서 한 발 생성
                     burst.next++; // 다음 나선 순번
@@ -520,16 +627,14 @@ namespace ProjectG // 프로젝트 게임 영역
                     placements.RemoveAt(i); // 종료한 폭발체 제거
                     continue; // 자탄 분열은 처리하지 않음
                 }
-                if (!emissions.TryContinue(placement.token, 3, active.Count + barriers.Count + placements.Count + trails.Count - 1, Clock)) // 모탄 종료 후 자탄 세 발의 공통 한도
-                {
-                    readyAt[placement.recipe.Id] = Clock + placement.profile.Cooldown; // 분열 지연만큼 종료 후 대기 시각 연장
-                    continue; // 남은 생성 한도가 생길 때까지 대기
-                }
                 DestroyPlacement(placement); // 모탄 자체는 피해 없이 종료
                 placements.RemoveAt(i); // 동시 활성 설치체에서 제외
                 for (int shot = 0; shot < 3; shot++) // 재분열 없는 자탄 세 발
                 {
-                    SpawnShot(placement.recipe, placement.profile, placement.position, placement.aim, shot, 3, null, null, 3, placement.token); // 하나의 시전에 속한 자탄 생성
+                    if (TryContinueEmission(placement.token, 1)) // 남은 한도에 들어가는 자탄
+                    {
+                        SpawnShot(placement.recipe, placement.profile, placement.position, placement.aim, shot, 3, null, null, 3, placement.token); // 하나의 시전에 속한 자탄 생성
+                    }
                 }
                 readyAt[placement.recipe.Id] = Clock + placement.profile.Cooldown; // 설치체 종료 후 재사용 시간 시작
             }
@@ -617,6 +722,133 @@ namespace ProjectG // 프로젝트 게임 영역
                     trails.RemoveAt(i); // 종료한 영역 제거
                 }
             }
+        }
+
+        private void UpdateOrbits() // 위성 공전과 허용된 적탄만 흡수
+        {
+            if (!practice && Time.timeScale == 0f) // 전투 정지 중 공전과 흡수 중단
+            {
+                return; // 실전 시간과 위성 상태 유지
+            }
+            for (int i = orbits.Count - 1; i >= 0; i--) // 종료된 위성 묶음의 역순 처리
+            {
+                Orbit orbit = orbits[i]; // 같은 시전의 공전과 흡수 기록
+                if (Clock >= orbit.endsAt || (!practice && pilot != null && !pilot.CanFly)) // 유지 시간 종료 또는 전투 불가
+                {
+                    readyAt[orbit.recipe.Id] = Clock + orbit.profile.Cooldown; // 실제 종료 후 재사용 시간
+                    DestroyOrbit(orbit); // 네 위성의 외형 회수
+                    orbits.RemoveAt(i); // 종료한 묶음 제거
+                    continue; // 종료 후 적탄 흡수 금지
+                }
+                Transform center = practice ? muzzle : transform; // 연습 발사점 또는 실제 비행체 중심
+                float phase = (Clock - orbit.started) * orbit.profile.Speed; // 초당 백팔십 도의 실제 공전 각도
+                for (int satellite = 0; satellite < orbit.satellites.Count; satellite++) // 네 위성의 실제 위치
+                {
+                    float angle = (phase + satellite * 90f) * Mathf.Deg2Rad; // 서로 구십 도 간격의 공전 위치
+                    Vector3 offset = center.right * Mathf.Cos(angle) + center.forward * Mathf.Sin(angle); // 조종체 주변의 수평 공전면
+                    Vector3 position = center.position + offset * orbit.profile.Range; // 반경 이 점 이 미터의 실제 위치
+                    orbit.satellites[satellite].transform.position = position; // 같은 시전 위성의 외형 갱신
+                    if (!practice && threatPool != null && orbit.absorbed < 10) // 실전의 남은 흡수 한도
+                    {
+                        int absorbed = threatPool.AbsorbWithin(position, orbit.profile.Radius, 10 - orbit.absorbed); // 위성에 닿은 허용 적탄만 회수
+                        orbit.absorbed += absorbed; // 네 위성이 공유하는 시전당 횟수
+                        if (absorbed > 0) // 실제 흡수한 적탄이 있는 경우
+                        {
+                            skills?.RestoreCraftedMana(absorbed); // 발당 일 마력의 실제 환급
+                        }
+                    }
+                }
+            }
+        }
+
+        internal void SetBeamLane(CraftedSpellRecipe recipe, int lane) // 유지 광선을 실제 입력 슬롯에 연결
+        {
+            foreach (Beam beam in beams) // 현재 유지 중인 광선
+            {
+                if (beam.recipe.Id == recipe.Id && beam.lane < 0) // 방금 시작한 같은 마법
+                {
+                    beam.lane = lane; // 시작한 좌우 버튼의 유지 여부 사용
+                    return; // 다른 시전의 입력은 변경하지 않음
+                }
+            }
+        }
+
+        private void UpdateBeams() // 광선의 실제 조준과 유지 자원·피해
+        {
+            if (!practice && Time.timeScale == 0f) // 실전 정지 중 광선 시간 동결
+            {
+                return; // 정지 해제까지 유지
+            }
+            for (int i = beams.Count - 1; i >= 0; i--) // 종료한 광선의 안전한 역순 처리
+            {
+                Beam beam = beams[i]; // 이번 시전의 고정된 수치
+                Mouse mouse = Mouse.current; // 현재 실제 마우스 입력
+                bool holding = practice || beam.lane < 0 || (mouse != null && (beam.lane == 0 ? mouse.leftButton.isPressed : mouse.rightButton.isPressed)); // 연습 자동 유지 또는 해당 버튼 유지
+                if (!holding || (!practice && skills != null && !skills.CanSpendCraftedMana())) // 입력 해제 또는 실전 시전 불가 상태
+                {
+                    EndBeam(beam); // 실제 종료 시점부터 대기 시작
+                    beams.RemoveAt(i); // 종료한 광선 제거
+                    continue; // 종료된 광선의 피해 금지
+                }
+                float until = Mathf.Min(Clock, beam.endsAt); // 최대 유지 시각까지만 진행
+                float delta = Mathf.Max(0f, until - beam.lastTime); // 아직 처리하지 않은 유지 시간
+                float rate = 8f * beam.profile.Mana / 10f; // 마력 강화가 반영된 초당 유지 비용
+                float requested = delta * rate; // 이번 프레임의 실제 유지 비용
+                float spent = practice ? Mathf.Min(practiceMana, requested) : skills != null ? skills.ConsumeCraftedMaintenance(requested) : 0f; // 보유 마력 안에서만 차감
+                if (practice) // 연습과 실전의 독립 마력
+                {
+                    practiceMana -= spent; // 연습 유지 비용만 별도 차감
+                }
+                float covered = rate > 0f ? spent / rate : delta; // 보유 마력으로 유지할 수 있었던 시간
+                float processedUntil = beam.lastTime + Mathf.Min(delta, covered); // 자원이 보장된 마지막 유효 시각
+                Vector3 origin = muzzle.position; // 현재 실전 또는 연습 발사점
+                Vector3 direction = AimRotation(beam.profile.Range, origin) * Vector3.forward; // 매 프레임 갱신한 실제 조준 방향
+                RaycastHit[] contacts = Physics.SphereCastAll(origin, beam.profile.Radius, direction, beam.profile.Range, hitLayers, QueryTriggerInteraction.Ignore); // 광선 폭과 사거리의 실제 충돌
+                System.Array.Sort(contacts, (left, right) => left.distance.CompareTo(right.distance)); // 지형과 표적의 접촉 순서
+                Component target = contacts.Length > 0 ? FlightCraftedProjectile.Resolve(contacts[0].collider) : null; // 첫 접촉만 피해 대상으로 사용
+                float distance = contacts.Length > 0 ? contacts[0].distance : beam.profile.Range; // 첫 장애물까지의 실제 길이
+                beam.line.SetPosition(0, origin); // 움직이는 총구에서 표시 시작
+                beam.line.SetPosition(1, origin + direction * distance); // 장애물 앞에서 표시 종료
+                while (beam.nextTick <= processedUntil + 0.00001f && beam.nextTick <= beam.endsAt + 0.00001f) // 자원이 보장된 마지막 유효 틱
+                {
+                    if (target != null) // 가장 가까운 접촉이 피해 대상인 경우
+                    {
+                        beam.source.Damage(target, beam.profile.Damage); // 시전 시점 수치와 실제 속성 피해
+                    }
+                    beam.nextTick += 0.5f; // 다음 영 점 오 초의 피해 시각
+                }
+                beam.lastTime = processedUntil; // 실제 유지한 마지막 시각
+                if (spent + 0.00001f < requested || Clock + 0.00001f >= beam.endsAt) // 마력 부족 또는 최대 유지 종료
+                {
+                    EndBeam(beam); // 실제 종료 후 재사용 시간
+                    beams.RemoveAt(i); // 종료한 광선 제거
+                }
+            }
+        }
+
+        private void EndBeam(Beam beam) // 유지 종료와 임시 광선 회수
+        {
+            readyAt[beam.recipe.Id] = Clock + beam.profile.Cooldown; // 종료 후 공유 재사용 시간
+            if (beam.view != null) // 남아 있는 광선 객체
+            {
+                Destroy(beam.view); // 표시와 피해 원본 회수
+            }
+            if (beam.material != null) // 이 시전에서 만든 재질
+            {
+                Destroy(beam.material); // 임시 광선 재질 회수
+            }
+        }
+
+        private static void DestroyOrbit(Orbit orbit) // 종료한 위성 외형 정리
+        {
+            foreach (GameObject satellite in orbit.satellites) // 같은 시전의 위성 네 개
+            {
+                if (satellite != null) // 아직 살아 있는 외형
+                {
+                    Destroy(satellite); // 공용 탄환의 임시 인스턴스 회수
+                }
+            }
+            orbit.satellites.Clear(); // 종료한 객체 참조 제거
         }
 
         private void DamageTrail(Trail trail) // 전체 경로를 합친 한 번의 지속 피해
@@ -744,6 +976,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 DestroyTrail(trail); // 이전 경로와 표시 재질 회수
             }
             trails.Clear(); // 이전 영역의 피해 예약 취소
+            foreach (Orbit orbit in orbits) // 아직 공전 중인 방어 위성
+            {
+                DestroyOrbit(orbit); // 이전 출격의 네 위성 회수
+            }
+            orbits.Clear(); // 공전과 흡수 기록 초기화
+            foreach (Beam beam in beams) // 아직 유지 중인 광선
+            {
+                EndBeam(beam); // 이전 광선과 표시 자원 회수
+            }
+            beams.Clear(); // 이전 시전의 유지 피해 취소
             emissions.Reset(); // 초당 생성과 이전 시전 기록 초기화
             readyAt.Clear(); // 재사용 대기 초기화
             practiceMana = 100f; // 표준 조건의 시험 마력 초기화
@@ -768,6 +1010,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 DestroyTrail(trail); // 남은 경로와 재질 회수
             }
             trails.Clear(); // 종료한 영역 참조 정리
+            foreach (Orbit orbit in orbits) // 씬에 남아 있는 방어 위성
+            {
+                DestroyOrbit(orbit); // 위성 외형 회수
+            }
+            orbits.Clear(); // 종료한 시전 참조 제거
+            foreach (Beam beam in beams) // 씬에 남아 있는 유지 광선
+            {
+                EndBeam(beam); // 광선과 임시 재질 회수
+            }
+            beams.Clear(); // 종료한 광선 참조 제거
         }
 
         private Quaternion AimRotation(float range, Vector3 origin) // 카메라 중심과 실제 생성 위치의 시차 보정

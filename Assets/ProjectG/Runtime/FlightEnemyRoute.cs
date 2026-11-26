@@ -70,7 +70,9 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     FlightThreatPattern pattern = attempts == 0 ? opening : following; // 이번 마물의 공격 배열
                     attempts++; // 처리한 공격 단계 수
-                    if (FlightThreatPatterns.Fire(pool, pattern, runAttack, aim, 0f) > 0) // 실제 풀에서 발사 확인
+                    FlightEnemy enemy = GetComponent<FlightEnemy>(); // 이 경로를 사용하는 적의 분류
+                    bool absorb = enemy != null && enemy.LootTier == FlightLootTier.Normal; // 일반 적탄만 기본 흡수 허용
+                    if (FlightThreatPatterns.FireWithPermissions(pool, pattern, runAttack, aim, 0f, 0, absorb) > 0) // 실제 풀에서 발사 확인
                     {
                         PatternsFired++; // 성공한 패턴 수
                     }

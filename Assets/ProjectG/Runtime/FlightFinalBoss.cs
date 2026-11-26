@@ -113,18 +113,18 @@ namespace ProjectG // 프로젝트 게임 영역
             switch (Phase) // 현재 체력 구간의 공격
             {
                 case 1: // 첫 체력 구간의 직선 연사
-                    FlightThreatPatterns.Fire(pool, FlightThreatPattern.Aimed, centerMuzzle.position, direction, 0f, 10); // 중앙의 조준탄
+                    FlightThreatPatterns.FireWithPermissions(pool, FlightThreatPattern.Aimed, centerMuzzle.position, direction, 0f, 10, false); // 미분류 보스탄의 흡수 차단
                     break; // 첫 구간 발사 완료
                 case 2: // 중간 체력 구간의 원형 확산
-                    FlightThreatPatterns.Fire(pool, FlightThreatPattern.Ring, centerMuzzle.position, direction, 0f, 15); // 한 발사점에서 벌어지는 입체 고리
+                    FlightThreatPatterns.FireWithPermissions(pool, FlightThreatPattern.Ring, centerMuzzle.position, direction, 0f, 15, false); // 미분류 보스탄의 흡수 차단
                     break; // 원형 확산 발사 완료
                 default: // 마지막 체력 구간의 좌우 교차 나선
                     float roll = burst * 26f; // 새로운 발사마다 회전하는 나선 각도
                     Vector3 crossing = centerMuzzle.position + direction.normalized * 14f; // 좌우 탄막 중심이 교차할 위치
                     Vector3 left = Vector3.ProjectOnPlane(crossing - leftMuzzle.position, Vector3.up); // 왼쪽 발사점의 중심 방향
                     Vector3 right = Vector3.ProjectOnPlane(crossing - rightMuzzle.position, Vector3.up); // 오른쪽 발사점의 중심 방향
-                    FlightThreatPatterns.Fire(pool, FlightThreatPattern.Spiral, leftMuzzle.position, left, roll, 20); // 왼쪽에서 중앙을 가로지르는 나선
-                    FlightThreatPatterns.Fire(pool, FlightThreatPattern.Spiral, rightMuzzle.position, right, 45f - roll, 20); // 오른쪽에서 반대 방향으로 회전하는 나선
+                    FlightThreatPatterns.FireWithPermissions(pool, FlightThreatPattern.Spiral, leftMuzzle.position, left, roll, 20, false); // 미분류 왼쪽 보스탄의 흡수 차단
+                    FlightThreatPatterns.FireWithPermissions(pool, FlightThreatPattern.Spiral, rightMuzzle.position, right, 45f - roll, 20, false); // 미분류 오른쪽 보스탄의 흡수 차단
                     break; // 두 갈래의 교차 나선 완료
             }
         }

@@ -94,6 +94,22 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             Assert.That(multiplier.Invoke(null, new object[] { attack, defense }), Is.EqualTo(expected)); // 기획서 수치 일치
         }
 
+        [Test] // 확정된 오 속성 상성과 미지정 대상 전체 검증
+        public void EveryCraftedElementMatchesTheConfirmedDamageTable() // 공격 행과 방어 열의 스물다섯 조합
+        {
+            string[] elements = { "fire", "water", "grass", "light", "dark" }; // 기획서의 공격과 방어 순서
+            float[,] expected = { { 1f, 0.75f, 1.5f, 1f, 1f }, { 1.5f, 1f, 0.75f, 1f, 1f }, { 0.75f, 1.5f, 1f, 1f, 1f }, { 1f, 1f, 1f, 1f, 1.5f }, { 1f, 1f, 1f, 1.5f, 1f } }; // 기획서의 전체 피해 배율
+            var multiplier = Runtime("CraftedSpellRules").GetMethod("DamageMultiplier"); // 실전 피해의 공통 상성 계산
+            for (int attack = 0; attack < elements.Length; attack++) // 다섯 공격 속성
+            {
+                for (int defense = 0; defense < elements.Length; defense++) // 다섯 방어 속성
+                {
+                    Assert.That(multiplier.Invoke(null, new object[] { elements[attack], elements[defense] }), Is.EqualTo(expected[attack, defense])); // 각 공격과 방어의 확정 배율
+                }
+                Assert.That(multiplier.Invoke(null, new object[] { elements[attack], null }), Is.EqualTo(1f)); // 미지정 방어 속성의 중립 배율
+            }
+        }
+
         [Test] // 조합이 실제 3D 발사 방향으로 변환되는지 확인
         public void StraightFanConeAndHomingProduceExpectedVectors() // 3D 발사 방향과 유도 회전 한도
         {
@@ -137,7 +153,7 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             var all = (IList)presets.GetProperty("All").GetValue(null); // 검증된 구성 목록
             Type caster = Runtime("FlightCraftedSpellCaster"); // 실제 전투의 제작 발사기
             var supports = caster.GetMethod("Supports", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 실제 발사 지원 확인
-            foreach (int index in new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14 }) // 이미 판정이 구현된 기획 마법
+            foreach (int index in new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }) // 이미 판정이 구현된 기획 마법
             {
                 object recipe = all[index].GetType().GetProperty("Recipe").GetValue(all[index]); // 정확한 구성 ID
                 Assert.That(supports.Invoke(null, new[] { recipe }), Is.True); // 구현된 명시적 시험값 사용
@@ -146,8 +162,6 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             Assert.That(supports.Invoke(null, new[] { generic }), Is.False); // 기존 구체탄 수치의 임의 적용 차단
             object homing = all[15].GetType().GetProperty("Recipe").GetValue(all[15]); // 열다섯 종에 없는 이전 유도 시험탄
             Assert.That(supports.Invoke(null, new[] { homing }), Is.False); // 임시 시험값을 정식 구성으로 제공하지 않음
-            object notYetImplemented = all[10].GetType().GetProperty("Recipe").GetValue(all[10]); // 후속 구현할 루미너스 레이
-            Assert.That(supports.Invoke(null, new[] { notYetImplemented }), Is.False); // 수치만 있고 판정이 없는 마법은 시전 금지
         }
 
         [Test] // 아홉 분류 중 생성 위치의 명시적 좌표 처리

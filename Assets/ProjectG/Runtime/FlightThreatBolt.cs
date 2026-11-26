@@ -33,6 +33,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal GameObject View { get; private set; } // 풀에서 켜고 끄는 표시 오브젝트
         internal float Radius => radius; // 적탄 소거의 실제 반경
         internal bool CanCancel { get; private set; } // 제작 마법 상쇄 허용 여부
+        internal bool CanAbsorb { get; private set; } // 제작 마법 흡수 허용 여부
 
         internal void CacheView() // 탄환을 생성할 때만 오브젝트 참조 조회
         {
@@ -41,9 +42,10 @@ namespace ProjectG // 프로젝트 게임 영역
             visual = renderMesh != null ? renderMesh.transform : null; // 패턴이 바뀔 때만 사용하는 자식 위치
         }
 
-        internal void Begin(Vector3 startPilot, float travelSpeed, int shotDamage, FlightThreatPattern pattern, bool canCancel) // 실제 발사된 적탄 초기화
+        internal void Begin(Vector3 startPilot, float travelSpeed, int shotDamage, FlightThreatPattern pattern, bool canCancel, bool canAbsorb) // 실제 발사된 적탄 초기화
         {
             CanCancel = canCancel; // 재사용 탄의 상쇄 허용 초기화
+            CanAbsorb = canAbsorb; // 재사용 탄의 독립 흡수 허용 초기화
             remaining = range; // 이전 사용에서 소진한 거리 복구
             secondsLeft = lifetime; // 새 탄의 사용 시간 초기화
             nearCandidate = false; // 이전 탄의 근접 후보 초기화

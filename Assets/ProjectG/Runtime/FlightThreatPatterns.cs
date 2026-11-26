@@ -14,6 +14,11 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         public static int Fire(FlightThreatPool pool, FlightThreatPattern pattern, Vector3 position, Vector3 direction, float phase, int damage = 0) // 지정 패턴과 개별 피해의 실제 발사
         {
+            return FireWithPermissions(pool, pattern, position, direction, phase, damage, true); // 일반 적탄의 흡수 허용
+        }
+
+        internal static int FireWithPermissions(FlightThreatPool pool, FlightThreatPattern pattern, Vector3 position, Vector3 direction, float phase, int damage, bool canAbsorb) // 개별 흡수 허용을 지정한 패턴 발사
+        {
             if (direction.sqrMagnitude < 0.0001f) // 영벡터에 대한 방향 검사
             {
                 return 0; // 방향이 없는 탄막 생략
@@ -32,7 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
             for (int index = 0; index < count; index++) // 기본 배열 순서대로 발사
             {
                 Vector3 local = PatternDirection(pattern, index, count, phase); // 해당 배열의 로컬 방향
-                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f, damage, pattern)) // 상한과 피해를 적용한 실제 발사
+                if (!pool.TryFire(position, basis * local, pattern == FlightThreatPattern.Aimed ? 15f : 12f, damage, pattern, true, canAbsorb)) // 상한과 개별 흡수 허용을 적용한 실제 발사
                 {
                     break; // 상한에 닿으면 남은 발사 중단
                 }

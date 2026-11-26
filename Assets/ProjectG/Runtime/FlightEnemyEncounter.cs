@@ -38,25 +38,33 @@ namespace ProjectG // 프로젝트 게임 영역
         private int researchEliteKills; // 이번 본편 출격의 지정 정예 적 처치 수
         private bool researchMidBoss; // 이번 본편 출격의 실제 중간 보스 격파
         private bool rewardFinalBoss; // 이번 본편 출격의 실제 최종 보스 격파
+        private FlightStoryDirector story;
+        private bool storyRequested;
+
+        internal FlightStoryDirector Story => story;
+        internal bool IsStoryFailure => story != null && story.Failed;
+        internal bool StoryNeedsReceipt => story != null && story.NeedsReceipt;
+        internal FlightEnemy StoryTemplate => openingEnemy != null ? openingEnemy : routes.Length > 0 ? routes[0].GetComponent<FlightEnemy>() : null;
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
         public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
         public float TotalSeconds { get; private set; } // 메뉴와 카드 선택을 포함한 소요 시간
         public bool IsStageComplete { get; private set; } // 일반 전투 항로의 종료 상태
-        public bool IsPreparing => IsStage && !stopped && ElapsedSeconds < stageWaves[0].startsAt; // 첫 적 출현 시점 전의 실제 준비 구간
-        public bool IsMidBossActive => activeBoss is FlightMidBoss; // 웨이브 HUD의 중간 보스 표시
-        public bool IsFinalBossActive => activeBoss is FlightFinalBoss; // 전용 HUD의 최종 보스 표시
+        public bool IsPreparing => storyRequested ? story == null || story.Attempt == null || !story.Attempt.CombatStarted : IsStage && !stopped && ElapsedSeconds < stageWaves[0].startsAt; // 실제 첫 전투 전 준비
+        public bool IsMidBossActive => storyRequested ? story != null && story.MidBossActive : activeBoss is FlightMidBoss;
+        public bool IsFinalBossActive => storyRequested ? story != null && story.FinalBossActive : activeBoss is FlightFinalBoss;
         public bool IsBossRush => Mode == FlightSortieMode.BossRush; // 출격 시 결정한 연속 보스 모드
         public bool IsExpedition => Mode == FlightSortieMode.Expedition; // 지도에서 들어간 탐험 전투
         internal FlightSortieMode Mode { get; private set; } // 실제 씬에 고정한 도전 방식
         private bool IsStage => stageWaves.Length > 0; // 실전 웨이브의 씬 등록 여부
-        internal bool CanSwitchPilot => Mode == FlightSortieMode.Story && (!IsStage || (WaveNumber == 0 && !stopped)); // 실전 참여 전에만 조종사 시험 전환
+        internal bool CanSwitchPilot => !storyRequested && Mode == FlightSortieMode.Story && (!IsStage || WaveNumber == 0 && !stopped);
         private bool HasOpeningTarget => !IsStage && WaveNumber == 1; // 시험 씬의 시작 표적 표시 여부
 
         public int ActiveEnemyCount // 현재 웨이브에서 아직 보이는 적 수
         {
             get // 실제 활성 개체만 합산
             {
+                if (storyRequested) return story != null ? story.ActiveCount : 0;
                 if (HasOpeningTarget) // 시작 시험 표적
                 {
                     return openingEnemy != null && openingEnemy.gameObject.activeInHierarchy ? 1 : 0; // 처치 후 실제 표시
@@ -76,6 +84,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void CopyActivePositions(List<Vector3> positions) // 레이더에 현재 웨이브의 실제 적 위치 전달
         {
+            if (storyRequested) { positions.Clear(); story?.CopyPositions(positions); return; }
             positions.Clear(); // 이전 웨이브의 표시 제거
             if (HasOpeningTarget) // 시험 전투의 실제 표적
             {
@@ -101,6 +110,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Awake() // 첫 웨이브의 배치 기억
         {
+            storyRequested = FlightStorySelection.Pending != null;
             ApplyModeWaves(); // 출격 방식에 맞게 별도의 편집된 웨이브 사용
             if (IsStage) // 실전 씬의 준비 상태
             {
@@ -120,6 +130,13 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Start() // 본편과 분리한 모드의 보상과 성장 설정
         {
+            if (storyRequested)
+            {
+                StopTrial();
+                if (openingEnemy != null) openingEnemy.gameObject.SetActive(false);
+                pool.ReturnAll();
+                FlightStorySelection.StartInScene(this, pilot, pool);
+            }
             if (Mode != FlightSortieMode.Story) // 별도 도전의 규칙대로 성장
             {
                 experience.enabled = false; // 레벨업과 경험치 조각 제외
@@ -150,6 +167,16 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Update() // 연습 시나리오의 입력 확인
         {
+            if (storyRequested)
+            {
+                if (story != null && story.Ready && !stopped)
+                {
+                    TotalSeconds += Mathf.Max(Time.unscaledDeltaTime, Time.deltaTime);
+                    ElapsedSeconds = (float)story.Attempt.Now;
+                    WaveNumber = story.WaveCount;
+                }
+                return;
+            }
             if (IsStage) // 실전 스테이지의 자동 진행
             {
                 UpdateStage(); // 실전 기록과 출현 일정 갱신
@@ -174,6 +201,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void StartTrial() // 실제 마물 출현 동작
         {
+            if (storyRequested) return;
             if (IsStage) // 실전 일정에 수동 출현 제외
             {
                 return; // 씬에 등록된 자동 출현 유지
@@ -193,6 +221,12 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal void RestartTrial() // 시험 출격을 다시 시작할 때
         {
+            if (storyRequested)
+            {
+                if (story != null && story.RestartStory())
+                { stopped = false; IsStageComplete = false; ElapsedSeconds = 0; TotalSeconds = 0; WaveNumber = 0; }
+                return;
+            }
             Conclude(false); // 참여 후 재시작한 이전 실전을 실패로 한 번 정산
             playerWeapon?.StopFirstTask(); // 다음 출격에서 누적 적중 횟수 재시작
             sortieId = null; // 새 출격은 첫 웨이브에서 별도 ID 발급
@@ -220,6 +254,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightProgressReceipt Conclude(bool cleared) // 결과, 일시정지 포기와 재출격의 공통 정산
         {
+            if (storyRequested) return story?.Conclude(cleared);
             string stageId = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path; // 현재 본편 스테이지의 안정적인 씬 경로
             FlightBroomEquipment equipment = playerWeapon != null ? playerWeapon.GetComponent<FlightBroomEquipment>() : null; // 실제 조종사의 부품 카탈로그
             return sortieId == null ? null : FlightProgress.Current.CompleteWithBroomRewards(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchEliteKills, researchMidBoss, rewardFinalBoss, false, equipment != null ? equipment.Catalog : null, stageId); // 기본 난이도의 실제 보상 전체 원자 정산
@@ -227,6 +262,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
         {
+            if (storyRequested) { stopped = true; story?.StopStory(); pool.ReturnAll(); return; }
             if (!IsStage || stopped) // 연습 씬 또는 이미 종료된 출격
             {
                 return; // 기존 상태 유지
@@ -300,6 +336,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnBossDefeated(FlightEnemy enemy) // 보스의 실제 처치 경로
         {
+            if (storyRequested) return;
             enemy.Defeated -= OnBossDefeated; // 이번 웨이브의 구독 정리
             if (Mode == FlightSortieMode.Story && sortieId != null && enemy.LootTier == FlightLootTier.MidBoss) // 정상 출격의 실제 중간 보스
             {
@@ -371,6 +408,28 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 route.gameObject.SetActive(false); // 마물의 피해와 이동을 일시 종료
             }
+        }
+
+        internal void AttachStory(FlightStoryDirector director) { story = director; }
+        internal void StoryFinished() { IsStageComplete = true; stopped = true; pool.ReturnAll(); }
+        internal void StoryStopped() { stopped = true; pool.ReturnAll(); }
+
+        internal void RegisterStoryRewardSource(FlightEnemy enemy)
+        {
+            experience?.RegisterStorySource(enemy);
+            drops?.RegisterStorySource(enemy);
+            pilot.GetComponent<FlightSkillController>()?.RegisterStorySource(enemy);
+            FindFirstObjectByType<FlightScoreHud>()?.RegisterStorySource(enemy);
+        }
+
+        internal void RegisterStoryCombatTarget(FlightEnemy enemy) => drops?.RegisterStoryTarget(enemy, false);
+
+        internal void UnregisterStoryRewardSource(FlightEnemy enemy)
+        {
+            experience?.UnregisterStorySource(enemy);
+            drops?.UnregisterStorySource(enemy);
+            pilot.GetComponent<FlightSkillController>()?.UnregisterStorySource(enemy);
+            FindFirstObjectByType<FlightScoreHud>()?.UnregisterStorySource(enemy);
         }
     }
 }

@@ -27,6 +27,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private Color idleEmission; // 평상시 핵의 발광색
         private Camera view; // 체력바가 향하는 실제 카메라
         private FlightFinalBoss phases; // 최종 보스의 피해 경계를 처리하는 컴포넌트
+        private FlightStoryCombatant storyCombatant; // 승인된 이야기 전투에만 적용하는 별도 피해 경로
         private float fullWidth; // 전체 체력 표시의 원래 너비
         private Rect fullImage; // 생성 PNG의 실제 그림 범위
         private float visibleUntil; // 마지막 피격 후 표시 종료 시점
@@ -40,12 +41,14 @@ namespace ProjectG // 프로젝트 게임 영역
         public int ExperienceReward => experienceReward; // 처치한 적의 경험치 보상
         public FlightLootTier LootTier => lootTier; // 현재 적의 강화 출처
         public bool IsElite => lootTier == FlightLootTier.Normal && elite; // 보스와 구분한 정예 마물
+        public bool IsCombatTarget => isActiveAndEnabled && Health > 0 && (storyCombatant == null || storyCombatant.CanThreaten);
         public event System.Action<FlightEnemy> Defeated; // 실제 처치와 드롭 정보
 
         private void Awake() // 편집된 모델과 이미지의 기준 상태 보관
         {
             properties = new MaterialPropertyBlock(); // 런타임 메인 스레드에서 재질 속성 생성
             TryGetComponent(out phases); // 최종 보스에서만 체력 경계 적용
+            TryGetComponent(out storyCombatant);
             neutralPosition = model.localPosition; // 비행 애니메이션 시작 높이
             leftRest = leftWing.localRotation; // 왼쪽 날개 초기 방향
             rightRest = rightWing.localRotation; // 오른쪽 날개 초기 방향
@@ -57,7 +60,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnEnable() // 새로 등장했을 때 체력과 표시 초기화
         {
-            Health = maxHealth; // 새 마물의 전체 체력
+            Health = storyCombatant != null ? storyCombatant.GaugeHealth : maxHealth; // 같은 비살상 조우를 재활성화해도 게이지를 복제하지 않음
             visibleUntil = 0f; // 첫 피격 전 체력바 숨김
             flashUntil = 0f; // 이전 피격 반응 제거
             SetFlash(false); // 코어 발광 원래대로
@@ -73,7 +76,11 @@ namespace ProjectG // 프로젝트 게임 영역
             }
 
             int nextHealth = Mathf.Max(0, Health - damage); // 단일 타격의 남은 체력
-            if (phases != null) // 최종 보스의 현재 전투 단계
+            if (storyCombatant != null)
+            {
+                nextHealth = storyCombatant.ResolveHealth(damage);
+            }
+            else if (phases != null) // 최종 보스의 현재 전투 단계
             {
                 nextHealth = phases.ResolveHealth(Health, nextHealth, maxHealth); // 페이즈 경계를 넘은 초과 피해 제한
             }
@@ -84,6 +91,14 @@ namespace ProjectG // 프로젝트 게임 영역
             Health = nextHealth; // 실제로 반영한 마물 체력
             if (Health == 0) // 처치로 마물 활동이 끝난 상태
             {
+                if (storyCombatant != null && storyCombatant.Profile.IsNonlethal)
+                {
+                    visibleUntil = 0f;
+                    healthBar.enabled = false;
+                    UpdateFill();
+                    storyCombatant.OnSuppressed();
+                    return;
+                }
                 FlightAudio.Play(FlightSfx.EnemyDown); // 실제로 끝난 마물 전투의 소리
                 gameObject.SetActive(false); // 마물 모델과 피격 오브젝트 숨김
                 Defeated?.Invoke(this); // 같은 처치에만 한 번 보상 지급
@@ -95,6 +110,15 @@ namespace ProjectG // 프로젝트 게임 영역
             SetFlash(true); // 코어 피격색 적용
             UpdateFill(); // 실제 체력에 따라 생성 이미지 너비 변경
             healthBar.enabled = true; // 첫 피격부터 세계 체력바 표시
+        }
+
+        internal void ConfigureStoryCombat(FlightStoryCombatant owner, FlightStoryEnemyProfile profile)
+        {
+            storyCombatant = owner;
+            maxHealth = profile.Gauge;
+            experienceReward = profile.ExperienceReward;
+            lootTier = profile.RewardClass == "MID" ? FlightLootTier.MidBoss : profile.RewardClass == "FINAL" ? FlightLootTier.FinalBoss : FlightLootTier.Normal;
+            elite = profile.ControlPercent == 50;
         }
 
         private void LateUpdate() // 비행 모델과 체력바의 실제 화면 갱신

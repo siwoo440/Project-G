@@ -55,6 +55,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool TryKnockback(Vector3 direction, float distance) // 실제 피해가 발생한 대상의 강제 이동
         {
+            if (enemy != null && enemy.TryGetComponent(out FlightStoryCombatant story)) return story.TryKnockback(direction, distance);
             if (enemy == null || enemy.Health <= 0 || enemy.LootTier != FlightLootTier.Normal || direction.sqrMagnitude < 0.0001f || distance <= 0f) // 일반 마물과 유효한 이동 확인
             {
                 return false; // 보스와 사라진 대상은 강제로 움직이지 않음
@@ -69,6 +70,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool TryRoot(float duration) // 실제 일반 마물의 이동 속박
         {
+            if (enemy != null && enemy.TryGetComponent(out FlightStoryCombatant story)) return story.TryRoot(duration);
             if (enemy == null || enemy.Health <= 0 || enemy.LootTier != FlightLootTier.Normal || float.IsNaN(duration) || float.IsInfinity(duration) || duration <= 0f) // 유효한 일반 적과 속박 시간
             {
                 return false; // 보스와 유효하지 않은 제어 차단

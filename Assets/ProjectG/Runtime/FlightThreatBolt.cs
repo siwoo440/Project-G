@@ -28,6 +28,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private float secondsLeft; // 사용 중 남은 프레임 시간
         private bool nearCandidate; // 현재까지 근접 구간 진입 여부
         private bool grazeAwarded; // 상대 기체에 대한 중복 그레이즈 방지
+        private static long nextStoryShot;
+        private long storyShot;
+        private FlightThreatPool owningPool;
 
         internal Transform Location { get; private set; } // 프리팹의 실제 위치와 방향
         internal GameObject View { get; private set; } // 풀에서 켜고 끄는 표시 오브젝트
@@ -40,11 +43,13 @@ namespace ProjectG // 프로젝트 게임 영역
             Location = transform; // 월드 이동과 경로 회수에서 쓰는 좌표
             View = gameObject; // 활성화 상태가 필요할 때 쓰는 표시
             visual = renderMesh != null ? renderMesh.transform : null; // 패턴이 바뀔 때만 사용하는 자식 위치
+            owningPool = GetComponentInParent<FlightThreatPool>();
         }
 
         internal void Begin(Vector3 startPilot, float travelSpeed, int shotDamage, FlightThreatPattern pattern, bool canCancel, bool canAbsorb) // 실제 발사된 적탄 초기화
         {
             CanCancel = canCancel; // 재사용 탄의 상쇄 허용 초기화
+            storyShot = System.Threading.Interlocked.Increment(ref nextStoryShot);
             CanAbsorb = canAbsorb; // 재사용 탄의 독립 흡수 허용 초기화
             remaining = range; // 이전 사용에서 소진한 거리 복구
             secondsLeft = lifetime; // 새 탄의 사용 시간 초기화
@@ -81,6 +86,14 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 end = start + forward * travel; // 이번 프레임의 실제 탄환 끝점
             float portion = elapsed > 0f ? travel / (speed * elapsed) : 0f; // 이번 프레임에서 실제로 움직인 시간 비율
             Vector3 pilotAtEnd = Vector3.Lerp(previousPilot, currentPilot, portion); // 탄환이 지형에 도달한 때의 기체 위치
+            FlightStoryDirector story = FlightStoryDirector.Active;
+            FlightStoryCombatant owner = owningPool != null ? owningPool.StoryOwnerOf(this) : null;
+            if (story != null && owner != null && owner.CanThreaten)
+            {
+                float pilotFraction = FirstSphereContact(start - previousPilot, end - pilotAtEnd, vitals.CollisionRadius + radius);
+                Vector3 protectedEnd = Vector3.Lerp(start, end, pilotFraction);
+                if (FlightStoryProtectedBody.TryIntercept(story, start, protectedEnd, radius, impactDamage, owner.InstanceId + ":shot:" + storyShot)) return false;
+            }
             bool hit = vitals.ResolveThreat(start - previousPilot, end - pilotAtEnd, radius, impactDamage, ref nearCandidate, ref grazeAwarded); // 체력과 그레이즈 판정
             if (hit || terrain || remaining <= step || secondsLeft <= duration) // 접촉이나 거리·시간 만료 처리
             {
@@ -92,6 +105,20 @@ namespace ProjectG // 프로젝트 게임 영역
             previousPilot = currentPilot; // 다음 상대 경로의 기체 출발점
             Location.position = end; // 실제 적탄 이동
             return true; // 다음 프레임의 계속 이동
+        }
+
+        private static float FirstSphereContact(Vector3 start, Vector3 end, float combinedRadius)
+        {
+            Vector3 movement = end - start;
+            float a = movement.sqrMagnitude;
+            float c = start.sqrMagnitude - combinedRadius * combinedRadius;
+            if (c <= 0) return 0;
+            if (a <= 0.000001f) return 1;
+            float b = Vector3.Dot(start, movement);
+            float discriminant = b * b - a * c;
+            if (discriminant < 0) return 1;
+            float t = (-b - Mathf.Sqrt(discriminant)) / a;
+            return t >= 0 && t <= 1 ? t : 1;
         }
     }
 }

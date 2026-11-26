@@ -40,9 +40,17 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightExpeditionMap map; // 임시 경로·상점·저장 지도
         private FlightBroomPilot pilot; // 선택 화면의 현재 조종사
         private bool moving; // 중복 씬 전환 방지
+        private FlightStoryMenu storyMenu;
+
+        private void OnGUI()
+        {
+            if (moving || ready == null || !ready.activeSelf || storyMenu == null || storyMenu.IsOpen) return;
+            if (GUI.Button(new Rect(Screen.width - 200, 72, 176, 36), "본편 임무 (F7)")) storyMenu.Open(pilot);
+        }
 
         private void Start() // 두 개의 검증된 캐릭터와 저장 흐름
         {
+            storyMenu = gameObject.AddComponent<FlightStoryMenu>();
             Time.timeScale = 1f; // 메인 화면과 같이 실제 메뉴 시간
             AudioListener.pause = false; // 탐험 전투를 일시정지한 뒤 돌아오면 메뉴 소리 복원
             Cursor.lockState = CursorLockMode.None; // UI 마우스 포인터
@@ -103,6 +111,16 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 마우스 단독 또는 씬 전환 중
             {
                 return; // 추가 출발 없음
+            }
+            if (storyMenu != null && storyMenu.IsOpen)
+            {
+                if (keyboard.escapeKey.wasPressedThisFrame) storyMenu.Close();
+                return;
+            }
+            if (ready.activeSelf && keyboard.f7Key.wasPressedThisFrame)
+            {
+                storyMenu.Open(pilot);
+                return;
             }
             if (editor.gameObject.activeSelf && editor.HandlePreviewKey(keyboard)) // 내장 비행의 포커스와 화면 전환 우선 처리
             {

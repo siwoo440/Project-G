@@ -144,6 +144,20 @@ namespace ProjectG // 프로젝트 게임 영역
             AddUltimate(amount); // 실제 필살기 자원과 게이지 갱신
         }
 
+        internal void RegisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy == null || System.Array.IndexOf(defeatRewards, enemy) >= 0) return;
+            System.Array.Resize(ref defeatRewards, defeatRewards.Length + 1);
+            defeatRewards[defeatRewards.Length - 1] = enemy;
+            if (isActiveAndEnabled) enemy.Defeated += RewardDefeat;
+        }
+
+        internal void UnregisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy != null) enemy.Defeated -= RewardDefeat;
+            defeatRewards = System.Array.FindAll(defeatRewards, value => value != null && value != enemy);
+        }
+
         private bool TriggerAvailable(string id, int maximum) // 한 효과의 현재 쿨타임과 횟수
         {
             return !dashTriggers.TryGetValue(id, out DashTrigger state) || Time.time >= state.ReadyAt && state.Count < maximum; // 처음 발동 또는 제한 안의 재사용
@@ -548,7 +562,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     threatPool.ClearInView(Camera.main); // 화면 안 적탄만 소거
                     foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 씬의 살아 있는 일반 적
                     {
-                        enemy.ReceiveHit(80); // 각 적의 실제 시험 피해
+                        if (enemy.IsCombatTarget) enemy.ReceiveHit(80); // 안전 이탈·비살상 종료 대상 제외
                     }
                     return true; // 유성 탄막 발동
                 default: // 정의되지 않은 마법

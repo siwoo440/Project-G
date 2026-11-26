@@ -190,6 +190,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 직접 열었을 때는 메인 이동만 가능
             }
             moving = true; // 클릭과 Enter 중복 취소
+            if (!string.IsNullOrEmpty(report.StoryStageId))
+            {
+                FlightStoryPlayMode mode = report.Cleared ? FlightStoryPlayMode.StoryReplay : report.StoryPlayMode;
+                moving = FlightStorySelection.Request(report.StoryStageId, report.Pilot, mode);
+                return;
+            }
             if (report.BossRush) // 재도전 때 동일한 모드 보존
             {
                 FlightSortieChoice.LaunchBossRush(report.Pilot); // 저장된 본편 이어서하기를 유지한 재도전

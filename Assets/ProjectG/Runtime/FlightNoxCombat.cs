@@ -67,7 +67,7 @@ namespace ProjectG // 프로젝트 게임 영역
             pool.ClearWithin(pulseOrigin, Radius); // 가까운 일반 탄만 소거
             foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 구체 범위와 비교할 실제 마물
             {
-                if ((enemy.transform.position - pulseOrigin).sqrMagnitude <= Radius * Radius) // 고도도 포함한 실제 반경
+                if (enemy.IsCombatTarget && (enemy.transform.position - pulseOrigin).sqrMagnitude <= Radius * Radius) // 고도도 포함한 실제 반경
                 {
                     enemy.ReceiveHit(150); // 경계 안 마물의 시험 피해
                 }

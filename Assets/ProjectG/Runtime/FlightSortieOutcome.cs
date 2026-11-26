@@ -19,6 +19,14 @@ namespace ProjectG // 프로젝트 게임 영역
         internal readonly bool BossRush; // 본편 또는 두 보스 연속 도전
         internal readonly int BestTime; // 조종사의 최고 기록 백분의 일 초
         internal readonly bool NewRecord; // 이번 성공으로 단축한 기록
+        internal string StoryStageId { get; private set; }
+        internal FlightStoryPlayMode StoryPlayMode { get; private set; }
+
+        internal void AttachStory(string stageId, FlightStoryPlayMode mode)
+        {
+            StoryStageId = stageId;
+            StoryPlayMode = mode;
+        }
 
         internal FlightSortieReport(bool cleared, FlightBroomPilot pilot, float combat, float total, long score, int defeats, int grazes, int level, FlightProgressReceipt receipt, bool bossRush = false, int bestTime = 0, bool newRecord = false) // 결과로 전달할 동결 값
         {
@@ -66,7 +74,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 기존 전투 점수와 최종 시계 이후 종료 확인
         {
-            if (!stage.IsStageComplete && !pilot.IsDefeated) // 이번 출격이 아직 진행 중
+            if (!stage.IsStageComplete && !pilot.IsDefeated && !stage.IsStoryFailure) // 구조 대상 실패도 실제 결과 경로로 연결
             {
                 if (snapshot != null) // 기존 일시정지의 다시하기로 상태가 복원된 경우
                 {
@@ -94,10 +102,20 @@ namespace ProjectG // 프로젝트 게임 영역
             bool cleared = stage.IsStageComplete && !pilot.IsDefeated; // 실제 전투 성공 여부
             FlightBroomPilot current = weapon.ActivePilot; // 스킬·장비의 실제 조종사
             FlightProgressReceipt receipt = stage.Conclude(cleared); // 결과 보기 전에 보상과 완료 ID를 함께 저장
+            if (stage.StoryNeedsReceipt)
+            {
+                heading.text = "정산 기록 저장을 기다리고 있습니다.";
+                flight.SetSortieEnded(true);
+                panel.SetActive(true);
+                open.interactable = false;
+                return;
+            }
+            open.interactable = true;
             bool rush = stage.IsBossRush; // 종료한 실제 보스 모드
             bool newRecord = rush && cleared && FlightBossRushRecords.TryRecord(current, stage.ElapsedSeconds); // 두 보스를 모두 격파한 전투 기록
             int bestTime = rush ? FlightBossRushRecords.Best(current) : 0; // 보스 모드의 조종사별 최고 기록
             snapshot = new FlightSortieReport(cleared, current, stage.ElapsedSeconds, stage.TotalSeconds, score.Total, score.DefeatCount, pilot.Grazes, experience.Level, receipt, rush, bestTime, newRecord); // 결과에 복제할 확정값
+            if (stage.Story != null) snapshot.AttachStory(stage.Story.Stage.id, stage.Story.PlayMode);
             string mode = rush ? "보스 러시" : stage.IsExpedition ? "탐험 전투" : "출격"; // 결과에서 구분할 전투 방식
             heading.text = $"{mode} {(cleared ? "완료" : "실패")}"; // 전투에 표시할 실제 결과
             if (stage.IsExpedition) // 실제 교전과 최종 전투 종료를 한 번 반영

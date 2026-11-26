@@ -37,6 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public int Health { get; private set; } // 현재 출격 체력
         public int MaxHealth => maxHealth + capacityBonus; // 임시 성장까지 포함한 최대 체력
+        internal float CollisionRadius => hitRadius;
         public int Grazes { get; private set; } // 유효한 근접 회피 수
         public bool IsDefeated => Health <= 0; // 비행 실패 상태
         public int ItemShield { get; private set; } // 아이템의 남은 방어 횟수

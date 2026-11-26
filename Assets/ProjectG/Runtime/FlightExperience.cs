@@ -53,6 +53,20 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal void RegisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy == null || System.Array.IndexOf(rewardSources, enemy) >= 0) return;
+            System.Array.Resize(ref rewardSources, rewardSources.Length + 1);
+            rewardSources[rewardSources.Length - 1] = enemy;
+            if (isActiveAndEnabled) enemy.Defeated += Spawn;
+        }
+
+        internal void UnregisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy != null) enemy.Defeated -= Spawn;
+            rewardSources = System.Array.FindAll(rewardSources, value => value != null && value != enemy);
+        }
+
         public void ResetRun() // 시험 출격 재시작 상태
         {
             for (int index = active.Count - 1; index >= 0; index--) // 모든 미획득 조각 회수

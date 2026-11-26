@@ -5580,6 +5580,127 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 소수점 공격력 경계와 동일 우선순위
+        public IEnumerator CraftedBudgetUsesActualFractionAndSuspendsMostRecentSlot() // 실제 비용 초과와 순서 보존
+        {
+            string key = "ProjectG.Crafted.Fraction." + System.Guid.NewGuid().ToString("N"); // 다른 편성과 격리한 저장
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 독립 시험 편성
+            try // 출격 준비의 실제 슬롯 변경
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 준비 화면
+                yield return WaitFrames(4); // 장비와 저장 초기화
+                Transform editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 실제 제작 편집기
+                Component component = editor.GetComponent("FlightCraftedSpellEditor"); // 준비 화면 연결
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 API
+                Component book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 실제 제작 마법 편성
+                Component equipment = (Component)book.GetType().GetField("equipment", hidden).GetValue(book); // 실제 장비 능력치
+                var slot = book.GetType().GetMethod("Slot", hidden); // 영구 편성 슬롯
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 현재 유효 슬롯
+                object first = slot.Invoke(book, new object[] { 0 }); // 기본 첫 마법
+                object second = slot.Invoke(book, new object[] { 1 }); // 기본 둘째 마법
+                int total = (int)first.GetType().GetProperty("Cost").GetValue(first) + (int)second.GetType().GetProperty("Cost").GetValue(second); // 실제 두 구성의 정수 비용
+                var equip = book.GetType().GetMethod("Equip", hidden); // 실제 저장 순서 변경
+                Assert.That(equip.Invoke(book, new[] { (object)0, first }), Is.True); // 첫 슬롯을 먼저 편성
+                Assert.That(equip.Invoke(book, new[] { (object)1, second }), Is.True); // 둘째 슬롯을 나중에 편성
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비 합산값
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 능력치 종류
+                int power = (int)System.Enum.Parse(stat, "MagicPower"); // 마법 공격력 위치
+                float original = bonuses[power]; // 원래 장비 보정
+                bonuses[power] = total - 100f - 0.25f; // 실제 비용보다 0.25 낮은 공격력
+                ClickPauseButton(GameObject.Find("SortieBriefing").transform, "Ready/EditMagic"); // 실제 제작 화면 열기
+                component.GetType().GetMethod("Refresh", hidden).Invoke(component, null); // 실제 제작 화면 갱신
+                Text summary = (Text)component.GetType().GetField("summary", hidden).GetValue(component); // 비용과 공격력 표시
+                Assert.That(summary.text, Does.Contain($"/ {total - 0.25f:0.##}")); // 소수 공격력의 실제 값 표시
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 같은 우선순위에서 최근 슬롯 해제
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.SameAs(first)); // 먼저 편성한 슬롯 유지
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.SameAs(second)); // 저장 구성은 보존
+                bonuses[power] = total - 100f; // 실제 비용과 정확히 같은 공격력
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.SameAs(second)); // 정확한 경계의 자동 복구
+                bonuses[power] = original; // 시험에 사용한 보정 복구
+            }
+            finally // 독립 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 시험 편성 저장 삭제
+                PlayerPrefs.Save(); // 삭제 기록 저장
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 저장 환경 복구
+            }
+        }
+
+        [UnityTest] // 실제 집중 장비와 마법 재편성
+        public IEnumerator CraftedBudgetReconcilesWhenFocusEquipmentChanges() // 집중 효과의 종료와 원래 슬롯 복구
+        {
+            string key = "ProjectG.Crafted.FocusBudget." + System.Guid.NewGuid().ToString("N"); // 독립 마법 편성 저장
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 이번 시험만의 저장
+            object body = null; // 원래 카탈로그 부품
+            object originalPenaltyStat = null; // 기존 불이익 능력치
+            object originalPenalty = null; // 기존 불이익 수치
+            System.Reflection.FieldInfo penaltyField = null; // 시험 경계의 원복 필드
+            System.Reflection.FieldInfo penaltyStatField = null; // 시험 능력치의 원복 필드
+            try // 실전 장비와 시전 상태 검사
+            {
+                yield return LoadOuterIslands(); // 실제 전투 기체와 제작 마법
+                Transform pilot = FindPilot(); // 현재 조종사
+                Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 빗자루 장착
+                Component flight = pilot.GetComponent("FirstFlightController"); // 실제 집중 상태
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 출격 마법 편성
+                Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실제 쿨타임
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 API
+                var slot = book.GetType().GetMethod("Slot", hidden); // 영구 저장 슬롯
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 실제 무작위 슬롯
+                object first = slot.Invoke(book, new object[] { 0 }); // 첫 번째 저장 마법
+                object second = slot.Invoke(book, new object[] { 1 }); // 두 번째 저장 마법
+                int total = (int)first.GetType().GetProperty("Cost").GetValue(first) + (int)second.GetType().GetProperty("Cost").GetValue(second); // 실제 편성 비용
+                var priority = book.GetType().GetMethod("SetPriority", hidden); // 저장 슬롯 우선순위
+                priority.Invoke(book, new object[] { 0, 2 }); // 첫 마법 우선 유지
+                priority.Invoke(book, new object[] { 1, 0 }); // 둘째 마법 자동 해제
+                book.GetType().GetMethod("ResetRun", hidden).Invoke(book, null); // 실제 무작위 출격
+                int lane = active.Invoke(book, new object[] { 0 }) == second ? 0 : 1; // 둘째 마법의 실제 위치
+                System.Type upgrade = book.GetType().GetNestedType("Upgrade", System.Reflection.BindingFlags.NonPublic); // 실제 강화 종류
+                Assert.That(book.GetType().GetMethod("TryUpgrade", hidden).Invoke(book, new[] { (object)lane, System.Enum.Parse(upgrade, "Damage") }), Is.True); // 자동 해제 전 강화
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { second }), Is.True); // 자동 해제 전 실제 쿨타임
+                object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 부품 카탈로그
+                var find = catalog.GetType().GetMethod("Find", hidden); // 기획 부품 조회
+                body = find.Invoke(catalog, new object[] { "aria.body" }); // 실제 기본 몸체 정의
+                object grip = find.Invoke(catalog, new object[] { "set.starlight.grip" }); // 집중 시 공격력이 오르는 별빛 손잡이
+                System.Type part = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 카탈로그 항목 유형
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 장비 능력치
+                penaltyField = part.GetField("penalty"); // 원래 불이익 수치
+                penaltyStatField = part.GetField("penaltyStat"); // 원래 불이익 종류
+                originalPenalty = penaltyField.GetValue(body); // 시험 뒤 복구할 원본 값
+                originalPenaltyStat = penaltyStatField.GetValue(body); // 시험 뒤 복구할 원본 종류
+                float currentPower = (float)book.GetType().GetProperty("MagicAttack", hidden).GetValue(book); // 실제 기준 마법 공격력
+                penaltyStatField.SetValue(body, System.Enum.Parse(stat, "MagicPower")); // 자동 해제 경계를 만들 시험 불이익
+                penaltyField.SetValue(body, total - 1f - currentPower); // 집중 전 비용보다 1 낮은 시험값
+                equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { part, typeof(string), typeof(int) }, null).Invoke(equipment, new object[] { grip, "verify.focus.budget", 5 }); // 전설 손잡이의 독립 사본
+                object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+                object gripSlot = part.GetField("slot").GetValue(grip); // 실제 손잡이 부위
+                Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, gripSlot, (object)"verify.focus.budget" }), Is.True); // 실제 부품 교체로 능력치 재계산
+                Assert.That((float)book.GetType().GetProperty("MagicAttack", hidden).GetValue(book), Is.EqualTo(total - 1f).Within(0.001f)); // 집중 전 실제 초과 경계
+                Assert.That(active.Invoke(book, new object[] { lane }), Is.Null); // 장비 교체로 낮은 우선순위 해제
+                var focus = flight.GetType().GetProperty("IsFocusHeld").GetSetMethod(true); // 실제 집중 상태
+                focus.Invoke(flight, new object[] { true }); // 집중 부품의 공격력 증가
+                Assert.That(active.Invoke(book, new object[] { lane }), Is.SameAs(second)); // 한도 회복과 원래 슬롯 복구
+                Assert.That(book.GetType().GetMethod("UpgradeRank", hidden).Invoke(book, new object[] { lane }), Is.EqualTo(1)); // 실제 강화 단계 보존
+                Assert.That((float)book.GetType().GetMethod("Cooldown", hidden).Invoke(book, new[] { second }), Is.GreaterThan(0f)); // 남은 실제 쿨타임 보존
+                focus.Invoke(flight, new object[] { false }); // 집중 조건의 종료
+                Assert.That(active.Invoke(book, new object[] { lane }), Is.Null); // 조건 종료로 같은 슬롯 재해제
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.SameAs(second)); // 영구 저장 구성 보존
+            }
+            finally // 시험 목적으로 변경한 데이터 복원
+            {
+                if (body != null && penaltyField != null && penaltyStatField != null) // 카탈로그 정의를 변경한 경우
+                {
+                    penaltyField.SetValue(body, originalPenalty); // 원래 불이익 수치 복구
+                    penaltyStatField.SetValue(body, originalPenaltyStat); // 원래 불이익 종류 복구
+                }
+                PlayerPrefs.DeleteKey(key); // 이 시험의 편성 저장 삭제
+                PlayerPrefs.Save(); // 삭제 기록 저장
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 저장 환경 복구
+            }
+        }
+
         [UnityTest] // 한도 변화에 따른 자동 해제와 복구
         public IEnumerator CraftedBudgetRestoresLowerPrioritySlotWithoutResettingItsState() // 우선순위와 임시 강화·쿨타임 보존
         {

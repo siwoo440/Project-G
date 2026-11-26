@@ -290,7 +290,7 @@ namespace ProjectG // 프로젝트 게임 영역
             clearLeft.interactable = book.Slot(0) != null; // 해제할 제작 슬롯 여부
             clearRight.interactable = book.Slot(1) != null; // 해제할 제작 슬롯 여부
             lanes.text = $"좌  {LaneName(0)}\n우  {LaneName(1)}"; // 출격의 실제 두 마우스 슬롯
-            summary.text = valid ? $"구성 비용 {candidate.Cost} / {book.MagicBudget}\n최초 {candidate.InitialShots}발  ·  최대 {candidate.MaximumShots}발" : "구성 요소를 확인하세요."; // 조합 비용과 생성 제한
+            summary.text = valid ? $"구성 비용 {candidate.Cost} / {book.MagicAttack:0.##}\n최초 {candidate.InitialShots}발  ·  최대 {candidate.MaximumShots}발" : "구성 요소를 확인하세요."; // 조합 비용과 생성 제한
             if (supported) // 실제 시험 발사 가능한 구성
             {
                 FlightCraftedSpellCaster.Profile stats = range.EffectiveStats(candidate); // 선택한 성능의 실제 연습 마력·탄속

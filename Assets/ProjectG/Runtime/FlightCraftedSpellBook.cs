@@ -56,7 +56,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public CraftedSpellRecipe Saved { get; private set; } // 편집기로 불러올 가장 최근 조합
         internal int GalleryCount => gallery.Count; // 실제 저장된 마법 카드 수
-        internal int MagicBudget => 100 + Mathf.RoundToInt(equipment.GetBonus(FlightBroomStat.MagicPower)); // 실전 편성 기준과 장착 효과
+        internal int MagicBudget => Mathf.FloorToInt(MagicAttack); // 정수 구성 비용이 실제 소수 공격력을 넘지 않는 한도
         internal float MagicAttack => Mathf.Max(0f, 100f + equipment.GetBonus(FlightBroomStat.MagicPower)); // 현재 장비를 포함한 실제 마법 공격력
         internal float ProjectileSpeedBonus => equipment.GetBonus(FlightBroomStat.BoltSpeed); // 이동형 제작 탄환의 합산 탄속 보정
         internal float ProjectileSpeedFor(string element) => ProjectileSpeedBonus + equipment.ElementSpeedBonus(element); // 실제 속성의 세트 효과까지 합산

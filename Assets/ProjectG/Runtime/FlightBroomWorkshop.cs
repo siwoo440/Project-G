@@ -48,6 +48,7 @@ namespace ProjectG // 프로젝트 게임 영역
             previewCamera.enabled = SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; // 실제 그래픽 장치가 있을 때만 미리보기 렌더
             close = closeWorkshop; // 되돌아갈 실제 메뉴
             gameObject.AddComponent<FlightBroomPresetPanel>().Initialize(equipment, back, heading.font, transform, PreviewDefaults, () => SelectSlot(slot)); // 같은 장비와 갱신을 공유하는 프리셋 화면
+            gameObject.AddComponent<FlightBroomGalleryPanel>().Initialize(equipment, back, heading.font, transform); // 같은 부품 카탈로그의 실제 도감 화면
             confirmDefaults = DefaultButton(equip, "ConfirmDefaults", "기본 복원 확정"); // 기존 확정 위치의 실제 확인 버튼
             cancelDefaults = DefaultButton(remove, "CancelDefaults", "취소"); // 기존 미리보기 위치의 취소 버튼
             confirmDefaults.onClick.AddListener(ConfirmDefaults); // 여덟 부품을 검증 후 함께 확정

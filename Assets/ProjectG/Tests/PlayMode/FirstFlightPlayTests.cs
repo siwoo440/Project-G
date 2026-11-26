@@ -5580,6 +5580,99 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 열 세트 여든 부품의 실제 이미지와 원본 해상도
+        public IEnumerator BroomGalleryImagesMatchAllCatalogIdsAndOriginalSizes() // 누락·왜곡·축소 필터 확인
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 부품 카탈로그가 있는 출격 준비
+            yield return WaitFrames(4); // 장비와 카탈로그 초기화
+            Transform workshop = GameObject.Find("SortieBriefing").transform.Find("BroomWorkshop"); // 실제 조립 화면
+            Component controller = workshop.GetComponent("FlightBroomWorkshop"); // 장비 참조의 실제 소유자
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 카탈로그 접근
+            Component equipment = (Component)controller.GetType().GetField("equipment", hidden).GetValue(controller); // 실제 보유 장비
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 전체 기획 부품
+            int count = 0; // 실제 이미지와 대조한 세트 부품 수
+            foreach (object definition in definitions) // 실제 카탈로그의 각 부품
+            {
+                System.Type part = definition.GetType(); // 실제 부품 정의의 필드
+                string set = (string)part.GetField("setId").GetValue(definition); // 세트에 속한 공용 부품 여부
+                if (string.IsNullOrEmpty(set)) // 캐릭터 시작 부품과 비세트 항목
+                {
+                    continue; // 여든 종류의 세트 도감에서 제외
+                }
+                string id = (string)part.GetField("id").GetValue(definition); // 이미지와 연결되는 실제 부품 ID
+                string path = System.IO.Path.Combine(Application.dataPath, "ProjectG", "Resources", "BroomIcons", id + ".png"); // 해당 부품의 원본 그림
+                Assert.That(System.IO.File.Exists(path), Is.True, id + " 원본 그림"); // 실제 PNG 파일 누락 방지
+                byte[] header = new byte[24]; // PNG의 크기 정보까지만 읽는 버퍼
+                using (var stream = System.IO.File.OpenRead(path)) // 원본 파일의 헤더 확인
+                {
+                    Assert.That(stream.Read(header, 0, header.Length), Is.EqualTo(header.Length), id); // 원본 헤더의 완전한 읽기
+                }
+                int width = header[16] << 24 | header[17] << 16 | header[18] << 8 | header[19]; // PNG 원본의 가로 크기
+                int height = header[20] << 24 | header[21] << 16 | header[22] << 8 | header[23]; // PNG 원본의 세로 크기
+                Texture2D texture = Resources.Load<Texture2D>("BroomIcons/" + id); // 실제 게임에서 사용하는 도감 텍스처
+                Assert.That(texture, Is.Not.Null, id); // 정확한 ID의 실제 이미지 로드
+                Assert.That(texture.width, Is.EqualTo(width), id + " 가로"); // 원본 가로 해상도 유지
+                Assert.That(texture.height, Is.EqualTo(height), id + " 세로"); // 원본 세로 해상도와 비율 유지
+                Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Trilinear), id); // 작은 화면의 축소 필터
+                Assert.That(texture.mipmapCount, Is.GreaterThan(1), id); // 축소 시 사용할 밉맵
+                Resources.UnloadAsset(texture); // 다음 부품 검증 전 임시 텍스처 해제
+                count++; // 실제로 확인한 부품 수
+            }
+            Assert.That(count, Is.EqualTo(80)); // 열 세트와 여덟 부위 전체 확인
+        }
+
+        [UnityTest] // 실제 빗자루 부품 도감 화면
+        public IEnumerator BroomGalleryShowsAllSetsAndTheCorrectPartImage() // 열 세트·여덟 부위와 실제 그림 연결
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비 화면
+            yield return WaitFrames(4); // 조립과 도감 초기화
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비
+            ClickPauseButton(briefing, "Ready/EditGear"); // 실제 빗자루 조립 화면
+            Transform workshop = briefing.Find("BroomWorkshop"); // 여덟 부위의 조립 화면
+            Assert.That(workshop.Find("OpenGallery"), Is.Not.Null); // 실제 부품 도감 진입 버튼
+            ClickPauseButton(workshop, "OpenGallery"); // 사용자 도감 열기
+            Transform gallery = workshop.Find("BroomGallery"); // 실제 게임의 부품 도감
+            Assert.That(gallery, Is.Not.Null); // 도감 패널 존재
+            Assert.That(gallery.gameObject.activeInHierarchy, Is.True); // 실제 화면에 표시
+            Assert.That(HudText(gallery.Find("SetName")), Does.Contain("폭풍")); // 첫 번째 기획 세트
+            for (int i = 0; i < 8; i++) // 세트별 실제 여덟 부위
+            {
+                Assert.That(gallery.Find("Row" + i).gameObject.activeSelf, Is.True); // 누락 없는 부품 목록
+            }
+            ClickPauseButton(gallery, "Row0"); // 첫 번째 실제 몸체 선택
+            Assert.That(HudText(gallery.Find("PartName")), Does.Contain("질풍의 몸체")); // 카탈로그의 정확한 이름
+            RawImage image = gallery.Find("PartImage").GetComponent<RawImage>(); // 실제 도감 그림
+            Assert.That(image.texture, Is.Not.Null); // 연결한 실제 이미지 존재
+            Assert.That(image.texture.name, Is.EqualTo("trial.storm-body")); // 해당 부품의 정확한 이미지 ID
+            Assert.That(image.texture.width, Is.EqualTo(1536)); // 원본 가로 해상도 보존
+            Assert.That(image.texture.height, Is.EqualTo(1024)); // 원본 세로 해상도와 비율 보존
+            Texture previousImage = image.texture; // 이전에 표시한 실제 리소스
+            ClickPauseButton(gallery, "Row1"); // 다른 부품의 그림 열기
+            Assert.That(image.texture.name, Is.EqualTo("set.storm.grip")); // 실제로 다른 부품 이미지 전환
+            yield return null; // Unity의 리소스 해제 반영 대기
+            ClickPauseButton(gallery, "Row0"); // 원래 부품으로 다시 이동
+            Assert.That(image.texture.name, Is.EqualTo("trial.storm-body")); // 해제한 그림의 정상 재로드
+            Assert.That(ReferenceEquals(previousImage, image.texture), Is.False); // 해제 뒤 원래 리소스의 새 인스턴스
+            Assert.That(HudText(gallery.Find("Details")), Does.Contain("비행 속도")); // 기획된 실제 부품 효과
+            Assert.That(HudText(gallery.Find("Details")), Does.Contain("기획")); // 미완성 발동 효과를 실제 구현과 구분
+            Assert.That(gallery.Find("SetEffects"), Is.Not.Null); // 세트 단계별 효과 버튼
+            ClickPauseButton(gallery, "SetEffects"); // 해당 세트의 2·4·8단계 확인
+            Assert.That(HudText(gallery.Find("Details")), Does.Contain("2세트")); // 두 부위 효과 표시
+            Assert.That(HudText(gallery.Find("Details")), Does.Contain("4세트")); // 네 부위 효과 표시
+            Assert.That(HudText(gallery.Find("Details")), Does.Contain("8세트")); // 여덟 부위 효과 표시
+            ClickPauseButton(gallery, "Next"); // 다음 세트로 이동
+            Assert.That(HudText(gallery.Find("SetName")), Does.Contain("수호")); // 두 번째 실제 세트
+            for (int i = 0; i < 8; i++) // 나머지 여덟 세트 순회
+            {
+                ClickPauseButton(gallery, "Next"); // 실제 다음 목록 버튼
+            }
+            Assert.That(HudText(gallery.Find("Page")), Does.Contain("10 / 10")); // 열 번째 기획 세트 도착
+            Assert.That(HudText(gallery.Find("SetName")), Does.Contain("중력")); // 마지막 실제 세트
+            ClickPauseButton(gallery, "Next"); // 마지막 이후 이동 시도
+            Assert.That(HudText(gallery.Find("Page")), Does.Contain("10 / 10")); // 실제 세트 밖 이동 차단
+        }
+
         [UnityTest] // 기본 부품 일괄 복원의 실제 미리보기
         public IEnumerator BroomDefaultRestorePreviewsBeforeCancelOrConfirm() // 취소 시 기존 장착과 외형 유지
         {

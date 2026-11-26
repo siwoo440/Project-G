@@ -272,6 +272,11 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             return true; // 모든 경로에서 같은 적격 요소
         }
 
+        internal bool CanSelectResearch(CraftedSpellGroup group, string id) // 화면에서 표시할 연구·보상 공통 적격 여부
+        {
+            return CanAcquireResearch(FlightCraftedResearchCatalog.Find(group, id)); // 실제 구매·선택과 같은 자격 검사
+        }
+
         private static void UnlockResearch(Save profile, FlightCraftedResearchNode node) // 새 해금과 해당 단계의 보류 보상 정리
         {
             Array.Resize(ref profile.unlocks, profile.unlocks.Length + 1); // 기존 공용 해금 보존

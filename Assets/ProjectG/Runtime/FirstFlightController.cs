@@ -43,6 +43,11 @@ namespace ProjectG // 프로젝트 게임 영역
             TryGetComponent(out broom); // 씬에 배치한 빗자루 부품
         }
 
+        internal void BindTrainingEquipment(FlightBroomEquipment equipment) // 자유 훈련의 저장 장비 연결
+        {
+            broom = equipment; // 실전과 같은 비행 능력치 적용
+        }
+
         public void ResetFlightPose(Vector3 position, Quaternion rotation) // 출격 재시작의 초기 비행 자세
         {
             velocity = Vector3.zero; // 이전 출격 관성 제거

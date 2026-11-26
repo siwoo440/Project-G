@@ -86,7 +86,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (spellEditor != null) // 실전 항로의 제작 마법
             {
                 spellEditor.Initialize(ShowControls); // 편집에서 조작 안내 복귀
-                spellEditorButton.onClick.AddListener(ShowSpells); // 제작 마법 화면 열기
+                spellEditorButton.onClick.AddListener(TryShowSpells); // 전투 전 또는 독립 시험에서만 제작 화면 열기
             }
             for (int index = 0; index < bindingButtons.Length; index++) // 설정에 표시된 실제 조작
             {
@@ -177,6 +177,10 @@ namespace ProjectG // 프로젝트 게임 영역
             continueButton.interactable = true; // 포기 이전에 재생 가능
             abandonButton.interactable = true; // 현재 출격을 포기할 수 있음
             settingsButton.interactable = true; // 오른쪽 환경 설정 표시 가능
+            if (spellEditorButton != null) // 제작 마법 화면을 가진 씬
+            {
+                spellEditorButton.interactable = CanEditSpells(); // 전투 중 편집과 장착 변경 차단
+            }
             ShowControls(); // 먼저 키보드 설명 표시
             panel.SetActive(true); // 전체 화면 표시
             FlightAudio.Play(FlightSfx.UiConfirm); // 전투가 정지해도 들리는 메뉴 진입
@@ -255,6 +259,20 @@ namespace ProjectG // 프로젝트 게임 영역
             controls.SetActive(false); // 조작 설명 패널 전환
             menuButtons.SetActive(false); // 뒤에 비치는 중복 정지 버튼 숨김
             broomWorkshop.Show(); // 현재 장착과 후보 보기
+        }
+
+        private bool CanEditSpells() // 실제 전투 중의 제작 편집 제한
+        {
+            return encounter == null || encounter.IsPreparing || SceneManager.GetActiveScene().name == FlightFirstSortieGuide.SceneName; // 출격 전 준비 또는 독립 연습에서만 허용
+        }
+
+        private void TryShowSpells() // 실제 상태를 다시 확인한 제작 화면 진입
+        {
+            if (!CanEditSpells()) // 이미 전투가 시작된 경우
+            {
+                return; // 편집 화면과 영구 저장 변경 차단
+            }
+            ShowSpells(); // 유효한 준비와 독립 연습에서만 편집
         }
 
         private void ShowSpells() // 실전 화면에서 연습과 편집으로 전환

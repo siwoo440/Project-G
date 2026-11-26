@@ -187,6 +187,11 @@ namespace ProjectG // 프로젝트 게임 영역
         public int LeftIndex => left.Index; // 왼쪽 순환 검증 상태
         public int RightIndex => right.Index; // 오른쪽 순환 검증 상태
 
+        internal void BindCraftedTraining(FlightCraftedSpellBook book) // 독립 자유 훈련의 실제 제작 편성 연결
+        {
+            crafted = book; // 정식 출격과 같은 좌우 마법 사용
+        }
+
         private void Awake() // 씬에서 편집한 카드 초기화
         {
             left.Initialize(); // 왼쪽 현재 카드와 미리보기

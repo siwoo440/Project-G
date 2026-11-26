@@ -24,7 +24,7 @@ namespace ProjectG // 프로젝트 게임 영역
             if (recipe.Formation == "fan") // 평면으로 퍼지는 부채꼴
             {
                 float angle = Mathf.Lerp(-half, half, index / (float)(count - 1)); // 좌우 가장자리 사이 등간격
-                float pitch = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id ? Mathf.Lerp(-10f, 10f, index / (float)(count - 1)) : 0f; // 수압 파동의 수직 전체 이십 도
+                float pitch = recipe.BaseId == CraftedSpellPresets.All[3].Recipe.Id ? Mathf.Lerp(-10f, 10f, index / (float)(count - 1)) : 0f; // 수압 파동의 수직 전체 이십 도
                 return aim * (Quaternion.Euler(pitch, angle, 0f) * Vector3.forward); // 조준 좌표계에서의 확산 벡터
             }
             if (recipe.Formation == "cone") // 3D 원뿔의 둘레 배치

@@ -29,11 +29,17 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private FlightEnemyEncounter encounter; // 배치 마물의 경로와 새 웨이브
         [SerializeField] private FlightSkillController skills; // 재사용 시간과 마력 복구
         [SerializeField] private FlightMagicDeck deck; // 사용한 마법 카드 원래 순서
+        [SerializeField] private FlightCraftedSpellBook crafted; // 독립 훈련에서 사용할 저장 제작 마법
+        [SerializeField] private FlightBroomEquipment craftedEquipment; // 자유 훈련의 저장 빗자루 능력치
+        [SerializeField] private GameObject craftedMounts; // 자유 훈련에서만 보이는 실제 부품 부착점
         [SerializeField] private FlightEnemy target; // 연습에서만 켜고 이동할 실제 표적
         [SerializeField] private GameObject sandboxTargets; // 자유 시험용 일반 표적 그룹
         [SerializeField] private FlightExperience experience; // 모드에서 정지할 경험치 공급자
         [SerializeField] private FlightEnhancements enhancements; // 모드에서 정지할 강화 공급자
         private static FlightBroomPilot? requested; // 다음 씬에 한 번 전달할 캐릭터
+        private static string requestedMagicId; // 저장하지 않은 제작 연습 요청
+        private static string returnedDraftId; // 편집 화면에 복원할 조합
+        private string trainingDraftId; // 이번 훈련에서 사용한 미저장 조합
         private bool active; // 정식 준비에서 선택해 열린 모드
         private bool repeat = true; // 다음 선택의 시험용 기본 반복
         private bool runRepeat; // 시작 시점에 고른 현재 연습의 반복
@@ -45,16 +51,57 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private bool IsConfiguring => active && panel.activeSelf; // 연습 화면의 입력 소유권
         internal bool BlocksPause => IsConfiguring || closedFrame == Time.frameCount; // 닫은 프레임까지 기존 ESC 화면과 충돌 방지
+        internal FirstFlightController PreviewPilot => flight; // 제작 화면에서 직접 조종할 복제 비행체
+        internal FlightMagicDeck PreviewDeck => deck; // 실제 시험 시전을 제어할 마법 입력
+        internal FlightCraftedSpellBook PreviewBook => crafted; // 편집 조합을 전달할 격리 도감
+        internal Camera PreviewCamera => view.GetComponent<Camera>(); // 비행을 별도 화면에 표시할 카메라
+        internal FlightEnemy PreviewTarget => target; // 실제 체력과 피해를 표시할 중립 표적
+        internal FlightSkillController PreviewSkills => skills; // 실제 연습 마력과 최대치
+
+        internal void SetPreviewTargetDistance(float meters) // 비행 카메라의 실제 조준점에 표적 배치
+        {
+            Ray aim = view.GetAttackRay(); // 현재 비행 카메라의 실제 조준선
+            Vector3 muzzle = flight.GetComponent<FlightCraftedSpellCaster>().MuzzlePosition; // 실제 제작 마법 발사 위치
+            Vector3 offset = aim.origin - muzzle; // 카메라와 총구 사이의 위치 차이
+            float along = Vector3.Dot(offset, aim.direction); // 조준선 방향의 총구 차이
+            float discriminant = Mathf.Max(0f, along * along - (offset.sqrMagnitude - meters * meters)); // 총구 기준 거리와 조준선의 교점
+            target.transform.position = aim.GetPoint(Mathf.Max(0f, -along + Mathf.Sqrt(discriminant))); // 총구에서 선택한 거리의 실제 충돌 위치
+            Physics.SyncTransforms(); // 일시정지 중에도 새 표적 위치를 판정에 반영
+        }
+
+        internal void BeginEmbeddedPreview() // 제작 화면에 연결하는 실제 자유 비행 시작
+        {
+            StartTrial(Trial.Target); // 실전과 같은 중립 표적과 자원 초기화
+            enabled = false; // 독립 훈련 메뉴와 단축키의 중복 입력 차단
+            flight.SetSortieEnded(true); // 미리보기에 포커스를 주기 전 비행 차단
+            deck.enabled = false; // 편집 클릭을 마법 발사로 전달하지 않음
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] // 동일 도메인의 이전 씬 요청 청소
         private static void ResetRequest() // 다시 실행할 Unity 게임의 상태
         {
             requested = null; // 처음에는 일반 연습 씬 그대로
+            requestedMagicId = null; // 이전 연습 조합 제거
+            returnedDraftId = null; // 이전 복귀 조합 제거
         }
 
         internal static void Request(FlightBroomPilot pilot) // 출격 준비에서 현재 조종사로 자유 훈련
         {
             requested = pilot; // 다음 연습 씬에서 한 번 소비
+            requestedMagicId = null; // 일반 훈련에서는 저장 편성 사용
+        }
+
+        internal static void RequestMagic(FlightBroomPilot pilot, CraftedSpellRecipe recipe) // 편집 중인 조합으로 자유 비행 요청
+        {
+            requested = pilot; // 다음 연습의 조종사
+            requestedMagicId = recipe.Id; // 저장 없이 전달할 조합 식별자
+        }
+
+        internal static string ConsumeDraft() // 자유 훈련에서 돌아온 조합 확인
+        {
+            string result = returnedDraftId; // 복귀할 편집 조합
+            returnedDraftId = null; // 다음 준비 화면에 중복 적용 방지
+            return result; // 현재 복귀 요청
         }
 
         private void Start() // 첫 비행 안내가 아닌 독립 자유 훈련에서 시작
@@ -66,6 +113,24 @@ namespace ProjectG // 프로젝트 게임 영역
             FlightBroomPilot pilot = requested.Value; // 선택한 조종사 복원
             requested = null; // 다른 씬으로 넘어갈 때 자동 실행 금지
             active = true; // 이 씬에서만 자유 훈련 활성화
+            if (craftedEquipment != null) // 저장 장비가 준비된 자유 훈련
+            {
+                craftedEquipment.gameObject.SetActive(true); // 실제 소유 부품과 저장 조합 복원
+                craftedMounts?.SetActive(true); // 자유 훈련의 빗자루 부품 표시
+                flight.BindTrainingEquipment(craftedEquipment); // 실전 비행 능력치 연결
+                weapon.BindTrainingEquipment(craftedEquipment); // 실전 공격 능력치 연결
+                skills.BindTrainingEquipment(craftedEquipment); // 실전 마력 능력치 연결
+            }
+            if (crafted != null) // 실제 제작 발사기가 준비된 자유 훈련
+            {
+                deck.BindCraftedTraining(crafted); // 저장한 두 제작 마법을 실제 조작에 연결
+                if (CraftedSpellRules.TryRead(requestedMagicId, out CraftedSpellRecipe draft)) // 편집 중인 유효 조합
+                {
+                    trainingDraftId = requestedMagicId; // 복귀할 편집 상태
+                    crafted.SetTrainingRecipe(draft); // 저장 편성과 분리한 시험 조합
+                }
+            }
+            requestedMagicId = null; // 사용한 연습 요청 제거
             experience.enabled = false; // 이 모드에서 경험치 조각과 성장 카드 공급 중단
             enhancements.enabled = false; // 강화 아이템의 훈련 보상 공급 중단
             weapon.SelectPilot(pilot); // 칸에 맞는 실제 스킬과 자동탄
@@ -214,6 +279,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 Close(); // 게임 시간과 오디오 원상복구
             }
             active = false; // 한 번만 준비로 전환
+            returnedDraftId = trainingDraftId; // 미저장 조합의 편집 화면 복귀
             FlightSortieChoice.RememberPilot(weapon.ActivePilot); // 실제 조종사 선택을 계속 사용
             SceneManager.LoadSceneAsync(FlightSortieChoice.BriefingScene); // 기존 정식 출발과 같은 준비 진입
         }

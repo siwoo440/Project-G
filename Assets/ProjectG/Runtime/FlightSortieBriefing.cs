@@ -49,7 +49,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Cursor.visible = true; // 첫 선택에서 커서 표시
             EventSystem.current.sendNavigationEvents = false; // 자체 선택 키와 UI 제출 중복 방지
             workshop.Initialize(ShowSummary); // 저장한 장비로 출격 요약 갱신
-            editor.Initialize(ShowSummary); // 마법 조합도 같은 화면으로 복귀
+            editor.Initialize(ShowSummary, StartMagicTraining, () => pilot); // 제작 화면과 실제 캐릭터의 자유 연습 연결
             aria.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Aria); // 저장된 아리아 선택 자격
             rian.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Rian); // 저장된 리안 선택 자격
             iris.interactable = FlightPilotRoster.CanSelect(FlightBroomPilot.Iris); // 이리스 시범 출격의 실제 선택
@@ -74,10 +74,27 @@ namespace ProjectG // 프로젝트 게임 영역
             Choose(FlightPilotRoster.CanSelect(FlightSortieChoice.Initial) ? FlightSortieChoice.Initial : FlightBroomPilot.Aria); // 이어서하기 또는 첫 조종사
             map?.Initialize(); // 실제 지도 선택지 연결
             expedition?.onClick.AddListener(OpenExpedition); // 마우스로 탐험 지도
+            string draft = FlightTrainingMode.ConsumeDraft(); // 연습에서 돌아온 미저장 조합
+            if (draft != null) // 제작 화면에서 진입한 연습의 복귀
+            {
+                ready.SetActive(false); // 출격 요약 대신 편집 화면 표시
+                editor.ShowDraft(draft); // 저장하지 않은 조합 복원
+            }
             if (map != null && FlightExpedition.ConsumeMapRequest()) // 전투 결과 뒤 같은 지도 열기
             {
                 OpenExpedition(); // 정산하고 저장한 다음 위치
             }
+        }
+
+        private void StartMagicTraining(CraftedSpellRecipe recipe) // 편집 중인 조합의 독립 자유 연습
+        {
+            if (moving || recipe == null || editor.HasPreview) // 중복 전환과 내장 연습 씬 충돌 방지
+            {
+                return; // 기존 화면 유지
+            }
+            moving = true; // 중복 씬 전환 차단
+            FlightTrainingMode.RequestMagic(pilot, recipe); // 선택한 조종사와 미저장 조합 전달
+            SceneManager.LoadSceneAsync(FlightFirstSortieGuide.SceneName); // 실제 조종과 표적이 있는 연습 씬
         }
 
         private void Update() // 실제 키보드로 캐릭터와 이동 선택
@@ -86,6 +103,10 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 마우스 단독 또는 씬 전환 중
             {
                 return; // 추가 출발 없음
+            }
+            if (editor.gameObject.activeSelf && editor.HandlePreviewKey(keyboard)) // 내장 비행의 포커스와 화면 전환 우선 처리
+            {
+                return; // 같은 키로 제작 화면을 닫거나 출격하지 않음
             }
             if (map != null && map.HandleKey(keyboard)) // 지도 열림 동안 다른 준비 조작 차단
             {
@@ -198,7 +219,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private string SlotName(int index) // 현재 제작 마법의 출격 표시
         {
             CraftedSpellRecipe recipe = book.Slot(index); // 저장한 왼쪽과 오른쪽
-            return recipe == null ? "빈 슬롯" : FlightCraftedSpellBook.NameOf(recipe); // 출격에 반영할 실제 마법
+            return recipe == null ? "빈 슬롯" : book.ActiveSlot(index) != null ? FlightCraftedSpellBook.NameOf(recipe) : "빈 슬롯 (저장 보존)"; // 자동 해제와 잠긴 저장의 실제 빈 칸 표시
         }
 
         private void OpenWorkshop() // 현재 조종사의 조립 화면
@@ -246,7 +267,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OpenTraining() // 첫 항로에 참여하지 않는 자유 훈련 요청
         {
-            if (moving) // 한 프레임에 메뉴 버튼과 가상 키가 같이 들어온 경우
+            if (moving || editor.HasPreview) // 중복 입력과 아직 해제되지 않은 내장 연습 씬
             {
                 return; // 새 씬 준비 한 번만 처리
             }
@@ -257,7 +278,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OpenGuide() // 실제 출격과 분리한 비행 훈련
         {
-            if (moving) // 이미 화면을 바꾸는 중
+            if (moving || editor.HasPreview) // 중복 출발과 내장 연습 씬의 동시 로드 방지
             {
                 return; // 씬 로드 한 번 유지
             }

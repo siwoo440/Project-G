@@ -1512,6 +1512,10 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Transform canvas = LocateCombatHud().transform; // 보상 카드와 E 아이콘
             var upgrades = canvas.GetComponent("FlightUpgradeChoices"); // 출격 중 임시 성장
             var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance; // 후보 시험용 필드
+            Component crafted = canvas.GetComponent("FlightCraftedSpellBook"); // 제작 카드가 없는 기존 대체 후보 시험
+            System.Array activeCrafted = (System.Array)crafted.GetType().GetField("runningLanes", flags).GetValue(crafted); // 실제 출격의 제작 카드
+            activeCrafted.SetValue(null, 0); // 첫 제작 후보 제외
+            activeCrafted.SetValue(null, 1); // 둘째 제작 후보 제외
             int[] ranks = (int[])upgrades.GetType().GetField("ranks", flags).GetValue(upgrades); // 포화에 도달한 시험 상태
             for (int index = 0; index < ranks.Length; index++) // 모든 강화 후보 한도 설정
             {
@@ -2761,8 +2765,12 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 float originalBonus = bonuses[magicPower]; // 기존 장비 효과 보관
                 bonuses[magicPower] = -99f; // 편성 비용보다 낮은 시험 한도
                 yield return WaitFrames(2); // 실제 카드 제약 표시 갱신
-                Assert.That(HudText(cards.Find("LeftActive/Mouse")), Does.Contain("한도 초과")); // 편성 비용 초과의 원인 표시
+                Assert.That(cards.Find("LeftActive").gameObject.activeSelf, Is.False); // 한도를 넘은 첫 전투 카드 자동 해제
+                Assert.That(cards.Find("RightActive").gameObject.activeSelf, Is.False); // 한도를 넘은 둘째 전투 카드 자동 해제
                 bonuses[magicPower] = originalBonus; // 시험한 장비 효과 복원
+                yield return WaitFrames(2); // 원래 한도의 자동 재편성
+                Assert.That(cards.Find("LeftActive").gameObject.activeSelf, Is.True); // 첫 카드의 원래 슬롯 복구
+                Assert.That(cards.Find("RightActive").gameObject.activeSelf, Is.True); // 둘째 카드의 원래 슬롯 복구
             }
             finally // 시험 저장만 제거
             {
@@ -2778,6 +2786,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
         {
             string key = "ProjectG.Crafted.Growth." + System.Guid.NewGuid().ToString("N"); // 독립된 임시 저장
             string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 환경 보관
+            object researchState = null; // 시험에서 임시로 수정할 연구 상태
+            string[] originalUnlocks = null; // 다른 시험의 연구 상태 보존
             System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 사용자 저장 격리
             try // 시험 키만 삭제
             {
@@ -2785,6 +2795,14 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 출격의 마법 강화
                 Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실제 탄환과 결계
                 const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 시험 경로
+                System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 실제 공용 연구 프로필
+                object progress = progressType.GetProperty("Current", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 격리된 메모리 프로필
+                researchState = progress.GetType().GetField("state", hidden).GetValue(progress); // 임시 연구 해금 위치
+                var unlocks = researchState.GetType().GetField("unlocks"); // 기존 연구 해금 배열
+                originalUnlocks = (string[])unlocks.GetValue(researchState); // 기존 시험 상태 보존
+                var testUnlocks = new System.Collections.Generic.List<string>(originalUnlocks); // 필요한 요소를 추가할 시험 목록
+                testUnlocks.AddRange(new[] { "research.Shape.arrow", "research.Effect.pierce", "research.Shape.barrier", "research.Formation.sphere", "research.Trajectory.stationary", "research.FireMode.placed", "research.Origin.around", "research.Effect.cancel" }); // 실제 편성에 필요한 관통과 결계 연구
+                unlocks.SetValue(researchState, testUnlocks.ToArray()); // 이 검증의 메모리 연구만 해금
                 var slot = book.GetType().GetMethod("Slot", hidden); // 준비된 실제 마법
                 var equip = book.GetType().GetMethod("Equip", hidden); // 다음 출격 편성
                 var reset = book.GetType().GetMethod("ResetRun", hidden); // 새 출격
@@ -2843,6 +2861,10 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
             finally // 시험 저장만 정리
             {
+                if (researchState != null && originalUnlocks != null) // 시험에서 임시로 변경한 연구가 있는 경우
+                {
+                    researchState.GetType().GetField("unlocks").SetValue(researchState, originalUnlocks); // 다른 시험의 메모리 연구 복원
+                }
                 PlayerPrefs.DeleteKey(key); // 고유 시험 키 삭제
                 PlayerPrefs.Save(); // 삭제 확정
                 System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 원래 환경 복원
@@ -2962,16 +2984,17 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Assert.That(restored, Is.Not.Null); // 구성 ID를 빈 칸으로 바꾸지 않음
                 Assert.That((string)restored.GetType().GetProperty("Id").GetValue(restored), Is.EqualTo(id)); // 같은 조합의 식별자 보존
                 var active = book.GetType().GetMethod("ActiveSlot", hidden); // 실제 출격의 무작위 배정
-                int lane = active.Invoke(book, new object[] { 0 }) != null ? 0 : 1; // 이전 구성이 배정된 칸
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.Null); // 미지원 조합의 첫 전투 카드 제외
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 미지원 조합의 둘째 전투 카드 제외
+                int lane = 0; // 비어 있는 전투 칸의 사용 시도
                 Assert.That(book.GetType().GetMethod("CanCast", hidden).Invoke(book, new object[] { lane }), Is.False); // 미확정 수치의 실제 시전 차단
                 Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실제 전투 발사기
                 book.GetType().GetMethod("Use", hidden).Invoke(book, new object[] { lane }); // 지원하지 않는 구성의 사용 시도
                 Assert.That(Metric(caster, "CastCount"), Is.Zero); // 시전과 성공 효과 없음
                 yield return WaitFrames(2); // 전투 카드의 상태 표시
                 Transform cards = LocateCombatHud().transform.Find("MagicCards"); // 실제 마법 카드
-                string card = lane == 0 ? "LeftActive" : "RightActive"; // 해당 마법의 카드 위치
-                Assert.That(HudText(cards.Find(card + "/Mouse")), Does.Contain("미지원")); // 추측값 대신 현재 상태 표시
-                Assert.That(HudText(cards.Find(card + "/ManaCost")), Is.EqualTo("-")); // 확정되지 않은 마력 수치 숨김
+                Assert.That(cards.Find("LeftActive").gameObject.activeSelf, Is.False); // 미지원 전투 카드를 별도로 표시하지 않음
+                Assert.That(cards.Find("RightActive").gameObject.activeSelf, Is.False); // 무작위 배정에도 빈 카드 유지
                 book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 다른 편성 변경과 저장
                 Assert.That(PlayerPrefs.GetString(key), Does.Contain(id)); // 다른 변경 뒤에도 기존 ID 유지
                 yield return LoadOuterIslands(); // 변경한 저장으로 다시 진입
@@ -3702,48 +3725,65 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
             var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
             object recipe = all[10].GetType().GetProperty("Recipe").GetValue(all[10]); // 루미너스 레이 구성
-            var lanes = (System.Collections.IList)book.GetType().GetField("runningLanes", hidden).GetValue(book); // 이번 출격의 실제 좌우 편성
-            lanes[0] = recipe; // 왼쪽 클릭에 유지 광선 배치
-            float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비의 능력치 합계
-            System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 빗자루 능력치 종류
-            int recovery = (int)System.Enum.Parse(stat, "ManaRecovery"); // 초당 마력 회복 수치
-            bonuses[recovery] = -6f; // 유지 비용만 측정하도록 기본 회복 제거
-            skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 완전 유지 전 실제 마력
-            InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실제 왼쪽 입력을 누르고 유지
-            yield return WaitFrames(190); // 최대 삼 초의 유지와 종료
-            Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 실제 카드 경로의 성공 시전
-            float mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 유지가 끝난 실제 소수 마력
-            Assert.That(mana, Is.EqualTo(66f).Within(0.15f)); // 시작 십과 초당 팔의 삼 초 소비
-            var beams = (System.Collections.IList)caster.GetType().GetField("beams", hidden).GetValue(caster); // 현재 유지 중인 실제 광선
-            Assert.That(beams.Count, Is.Zero); // 최대 유지 시간에 종료
-            InputSystem.QueueStateEvent(mouse, new MouseState()); // 기존 클릭 해제
-            yield return WaitFrames(2); // 새 클릭과 입력 분리
-            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 새 시전의 대기시간 초기화
-            skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 해제 시험의 시작 마력
-            InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 유지 입력 시작
-            yield return WaitFrames(30); // 영 점 오 초 유지
-            InputSystem.QueueStateEvent(mouse, new MouseState()); // 실제 버튼 해제
-            yield return WaitFrames(3); // 해제 처리 확인
-            Assert.That(beams.Count, Is.Zero); // 입력 해제 시 광선 종료
-            float cooldown = (float)caster.GetType().GetMethod("CooldownRemaining", hidden).Invoke(caster, new[] { recipe }); // 해제 이후의 실제 대기시간
-            Assert.That(cooldown, Is.InRange(9f, 10f)); // 해제 시점부터 십 초 대기
-            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 고갈 시험의 대기시간 초기화
-            skills.GetType().GetField("mana", hidden).SetValue(skills, 11f); // 시작 비용 이후 일 마력만 남는 상태
-            InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 유지 입력 시작
-            yield return WaitFrames(25); // 남은 마력 소진 이후
-            Assert.That(beams.Count, Is.Zero); // 마력 부족 시 자동 종료
-            mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 종료 후 실제 마력
-            Assert.That(mana, Is.InRange(0f, 0.01f)); // 음수 없는 실제 마력 고갈
-            InputSystem.QueueStateEvent(mouse, new MouseState()); // 시험 입력 해제
-            yield return WaitFrames(2); // 다음 클릭과 입력 분리
-            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 자연 회복 시험의 대기시간 초기화
-            bonuses[recovery] = 0f; // 기본 초당 육 마력 회복 복원
-            skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 자연 회복 시험의 시작 마력
-            InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실제 유지 입력 시작
-            yield return WaitFrames(190); // 삼 초 유지와 짧은 종료 후 회복
-            mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 자연 회복이 반영된 실제 마력
-            Assert.That(mana, Is.InRange(84f, 85.5f)); // 유지 중에도 기본 회복이 계속 적용
-            InputSystem.QueueStateEvent(mouse, new MouseState()); // 마지막 시험 입력 해제
+            System.Type progressType = caster.GetType().Assembly.GetType("ProjectG.FlightProgress"); // 실제 공용 연구 프로필
+            object progress = progressType.GetProperty("Current", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 독립 메모리 프로필
+            object research = progress.GetType().GetField("state", hidden).GetValue(progress); // 시험용 연구 상태
+            var unlockField = research.GetType().GetField("unlocks"); // 기존 연구 목록
+            string[] previousUnlocks = (string[])unlockField.GetValue(research); // 다른 시험의 해금 보존
+            var unlocks = new System.Collections.Generic.List<string>(previousUnlocks); // 광선 시험에 필요한 연구
+            unlocks.AddRange(new[] { "research.Shape.beam", "research.FireMode.held", "research.Effect.dot" }); // 실제 광선 구성의 요소 해금
+            unlockField.SetValue(research, unlocks.ToArray()); // 이번 시험의 메모리 연구만 변경
+            try // 실제 입력과 유지 자원 검증
+            {
+                var lanes = (System.Collections.IList)book.GetType().GetField("runningLanes", hidden).GetValue(book); // 이번 출격의 실제 좌우 편성
+                lanes[0] = recipe; // 왼쪽 클릭에 유지 광선 배치
+                var desired = (System.Collections.IList)book.GetType().GetField("desiredRun", hidden).GetValue(book); // 자동 복구가 참조하는 실제 편성
+                desired[0] = recipe; // 동일한 슬롯의 출격 구성도 광선으로 설정
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비의 능력치 합계
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 빗자루 능력치 종류
+                int recovery = (int)System.Enum.Parse(stat, "ManaRecovery"); // 초당 마력 회복 수치
+                bonuses[recovery] = -6f; // 유지 비용만 측정하도록 기본 회복 제거
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 완전 유지 전 실제 마력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실제 왼쪽 입력을 누르고 유지
+                yield return WaitFrames(190); // 최대 삼 초의 유지와 종료
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 실제 카드 경로의 성공 시전
+                float mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 유지가 끝난 실제 소수 마력
+                Assert.That(mana, Is.EqualTo(66f).Within(0.15f)); // 시작 십과 초당 팔의 삼 초 소비
+                var beams = (System.Collections.IList)caster.GetType().GetField("beams", hidden).GetValue(caster); // 현재 유지 중인 실제 광선
+                Assert.That(beams.Count, Is.Zero); // 최대 유지 시간에 종료
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 기존 클릭 해제
+                yield return WaitFrames(2); // 새 클릭과 입력 분리
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 새 시전의 대기시간 초기화
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 해제 시험의 시작 마력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 유지 입력 시작
+                yield return WaitFrames(30); // 영 점 오 초 유지
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 실제 버튼 해제
+                yield return WaitFrames(3); // 해제 처리 확인
+                Assert.That(beams.Count, Is.Zero); // 입력 해제 시 광선 종료
+                float cooldown = (float)caster.GetType().GetMethod("CooldownRemaining", hidden).Invoke(caster, new[] { recipe }); // 해제 이후의 실제 대기시간
+                Assert.That(cooldown, Is.InRange(9f, 10f)); // 해제 시점부터 십 초 대기
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 고갈 시험의 대기시간 초기화
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 11f); // 시작 비용 이후 일 마력만 남는 상태
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 유지 입력 시작
+                yield return WaitFrames(25); // 남은 마력 소진 이후
+                Assert.That(beams.Count, Is.Zero); // 마력 부족 시 자동 종료
+                mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 종료 후 실제 마력
+                Assert.That(mana, Is.InRange(0f, 0.01f)); // 음수 없는 실제 마력 고갈
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 시험 입력 해제
+                yield return WaitFrames(2); // 다음 클릭과 입력 분리
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 자연 회복 시험의 대기시간 초기화
+                bonuses[recovery] = 0f; // 기본 초당 육 마력 회복 복원
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 자연 회복 시험의 시작 마력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실제 유지 입력 시작
+                yield return WaitFrames(190); // 삼 초 유지와 짧은 종료 후 회복
+                mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 자연 회복이 반영된 실제 마력
+                Assert.That(mana, Is.InRange(84f, 85.5f)); // 유지 중에도 기본 회복이 계속 적용
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 마지막 시험 입력 해제
+            }
+            finally // 이번 시험에 임시 적용한 연구만 복원
+            {
+                unlockField.SetValue(research, previousUnlocks); // 이전 메모리 연구 상태 복구
+            }
         }
 
         [UnityTest] // 실제 웨이브 처치와 연구 과제의 정상 정산 연결
@@ -3825,6 +3865,132 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 잠긴 기존 저장과 실제 전투 편성의 분리
+        public IEnumerator LockedSavedSpellIsPreservedAndRestoredAfterResearch() // 저장 ID 보존과 해금 전 전투 제외
+        {
+            string key = "ProjectG.Crafted.Locked." + System.Guid.NewGuid().ToString("N"); // 사용자 마법 저장과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 격리 환경 보존
+            System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 씬이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리 자동 시험의 프로필 초기화
+            progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이전 시험의 메모리 연구 상태 분리
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 실제 사용자 편성 제외
+            try // 기존 저장을 열고 연구 전후 편성 확인
+            {
+                System.Type presets = System.Type.GetType("ProjectG.CraftedSpellPresets, Assembly-CSharp", true); // 기획서의 고정 마법
+                var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 같은 구성의 프리셋
+                object holy = all[9].GetType().GetProperty("Recipe").GetValue(all[9]); // 연구가 필요한 홀리 샤워
+                string id = (string)holy.GetType().GetProperty("Id").GetValue(holy); // 기존 저장의 실제 구성 ID
+                PlayerPrefs.SetString(key, "{\"version\":2,\"recipe\":\"" + id + "\",\"left\":\"" + id + "\",\"right\":\"\"}"); // 연구 전 이미 저장한 이전 편성
+                PlayerPrefs.Save(); // 실제 불러오기 경로에 시험 저장 반영
+                yield return LoadOuterIslands(); // 실제 전투 카드와 출격 편성
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 사용자 조합을 복원한 마법 도감
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 편성 상태 조회
+                var slot = book.GetType().GetMethod("Slot", hidden); // 보존된 이전 편성 확인
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 실제 출격에 배정한 마법
+                Assert.That(slot.Invoke(book, new object[] { 0 }), Is.Not.Null); // 잠긴 이전 슬롯의 저장 ID 보존
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.Null); // 미해금 마법의 첫 전투 칸 제외
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 무작위 배정에도 잠긴 카드 없음
+                Assert.That(book.GetType().GetMethod("Equip", hidden).Invoke(book, new[] { (object)1, holy }), Is.False); // 연구 전 새 편성 거절
+                object store = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 현재 계정의 실제 연구 상태
+                object state = store.GetType().GetField("state", hidden).GetValue(store); // 시험에서만 변경할 공용 해금
+                var unlockField = state.GetType().GetField("unlocks"); // 기존 공용 해금 ID 배열
+                var unlocks = new System.Collections.Generic.List<string>((string[])unlockField.GetValue(state)); // 원래 기본 해금 보존
+                unlocks.Add("research.Shape.arrow"); // 홀리 샤워의 화살탄 연구 완료
+                unlocks.Add("research.Effect.pierce"); // 홀리 샤워의 관통 연구 완료
+                unlockField.SetValue(state, unlocks.ToArray()); // 두 선행 요소의 공용 해금
+                book.GetType().GetMethod("ResetRun", hidden).Invoke(book, null); // 새 출격의 저장 편성 재평가
+                object left = active.Invoke(book, new object[] { 0 }); // 무작위 배정의 첫 칸
+                object right = active.Invoke(book, new object[] { 1 }); // 무작위 배정의 둘째 칸
+                Assert.That(left != null || right != null, Is.True); // 연구 후 기존 저장 마법 자동 복원
+                Assert.That((string)(left ?? right).GetType().GetProperty("Id").GetValue(left ?? right), Is.EqualTo(id)); // 기존 구성 ID 그대로 사용
+                Assert.That(PlayerPrefs.GetString(key), Does.Contain(id)); // 사용자 저장 자체는 해금 전후 보존
+            }
+            finally // 이 검증에서 만든 설정만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 시험용 마법 저장 제거
+                PlayerPrefs.Save(); // 시험 키 정리 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 격리 환경 복원
+                progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이 시험의 메모리 연구 상태 정리
+            }
+        }
+
+        [UnityTest] // 실제 연구 화면의 선택·확인·취소와 공용 저장
+        public IEnumerator ResearchScreenConfirmsPurchaseAndKeepsCancellationFree() // 제작 화면에서 연구까지의 실제 버튼
+        {
+            System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 씬이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리 자동 시험의 프로필 초기화
+            progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 시험의 메모리 연구 상태 분리
+            try // 실제 준비 화면의 연구와 취소
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 출격 전 제작 화면이 있는 준비 씬
+                yield return WaitFrames(4); // 실제 버튼과 공용 프로필 초기화
+                object store = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 현재 계정의 실제 저장
+                System.Type storeType = store.GetType(); // 실제 정산과 연구 타입
+                System.Type pilotType = storeType.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+                object aria = System.Enum.Parse(pilotType, "Aria"); // 연구 자격을 채울 조종사
+                string run = (string)storeType.GetMethod("Begin").Invoke(store, new[] { aria }); // 정상 출격의 참여 기록
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 정상 정산과 해금 조회
+                storeType.GetMethod("CompleteWithResearch", hidden).Invoke(store, new object[] { run, true, false, 10, false }); // 일반 자격과 실제 재화 확보
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비 UI
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 제작과 편성 화면 열기
+                Transform editor = briefing.Find("CraftedSpellEditor"); // 실제 마법 편집 화면
+                ClickPauseButton(editor, "OpenResearch"); // 연구 화면 진입 버튼
+                Transform panel = editor.Find("ResearchPanel"); // 같은 계정의 실제 연구 패널
+                Assert.That(panel.gameObject.activeSelf, Is.True); // 연구 화면 표시
+                ClickPauseButton(panel, "TabShape"); // 탄환 형태 분류 선택
+                ClickPauseButton(panel, "Node1"); // 초기 구체탄 다음 소형탄 선택
+                Assert.That(HudText(panel.Find("Detail")), Does.Contain("소형탄")); // 실제 선택한 연구 요소와 조건 표시
+                int gold = (int)storeType.GetProperty("Gold").GetValue(store); // 구매 전 실제 공용 골드
+                int crystals = (int)storeType.GetProperty("SharedCrystals").GetValue(store); // 구매 전 실제 공용 결정
+                ClickPauseButton(panel, "Research"); // 연구 비용 확인 열기
+                Transform confirm = panel.Find("Confirm"); // 최종 확인 패널
+                Assert.That(confirm.gameObject.activeSelf, Is.True); // 즉시 차감하지 않고 확인 표시
+                ClickPauseButton(confirm, "Cancel"); // 비용 확인 취소
+                Assert.That(storeType.GetProperty("Gold").GetValue(store), Is.EqualTo(gold)); // 취소 시 골드 보존
+                Assert.That(storeType.GetProperty("SharedCrystals").GetValue(store), Is.EqualTo(crystals)); // 취소 시 결정 보존
+                ClickPauseButton(panel, "Research"); // 같은 연구의 확인 재진입
+                ClickPauseButton(confirm, "Accept"); // 실제 확인 후 구매
+                System.Type group = System.Type.GetType("ProjectG.CraftedSpellGroup, Assembly-CSharp", true); // 제작 분류 ID
+                object shape = System.Enum.Parse(group, "Shape"); // 소형탄의 탄환 형태 분류
+                Assert.That(storeType.GetMethod("IsResearchUnlocked", hidden).Invoke(store, new[] { shape, (object)"small" }), Is.True); // 실제 공용 연구 해금
+                Assert.That(storeType.GetProperty("Gold").GetValue(store), Is.EqualTo(gold - 300)); // 확인 후에만 골드 차감
+                Assert.That(storeType.GetProperty("SharedCrystals").GetValue(store), Is.EqualTo(crystals - 3)); // 확인 후에만 결정 차감
+                for (int i = 0; i < 2; i++) // 상점 비용을 확보할 추가 정상 출격
+                {
+                    string extra = (string)storeType.GetMethod("Begin").Invoke(store, new[] { aria }); // 별도의 실제 출격 ID
+                    storeType.GetMethod("CompleteWithResearch", hidden).Invoke(store, new object[] { extra, true, false, 0, false }); // 실제 정상 클리어 재화
+                }
+                ClickPauseButton(panel, "Node2"); // 소형탄 다음 대형탄 선택
+                gold = (int)storeType.GetProperty("Gold").GetValue(store); // 상점 확인 전 실제 골드
+                ClickPauseButton(panel, "Shop"); // 일반 요소의 고정 상점 구매
+                ClickPauseButton(confirm, "Accept"); // 실제 상점 비용 확인
+                Assert.That(storeType.GetMethod("IsResearchUnlocked", hidden).Invoke(store, new[] { shape, (object)"large" }), Is.True); // 같은 공용 ID의 상점 해금
+                Assert.That(storeType.GetProperty("Gold").GetValue(store), Is.EqualTo(gold - 900)); // 일반 상점의 골드 구백 소비
+                string rewardRun = (string)storeType.GetMethod("Begin").Invoke(store, new[] { aria }); // 무료 보상을 받을 실제 출격
+                storeType.GetMethod("CompleteWithResearchRewards", hidden).Invoke(store, new object[] { rewardRun, false, false, 30, 0, false, "test-stage" }); // 일반 격파 조건의 보류 선택권
+                ClickPauseButton(panel, "TabFormation"); // 발사 배열의 연구 분류
+                ClickPauseButton(panel, "Node1"); // 단발 다음 병렬 배열 선택
+                gold = (int)storeType.GetProperty("Gold").GetValue(store); // 무료 선택 전 실제 골드
+                crystals = (int)storeType.GetProperty("SharedCrystals").GetValue(store); // 무료 선택 전 실제 결정
+                ClickPauseButton(panel, "Reward"); // 보류 선택권으로 무료 선택
+                ClickPauseButton(confirm, "Accept"); // 실제 무료 해금 확인
+                object formation = System.Enum.Parse(group, "Formation"); // 병렬 배열의 제작 분류
+                Assert.That(storeType.GetMethod("IsResearchUnlocked", hidden).Invoke(store, new[] { formation, (object)"parallel" }), Is.True); // 보상으로 같은 공용 ID 해금
+                Assert.That(storeType.GetProperty("Gold").GetValue(store), Is.EqualTo(gold)); // 무료 선택의 골드 보존
+                Assert.That(storeType.GetProperty("SharedCrystals").GetValue(store), Is.EqualTo(crystals)); // 무료 선택의 결정 보존
+                ClickPauseButton(panel, "TabEffect"); // 특수 효과 분류
+                ClickPauseButton(panel, "Node5"); // 침탄이 선행인 관통 효과
+                ClickPauseButton(panel, "Parent"); // 다른 분류의 선행 노드로 이동
+                Assert.That(HudText(panel.Find("Detail")), Does.Contain("침탄")); // 탄환 형태의 실제 선행 요소 표시
+                ClickPauseButton(panel, "Close"); // 제작 화면으로 돌아가기
+                Assert.That(panel.gameObject.activeSelf, Is.False); // 연구 화면 닫힘
+            }
+            finally // 이 자동 시험의 메모리 프로필만 정리
+            {
+                progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 시험에 임시 연구 상태를 넘기지 않음
+            }
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {
@@ -3875,20 +4041,23 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 전투 중에 다시 정지
                 yield return WaitFrames(4); // 메뉴의 실제 입력 확인
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 조합 편집 클릭으로 이동
-                ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 같은 저장 조합 불러오기
-                ClickPauseButton(editor, "EquipRight"); // 다음 출격의 우측 편성
+                string stored = PlayerPrefs.GetString(key); // 전투 중 편집 시도 전의 저장 상태
+                Assert.That(pause.Find("Controls/CraftedSpellEditor").GetComponent<Button>().interactable, Is.False); // 실제 전투 중 제작 버튼 비활성화
+                ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 강제로 클릭 이벤트를 호출한 편집 시도
+                Assert.That(editor.gameObject.activeInHierarchy, Is.False); // 전투 중 제작 화면 진입 차단
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(stored)); // 전투 중 영구 저장 변경 없음
                 Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 저장과 현재 편성을 분리하는 도감
                 var activeLane = book.GetType().GetMethod("ActiveSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); // 현재 출격에서 쓰는 마법
                 Assert.That(activeLane.Invoke(book, new object[] { 0 }), Is.SameAs(originalLeft)); // 출격 중 왼쪽 편성 유지
                 Assert.That(activeLane.Invoke(book, new object[] { 1 }), Is.SameAs(originalRight)); // 출격 중 오른쪽 편성 유지
-                ClickPauseButton(editor, "Back"); // 출격 제어로 이동
                 ClickPauseButton(pause, "MenuButtons/Restart"); // 다음 출격 시작
                 object saved = book.GetType().GetProperty("Saved").GetValue(book); // 편집기에서 저장한 파이어 볼트
                 string savedId = (string)saved.GetType().GetProperty("Id").GetValue(saved); // 저장한 실제 구성 ID
                 object newLeft = activeLane.Invoke(book, new object[] { 0 }); // 새 출격의 왼쪽 마법
                 object newRight = activeLane.Invoke(book, new object[] { 1 }); // 새 출격의 오른쪽 마법
-                Assert.That((string)newLeft.GetType().GetProperty("Id").GetValue(newLeft), Is.EqualTo(savedId)); // 첫 중복 편성의 실제 반영
-                Assert.That((string)newRight.GetType().GetProperty("Id").GetValue(newRight), Is.EqualTo(savedId)); // 둘째 중복 편성의 실제 반영
+                string newLeftId = (string)newLeft.GetType().GetProperty("Id").GetValue(newLeft); // 새 출격의 첫 구성
+                string newRightId = (string)newRight.GetType().GetProperty("Id").GetValue(newRight); // 새 출격의 둘째 구성
+                Assert.That(new[] { newLeftId, newRightId }, Does.Contain(savedId)); // 전투 전에 저장한 마법의 실제 편성
             }
             finally // 격리된 시험 데이터만 정리
             {
@@ -4168,6 +4337,670 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             reset.Invoke(null, null); // 다음 검증의 독립성 복구
         }
 
+        [UnityTest] // 자유 조종 연습에서 실제 편성한 제작 마법 사용
+        public IEnumerator FreeTrainingCastsEquippedMagicWithoutProgressRewards() // 실제 비행·마법·보상 격리
+        {
+            string key = "ProjectG.Crafted.Free." + System.Guid.NewGuid().ToString("N"); // 사용자 마법 저장과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 격리 환경 보존
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 실제 사용자 편성 제외
+            try // 출격 준비에서 자유 훈련으로 실제 이동
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 선택과 편성 화면
+                yield return WaitFrames(4); // 출격 준비 버튼 연결
+                System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 정식 보상과 같은 공용 프로필
+                const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 실제 프로필 조회
+                object progress = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 연습 전 실제 공용 상태
+                int crystals = (int)progress.GetType().GetProperty("SharedCrystals").GetValue(progress); // 연습 전 공용 결정
+                int gold = (int)progress.GetType().GetProperty("Gold").GetValue(progress); // 연습 전 공용 골드
+                Transform ready = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비 하이러키
+                ClickPauseButton(ready, "Ready/FreeTraining"); // 독립 자유 훈련 입장
+                yield return WaitForActiveScene(ScenePath); // 실제 조종 가능한 비행 씬
+                Transform hud = LocateCombatHud().transform; // 자유 훈련의 실제 HUD
+                Transform card = hud.Find("FreeTraining/Options/Card"); // 연습할 표적과 패턴 선택
+                ClickPauseButton(card, "Target"); // 실제 마물 판정을 가진 표적 시작
+                yield return WaitFrames(4); // 조준·자원·편성 적용
+                Transform pilot = FindPilot(); // 현재 자유 비행 조종체
+                ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 사격의 표적 피해 제외
+                Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전과 같은 제작 발사기
+                Assert.That(caster, Is.Not.Null); // 실제 자유 비행에서 제작 마법 지원
+                Component book = hud.GetComponent("FlightCraftedSpellBook"); // 실제 저장 편성을 읽는 도감
+                Assert.That(book, Is.Not.Null); // 자유 연습에 편성 연결
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 무작위 배정된 실제 칸 조회
+                object fire = System.Type.GetType("ProjectG.CraftedSpellPresets, Assembly-CSharp", true).GetProperty("All").GetValue(null); // 문서의 실제 마법 목록
+                object entry = ((System.Collections.IList)fire)[0]; // 기본 파이어 볼트
+                object fireRecipe = entry.GetType().GetProperty("Recipe").GetValue(entry); // 실제 화염 구성
+                string id = (string)fireRecipe.GetType().GetProperty("Id").GetValue(fireRecipe); // 편성한 실제 화염 구성 ID
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 자유 훈련의 실제 좌우 배정
+                object left = active.Invoke(book, new object[] { 0 }); // 왼쪽에 배정된 구성
+                int lane = left != null && (string)left.GetType().GetProperty("Id").GetValue(left) == id ? 0 : 1; // 파이어 볼트가 배정된 실제 입력
+                Component training = hud.Find("FreeTraining").GetComponent("FlightTrainingMode"); // 독립 연습의 실제 상태
+                Component target = (Component)training.GetType().GetField("target", hidden).GetValue(training); // 정산과 분리된 연습 표적
+                int health = Metric(target, "Health"); // 발사 전 실제 표적 체력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(lane == 0 ? MouseButton.Left : MouseButton.Right)); // 해당 편성의 실제 가상 클릭
+                yield return WaitFrames(110); // 실제 발사체와 표적 충돌 대기
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 실전과 같은 제작 마법 실제 시전
+                Assert.That(Metric(target, "Health"), Is.LessThan(health)); // 자유 연습 표적에 실제 판정 반영
+                Assert.That(progress.GetType().GetProperty("SharedCrystals").GetValue(progress), Is.EqualTo(crystals)); // 연습의 공용 결정 보상 없음
+                Assert.That(progress.GetType().GetProperty("Gold").GetValue(progress), Is.EqualTo(gold)); // 연습의 공용 골드 보상 없음
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 마지막 시험 입력 해제
+            }
+            finally // 이 검증에서 만든 설정만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 시험용 마법 저장 제거
+                PlayerPrefs.Save(); // 시험 키 정리 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 격리 환경 복원
+            }
+        }
+
+        [UnityTest] // 저장 마법의 복제·이름·삭제와 재실행 복원
+        public IEnumerator MagicGalleryKeepsCopiesAndProtectsEquippedSpells() // 같은 구성을 공유하는 독립 목록
+        {
+            string key = "ProjectG.Crafted.Gallery." + System.Guid.NewGuid().ToString("N"); // 사용자 저장과 분리한 검증 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 이번 시험의 독립 저장
+            try // 목록과 실전 편성의 실제 저장 경로
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 제작 도감이 있는 실제 씬
+                yield return WaitFrames(4); // 저장과 버튼 초기화
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 도감 검사
+                Component editor = briefing.Find("CraftedSpellEditor").GetComponent("FlightCraftedSpellEditor"); // 실제 제작 화면
+                Component book = (Component)editor.GetType().GetField("book", hidden).GetValue(editor); // 화면이 사용하는 공용 제작 마법 저장
+                object fire = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 기본 편성 파이어 볼트
+                book.GetType().GetMethod("Save", hidden).Invoke(book, new[] { fire }); // 기존 저장 경로로 도감 추가
+                Assert.That(book.GetType().GetProperty("GalleryCount", hidden).GetValue(book), Is.EqualTo(1)); // 첫 저장 항목
+                Assert.That(book.GetType().GetMethod("DuplicateGallery", hidden).Invoke(book, new object[] { 0 }), Is.True); // 같은 구성의 독립 복제본
+                Assert.That(book.GetType().GetMethod("RenameGallery", hidden).Invoke(book, new object[] { 1, "연습 마법" }), Is.True); // 복제본만 이름 변경
+                Assert.That(book.GetType().GetMethod("DeleteGallery", hidden).Invoke(book, new object[] { 1 }), Is.False); // 편성에서 참조 중인 구성 삭제 차단
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 0 }); // 참조 슬롯 직접 해제
+                Assert.That(book.GetType().GetMethod("DeleteGallery", hidden).Invoke(book, new object[] { 0 }), Is.True); // 참조가 없는 원본 삭제
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 저장 다시 읽기
+                yield return WaitFrames(4); // 도감과 준비 화면 복원
+                briefing = GameObject.Find("SortieBriefing").transform; // 재진입한 실제 준비
+                editor = briefing.Find("CraftedSpellEditor").GetComponent("FlightCraftedSpellEditor"); // 다시 복원한 제작 화면
+                book = (Component)editor.GetType().GetField("book", hidden).GetValue(editor); // 다시 복원한 저장
+                Assert.That(book.GetType().GetProperty("GalleryCount", hidden).GetValue(book), Is.EqualTo(1)); // 복제본 한 장의 지속 저장
+                object entry = book.GetType().GetMethod("GalleryAt", hidden).Invoke(book, new object[] { 0 }); // 남은 도감 항목
+                Assert.That(entry.GetType().GetField("name").GetValue(entry), Is.EqualTo("연습 마법")); // 변경한 이름 보존
+                Assert.That(entry.GetType().GetField("recipe").GetValue(entry), Is.EqualTo(fire.GetType().GetProperty("Id").GetValue(fire))); // 같은 구성의 공유 식별자 보존
+            }
+            finally // 이번 시험이 만든 키만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 검증 도감 삭제
+                PlayerPrefs.Save(); // 키 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 환경 복원
+            }
+        }
+
+        [UnityTest] // 한도 변화에 따른 자동 해제와 복구
+        public IEnumerator CraftedBudgetRestoresLowerPrioritySlotWithoutResettingItsState() // 우선순위와 임시 강화·쿨타임 보존
+        {
+            string key = "ProjectG.Crafted.AutoBudget." + System.Guid.NewGuid().ToString("N"); // 사용자 편성과 분리한 저장 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 이번 검증의 편성 저장
+            try // 실제 전투 슬롯의 한도 감소와 복구
+            {
+                yield return LoadOuterIslands(); // 실제 장비와 제작 마법 출격
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 두 제작 마법의 실제 편성
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 쿨타임과 유지 효과
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 마법 공격력의 실제 장비 보정
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실전 편성 조회
+                var slot = book.GetType().GetMethod("Slot", hidden); // 저장된 논리 슬롯
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 무작위 배정된 실전 슬롯
+                object fire = slot.Invoke(book, new object[] { 0 }); // 첫 번째 기본 마법
+                object thorn = slot.Invoke(book, new object[] { 1 }); // 두 번째 기본 마법
+                int fireCost = (int)fire.GetType().GetProperty("Cost").GetValue(fire); // 유지할 마법의 구성 비용
+                int thornCost = (int)thorn.GetType().GetProperty("Cost").GetValue(thorn); // 자동 해제할 구성 비용
+                Assert.That(thornCost, Is.GreaterThan(0)); // 한도 감소로 구분할 수 있는 실제 비용
+                var priority = book.GetType().GetMethod("SetPriority", hidden); // 논리 슬롯별 유지 우선순위
+                Assert.That(priority.Invoke(book, new object[] { 0, 2 }), Is.True); // 첫 마법을 높은 우선순위로 지정
+                Assert.That(priority.Invoke(book, new object[] { 1, 0 }), Is.True); // 둘째 마법을 낮은 우선순위로 지정
+                book.GetType().GetMethod("ResetRun", hidden).Invoke(book, null); // 우선순위를 포함한 실제 출격
+                int thornLane = active.Invoke(book, new object[] { 0 }) == thorn ? 0 : 1; // 무작위 배정된 낮은 우선순위 슬롯
+                System.Type kind = book.GetType().GetNestedType("Upgrade", System.Reflection.BindingFlags.NonPublic); // 제작 마법 임시 강화 종류
+                object damage = System.Enum.Parse(kind, "Damage"); // 기존 피해 강화
+                Assert.That(book.GetType().GetMethod("TryUpgrade", hidden).Invoke(book, new[] { (object)thornLane, damage }), Is.True); // 자동 해제 전 임시 강화
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { thorn }), Is.True); // 실제 쿨타임 시작
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비 합산 능력치
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 빗자루 능력치 열거형
+                int magicPower = (int)System.Enum.Parse(stat, "MagicPower"); // 마법 편성 한도 능력치
+                float original = bonuses[magicPower]; // 이전 장비 보정
+                bonuses[magicPower] = fireCost + thornCost - 1 - 100; // 두 마법의 합보다 한도 한 단계 감소
+                yield return WaitFrames(3); // 자동 해제 적용
+                Assert.That(active.Invoke(book, new object[] { thornLane }), Is.Null); // 낮은 우선순위의 실제 전투 슬롯 비움
+                Assert.That(active.Invoke(book, new object[] { 1 - thornLane }), Is.SameAs(fire)); // 높은 우선순위 마법 보존
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.SameAs(thorn)); // 저장된 구성 자체 보존
+                bonuses[magicPower] = original; // 원래 편성 한도 회복
+                yield return WaitFrames(3); // 자동 재편성 적용
+                Assert.That(active.Invoke(book, new object[] { thornLane }), Is.SameAs(thorn)); // 원래 무작위 슬롯에 복구
+                Assert.That(book.GetType().GetMethod("UpgradeRank", hidden).Invoke(book, new object[] { thornLane }), Is.EqualTo(1)); // 출격 중 임시 강화 유지
+                Assert.That((float)book.GetType().GetMethod("Cooldown", hidden).Invoke(book, new[] { thorn }), Is.GreaterThan(0f)); // 남은 쿨타임 유지
+            }
+            finally // 이번 검증의 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 편성 저장 삭제
+                PlayerPrefs.Save(); // 검증 키 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 환경 복원
+            }
+        }
+
+        [UnityTest] // 사용자가 직접 해제한 슬롯의 자동 복구 제외
+        public IEnumerator CraftedBudgetDoesNotRestoreManuallyClearedSlot() // 출격 준비에서 자동 해제와 직접 해제 구분
+        {
+            string key = "ProjectG.Crafted.AutoClear." + System.Guid.NewGuid().ToString("N"); // 사용자 편성과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 원래 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 독립 시험 편성 사용
+            try // 실제 준비 화면의 슬롯과 장비 변경
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 출격 준비의 실제 편성
+                yield return WaitFrames(4); // 장비와 저장 초기화
+                Transform editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 실제 제작 화면
+                Component component = editor.GetComponent("FlightCraftedSpellEditor"); // 제작 화면의 저장 참조
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 상태 조회
+                Component book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 출격 준비 도감
+                Component equipment = (Component)book.GetType().GetField("equipment", hidden).GetValue(book); // 선택 조종사의 실제 장비
+                var slot = book.GetType().GetMethod("Slot", hidden); // 저장 편성의 논리 슬롯
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 한도를 적용한 준비 슬롯
+                object fire = slot.Invoke(book, new object[] { 0 }); // 첫 기본 마법
+                object thorn = slot.Invoke(book, new object[] { 1 }); // 둘째 기본 마법
+                int fireCost = (int)fire.GetType().GetProperty("Cost").GetValue(fire); // 첫 편성 비용
+                int thornCost = (int)thorn.GetType().GetProperty("Cost").GetValue(thorn); // 둘째 편성 비용
+                var priority = book.GetType().GetMethod("SetPriority", hidden); // 저장하는 유지 우선순위
+                priority.Invoke(book, new object[] { 0, 2 }); // 첫 슬롯을 우선 유지
+                priority.Invoke(book, new object[] { 1, 0 }); // 둘째 슬롯을 먼저 자동 해제
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 실제 장비의 능력치 배열
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 장비 능력치 종류
+                int power = (int)System.Enum.Parse(stat, "MagicPower"); // 마법 공격력 위치
+                float original = bonuses[power]; // 기존 장비 공격력
+                bonuses[power] = fireCost + thornCost - 1 - 100; // 둘 다 유지할 수 없는 현재 한도
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 준비 요약을 읽을 때 즉시 자동 해제
+                Assert.That(active.Invoke(book, new object[] { 0 }), Is.SameAs(fire)); // 높은 우선순위 편성 유지
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 자동 해제된 슬롯을 사용자가 직접 비움
+                bonuses[power] = original; // 기존 마법 공격력 복구
+                yield return WaitFrames(3); // 자동 복구 검사
+                Assert.That(active.Invoke(book, new object[] { 1 }), Is.Null); // 직접 해제한 마법은 복구하지 않음
+                Assert.That(slot.Invoke(book, new object[] { 1 }), Is.Null); // 저장 편성에서도 명시적으로 비움
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 영구 편성 재진입
+                yield return WaitFrames(4); // 저장 복원
+                editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 새 준비 화면
+                component = editor.GetComponent("FlightCraftedSpellEditor"); // 새 도감 참조
+                book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 다시 읽은 편성
+                Assert.That(book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 1 }), Is.Null); // 재실행 뒤에도 직접 빈 슬롯 보존
+                Assert.That(book.GetType().GetMethod("Priority", hidden).Invoke(book, new object[] { 0 }), Is.EqualTo(2)); // 높은 우선순위 영구 복원
+            }
+            finally // 이번 검증의 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 편성 삭제
+                PlayerPrefs.Save(); // 검증 키 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 저장 환경 복원
+            }
+        }
+
+        [UnityTest] // 자동 해제 시 유지 효과 종료와 독립 탄환 보존
+        public IEnumerator CraftedBudgetStopsMaintainedEffectsButKeepsFiredProjectiles() // 정화 결계와 이미 발사한 탄환의 분리
+        {
+            string key = "ProjectG.Crafted.AutoEffects." + System.Guid.NewGuid().ToString("N"); // 사용자 편성과 분리한 저장 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 독립 편성 저장
+            object researchState = null; // 시험에서만 수정할 공용 연구 상태
+            string[] originalUnlocks = null; // 시험 이전의 연구 목록
+            try // 실제 결계와 탄환을 동시에 유지한 상태
+            {
+                yield return LoadOuterIslands(); // 실제 출격과 제작 발사기
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 실제 두 슬롯
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 유지 효과와 탄환
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 마법 공격력 보정
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 실제 상태
+                System.Type progressType = caster.GetType().Assembly.GetType("ProjectG.FlightProgress"); // 씬이 공유하는 연구 프로필
+                object progress = progressType.GetProperty("Current", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 격리된 메모리 프로필
+                researchState = progress.GetType().GetField("state", hidden).GetValue(progress); // 실제 연구 저장 스냅샷
+                var unlockField = researchState.GetType().GetField("unlocks"); // 현재 해금 ID 배열
+                originalUnlocks = (string[])unlockField.GetValue(researchState); // 다른 시험의 연구 상태 보존
+                var unlocks = new System.Collections.Generic.List<string>(originalUnlocks); // 결계에 필요한 검증용 연구
+                unlocks.AddRange(new[] { "research.Shape.barrier", "research.Formation.sphere", "research.Trajectory.stationary", "research.FireMode.placed", "research.Origin.around", "research.Effect.cancel" }); // 실제 결계 구성 요소 해금
+                unlockField.SetValue(researchState, unlocks.ToArray()); // 이번 검증에만 적용
+                System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 실제 확정 마법 목록
+                var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 저장된 기획 마법
+                object fire = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 이미 발사할 독립 탄환
+                object barrier = all[11].GetType().GetProperty("Recipe").GetValue(all[11]); // 유지 중인 정화 결계
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 다른 슬롯을 명시적으로 비움
+                Assert.That(book.GetType().GetMethod("Equip", hidden).Invoke(book, new[] { (object)0, barrier }), Is.True); // 정화 결계를 저장 편성
+                book.GetType().GetMethod("ResetRun", hidden).Invoke(book, null); // 실제 출격에 결계 반영
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 실제 좌우 배정
+                int lane = active.Invoke(book, new object[] { 0 }) != null ? 0 : 1; // 결계를 시전할 실제 슬롯
+                book.GetType().GetMethod("Use", hidden).Invoke(book, new object[] { lane }); // 슬롯 입력과 같은 실제 결계 시전
+                var barriers = (System.Collections.IList)caster.GetType().GetField("barriers", hidden).GetValue(caster); // 현재 유지 결계
+                Assert.That(barriers.Count, Is.EqualTo(1)); // 실제 정화 결계 생성
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { fire }), Is.True); // 이미 발사된 독립 파이어 볼트
+                var shots = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 실제로 비행 중인 탄환
+                Assert.That(shots.Count, Is.EqualTo(1)); // 결계와 별도 탄환 존재
+                Component shot = (Component)shots[0]; // 자동 해제 후에도 살아 있어야 할 탄환
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비 능력치
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 능력치 종류
+                int magicPower = (int)System.Enum.Parse(stat, "MagicPower"); // 마법 공격력 위치
+                float original = bonuses[magicPower]; // 시험 이전 공격력 보정
+                bonuses[magicPower] = -99f; // 결계의 편성 비용보다 작은 한도
+                yield return WaitFrames(2); // 실제 자동 해제와 유지 종료
+                Assert.That(active.Invoke(book, new object[] { lane }), Is.Null); // 정화 결계의 전투 슬롯 해제
+                Assert.That(barriers.Count, Is.Zero); // 해당 슬롯의 유지 결계 종료
+                Assert.That(shot != null && shot.gameObject.activeInHierarchy, Is.True); // 이미 발사된 독립 탄환 유지
+                bonuses[magicPower] = original; // 이전 마법 공격력 복원
+                yield return WaitFrames(2); // 같은 슬롯 자동 재편성
+                Assert.That(active.Invoke(book, new object[] { lane }), Is.SameAs(barrier)); // 원래 결계 구성 복구
+                Assert.That((float)book.GetType().GetMethod("Cooldown", hidden).Invoke(book, new[] { barrier }), Is.GreaterThan(0f)); // 조기 종료 뒤 남은 재사용 시간 보존
+            }
+            finally // 시험에서 바꾼 영구 설정과 연구 상태 정리
+            {
+                if (researchState != null && originalUnlocks != null) // 임시 해금을 적용한 경우
+                {
+                    researchState.GetType().GetField("unlocks").SetValue(researchState, originalUnlocks); // 이전 메모리 연구 상태 복원
+                }
+                PlayerPrefs.DeleteKey(key); // 독립 편성 저장 삭제
+                PlayerPrefs.Save(); // 검증 키 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 기존 저장 환경 복원
+            }
+        }
+
+        [UnityTest] // 제작 화면의 성능 선택과 저장 복원
+        public IEnumerator MagicEditorSavesAndRestoresPerformancePreset() // 실제 고속형 선택 버튼과 저장 ID
+        {
+            string key = "ProjectG.Crafted.Performance." + System.Guid.NewGuid().ToString("N"); // 사용자 저장과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 독립 성능 저장 사용
+            try // 제작 화면의 실제 성능 버튼
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비
+                yield return WaitFrames(4); // 저장과 화면 연결
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 준비 화면
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 제작 화면 열기
+                Transform editor = briefing.Find("CraftedSpellEditor"); // 실제 성능 선택 화면
+                ClickPauseButton(editor, "Performance"); // 표준형에서 고속형 선택
+                Assert.That(HudText(editor.Find("Performance/Label")), Does.Contain("고속형")); // 현재 성능 선택 표시
+                ClickPauseButton(editor, "Save"); // 조합과 성능을 함께 저장
+                Assert.That(PlayerPrefs.GetString(key), Does.Contain("/fast")); // 실제 저장 ID의 성능 구분
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 게임 재진입과 같은 저장 복원
+                yield return WaitFrames(4); // 저장 복구와 버튼 연결
+                briefing = GameObject.Find("SortieBriefing").transform; // 새 준비 화면
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 저장한 조합 다시 열기
+                editor = briefing.Find("CraftedSpellEditor"); // 복원된 제작 화면
+                Assert.That(HudText(editor.Find("Performance/Label")), Does.Contain("고속형")); // 저장한 성능 선택 복원
+                Assert.That(HudText(editor.Find("SpellName")), Does.Contain("파이어 볼트")); // 같은 확정 마법 이름 유지
+            }
+            finally // 검증용 키만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 성능 저장 제거
+                PlayerPrefs.Save(); // 저장 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 원래 환경 복원
+            }
+        }
+
+        [UnityTest] // 이동형 마법의 성능 프리셋과 공유 기준
+        public IEnumerator CraftedPerformanceVariantsKeepDistinctCooldownsAndStats() // 표준·고속·장거리의 실제 수치와 시전
+        {
+            yield return LoadOuterIslands(); // 실제 제작 마법 전투 씬
+            Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실전 발사기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 시전과 수치 조회
+            System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획의 확정 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 실제 확정 마법 목록
+            object standard = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 표준 파이어 볼트
+            string id = (string)standard.GetType().GetProperty("Id").GetValue(standard); // 기존 저장과 호환되는 기본 ID
+            System.Type rules = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellRules"); // 구성 검증과 저장 복원 규칙
+            var read = rules.GetMethod("TryRead"); // 실제 구성 ID 복원
+            object[] fastInput = { id + "/fast", null }; // 같은 구성의 고속 프리셋 ID
+            object[] longInput = { id + "/long", null }; // 같은 구성의 장거리 프리셋 ID
+            Assert.That(read.Invoke(null, fastInput), Is.True); // 고속 프리셋의 저장 복원
+            Assert.That(read.Invoke(null, longInput), Is.True); // 장거리 프리셋의 저장 복원
+            object fast = fastInput[1]; // 검증된 고속 조합
+            object distant = longInput[1]; // 검증된 장거리 조합
+            var stats = caster.GetType().GetMethod("EffectiveStats", hidden); // 실제 장비를 반영한 시전 수치
+            object basis = stats.Invoke(caster, new[] { standard }); // 같은 장비의 표준형 수치
+            object fastStats = stats.Invoke(caster, new[] { fast }); // 같은 장비의 고속형 수치
+            object longStats = stats.Invoke(caster, new[] { distant }); // 같은 장비의 장거리형 수치
+            var speed = basis.GetType().GetField("Speed"); // 실제 투사체 속도
+            var range = basis.GetType().GetField("Range"); // 실제 투사체 사거리
+            Assert.That((float)speed.GetValue(fastStats), Is.EqualTo((float)speed.GetValue(basis) * 1.2f).Within(0.001f)); // 고속형 탄속 백이십 퍼센트
+            Assert.That((float)range.GetValue(fastStats), Is.EqualTo((float)range.GetValue(basis) * 0.8f).Within(0.001f)); // 고속형 사거리 팔십 퍼센트
+            Assert.That((float)speed.GetValue(longStats), Is.EqualTo((float)speed.GetValue(basis) * 0.8f).Within(0.001f)); // 장거리형 탄속 팔십 퍼센트
+            Assert.That((float)range.GetValue(longStats), Is.EqualTo((float)range.GetValue(basis) * 1.2f).Within(0.001f)); // 장거리형 사거리 백이십 퍼센트
+            var cast = caster.GetType().GetMethod("Cast", hidden); // 실제 발사와 쿨타임 적용
+            Assert.That(cast.Invoke(caster, new[] { standard }), Is.True); // 표준형 실제 발사
+            Assert.That(cast.Invoke(caster, new[] { fast }), Is.True); // 다른 프리셋의 독립 쿨타임
+            Assert.That(cast.Invoke(caster, new[] { fast }), Is.False); // 같은 구성과 프리셋의 쿨타임 공유
+            object barrier = all[11].GetType().GetProperty("Recipe").GetValue(all[11]); // 이동하지 않는 정화 결계
+            string barrierId = (string)barrier.GetType().GetProperty("Id").GetValue(barrier); // 고정 결계의 기본 ID
+            object[] invalid = { barrierId + "/fast", null }; // 비이동형에 적용할 수 없는 고속형
+            Assert.That(read.Invoke(null, invalid), Is.False); // 결계 반경이나 지속시간의 임의 변경 방지
+            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 앞 시전의 탄환과 생성 한도 제거
+            object ring = all[5].GetType().GetProperty("Recipe").GetValue(all[5]); // 왕복 이동하는 회류 고리
+            string ringId = (string)ring.GetType().GetProperty("Id").GetValue(ring); // 기존 회류 구성 ID
+            object[] ringInput = { ringId + "/long", null }; // 장거리 회류 프리셋
+            Assert.That(read.Invoke(null, ringInput), Is.True); // 장거리 회류 구성 복원
+            object longRing = ringInput[1]; // 실제 왕복 발사에 사용할 마법
+            object ringStats = stats.Invoke(caster, new[] { longRing }); // 장거리 회류의 실제 이동 거리
+            Assert.That(cast.Invoke(caster, new[] { longRing }), Is.True); // 여섯 발의 실제 장거리 회류 시전
+            var shots = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 실제 생성된 회류 원반
+            Assert.That(shots.Count, Is.EqualTo(6)); // 기획대로 여섯 원반 생성
+            object first = shots[0]; // 실제 첫 번째 원반
+            Assert.That((bool)first.GetType().GetField("returningRing", hidden).GetValue(first), Is.True); // 성능 변경 후에도 왕복 동작 유지
+            Assert.That((float)first.GetType().GetField("outboundRemaining", hidden).GetValue(first), Is.EqualTo((float)range.GetValue(ringStats) * 0.5f).Within(0.001f)); // 변경한 전체 왕복 거리의 절반을 편도로 적용
+            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 회류 원반과 생성 한도 제거
+            object seed = all[8].GetType().GetProperty("Recipe").GetValue(all[8]); // 고정 포대에서 나오는 이동 자탄
+            string seedId = (string)seed.GetType().GetProperty("Id").GetValue(seed); // 기존 포대 구성 ID
+            object[] seedInput = { seedId + "/fast", null }; // 고속 자탄 프리셋
+            Assert.That(read.Invoke(null, seedInput), Is.True); // 이동 자탄의 성능 프리셋 복원
+            Assert.That(cast.Invoke(caster, new[] { seedInput[1] }), Is.True); // 실제 고정 포대 시전
+            yield return WaitFrames(70); // 실제 지연 후 분열 생성
+            Assert.That(Metric(caster, "EmissionCount"), Is.EqualTo(4)); // 설치체 한 개와 이동 자탄 세 발
+        }
+
+        [UnityTest] // 이동형 마법에 장비 탄속과 사거리 보정
+        public IEnumerator CraftedMovingProjectilesUseBroomSpeedAndRangeBonuses() // 이동형과 고정 결계의 적용 범위
+        {
+            yield return LoadOuterIslands(); // 실제 장비와 제작 마법 발사기
+            Transform pilot = FindPilot(); // 실전 조종체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 장착한 빗자루의 실제 능력치
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 제작 마법의 실제 발사기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 시험용 능력치 조회
+            float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비의 합산 보정
+            System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 빗자루 능력치 열거형
+            int speed = (int)System.Enum.Parse(stat, "BoltSpeed"); // 이동 탄속 보정 위치
+            int range = (int)System.Enum.Parse(stat, "Range"); // 이동 사거리 보정 위치
+            float oldSpeed = bonuses[speed]; // 원래 탄속 보정 보관
+            float oldRange = bonuses[range]; // 원래 사거리 보정 보관
+            try // 같은 프레임에서 실전 수치 비교
+            {
+                System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획의 확정 마법
+                var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 실제 프리셋 목록
+                object fire = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 이동형 파이어 볼트
+                object seed = all[8].GetType().GetProperty("Recipe").GetValue(all[8]); // 고정 설치체에서 나오는 이동 자탄
+                object barrier = all[11].GetType().GetProperty("Recipe").GetValue(all[11]); // 이동하지 않는 정화 결계
+                var stats = caster.GetType().GetMethod("EffectiveStats", hidden); // 실제 시전 수치 스냅샷
+                bonuses[speed] = 0f; // 기준 탄속 보정
+                bonuses[range] = 0f; // 기준 사거리 보정
+                object baseFire = stats.Invoke(caster, new[] { fire }); // 장비 보정 전 이동형 수치
+                object baseSeed = stats.Invoke(caster, new[] { seed }); // 장비 보정 전 씨앗 자탄 수치
+                object baseBarrier = stats.Invoke(caster, new[] { barrier }); // 장비 보정 전 결계 수치
+                bonuses[speed] = 20f; // 탄속 이십 퍼센트 보정
+                bonuses[range] = 50f; // 사거리 오십 퍼센트 보정
+                object boostedFire = stats.Invoke(caster, new[] { fire }); // 실제 장비 보정 후 이동형 수치
+                object boostedSeed = stats.Invoke(caster, new[] { seed }); // 실제 장비 보정 후 씨앗 자탄 수치
+                object boostedBarrier = stats.Invoke(caster, new[] { barrier }); // 실제 장비 보정 후 고정 결계
+                var speedField = baseFire.GetType().GetField("Speed"); // 시전 수치의 실제 탄속
+                var rangeField = baseFire.GetType().GetField("Range"); // 시전 수치의 실제 사거리
+                Assert.That((float)speedField.GetValue(boostedFire), Is.EqualTo((float)speedField.GetValue(baseFire) * 1.2f).Within(0.001f)); // 이동 탄속의 장비 보정 한 번 적용
+                Assert.That((float)rangeField.GetValue(boostedFire), Is.EqualTo((float)rangeField.GetValue(baseFire) * 1.5f).Within(0.001f)); // 이동 사거리의 장비 보정 한 번 적용
+                Assert.That((float)speedField.GetValue(boostedSeed), Is.EqualTo((float)speedField.GetValue(baseSeed) * 1.2f).Within(0.001f)); // 고정 포대의 이동 자탄에도 탄속 보정
+                Assert.That((float)rangeField.GetValue(boostedSeed), Is.EqualTo((float)rangeField.GetValue(baseSeed) * 1.5f).Within(0.001f)); // 고정 포대의 이동 자탄에도 사거리 보정
+                Assert.That(speedField.GetValue(boostedBarrier), Is.EqualTo(speedField.GetValue(baseBarrier))); // 결계의 속도 불변
+                Assert.That(rangeField.GetValue(boostedBarrier), Is.EqualTo(rangeField.GetValue(baseBarrier))); // 결계의 거리 불변
+            }
+            finally // 검증에 쓴 장비 보정 복원
+            {
+                bonuses[speed] = oldSpeed; // 이전 탄속 보정 복구
+                bonuses[range] = oldRange; // 이전 사거리 보정 복구
+            }
+        }
+
+        [UnityTest] // 이전 단일 저장을 새 도감에서 보존
+        public IEnumerator MagicGalleryMigratesLegacySaveWithoutChangingItsSlots() // 기존 편성과 마법 구성 이관
+        {
+            string key = "ProjectG.Crafted.GalleryLegacy." + System.Guid.NewGuid().ToString("N"); // 독립된 구형 저장 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경 보존
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 사용자 저장과 분리
+            try // 기존 버전의 실제 불러오기와 다음 저장
+            {
+                System.Type presets = System.Type.GetType("ProjectG.CraftedSpellPresets, Assembly-CSharp", true); // 실제 확정 마법 목록
+                var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 기획 마법의 실제 목록
+                object fire = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 이전에 저장한 기본 마법
+                string id = (string)fire.GetType().GetProperty("Id").GetValue(fire); // 기존 저장의 구성 ID
+                string legacy = "{\"version\":2,\"recipe\":\"" + id + "\",\"left\":\"" + id + "\",\"right\":\"\"}"; // 기존 단일 저장 형식
+                PlayerPrefs.SetString(key, legacy); // 실제 이전 저장 입력
+                PlayerPrefs.Save(); // 불러올 저장 확정
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 제작 화면 진입
+                yield return WaitFrames(4); // 저장 복원 완료
+                Transform editor = GameObject.Find("SortieBriefing").transform.Find("CraftedSpellEditor"); // 실제 제작 화면
+                Component component = editor.GetComponent("FlightCraftedSpellEditor"); // 도감 소유자
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 저장 참조
+                Component book = (Component)component.GetType().GetField("book", hidden).GetValue(component); // 기존 마법을 복원한 도감
+                Assert.That(book.GetType().GetProperty("GalleryCount", hidden).GetValue(book), Is.EqualTo(1)); // 이전 단일 마법의 도감 이관
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(legacy)); // 조회만으로 기존 저장을 덮어쓰지 않음
+                Assert.That(book.GetType().GetMethod("DuplicateGallery", hidden).Invoke(book, new object[] { 0 }), Is.True); // 사용자의 명시적 복제 저장
+                string updated = PlayerPrefs.GetString(key); // 이관 후 실제 저장
+                Assert.That(updated, Does.Contain("\"left\":\"" + id + "\"")); // 이전 좌측 편성 보존
+                Assert.That(updated, Does.Contain("\"right\":\"\"")); // 기존의 빈 우측 편성 보존
+            }
+            finally // 이번 검증의 키만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 구형 저장 삭제
+                PlayerPrefs.Save(); // 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 환경 복원
+            }
+        }
+
+        [UnityTest] // 실제 마법 도감의 저장·검색·복제·이름 변경
+        public IEnumerator MagicGalleryScreenSearchesAndEditsSavedSpells() // 제작 화면의 도감 버튼 연결
+        {
+            string key = "ProjectG.Crafted.GalleryUI." + System.Guid.NewGuid().ToString("N"); // 독립된 실제 저장 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 환경 보존
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 사용자 마법 저장 격리
+            try // 실제 제작과 도감 화면의 버튼 조작
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 제작 화면이 있는 실제 씬
+                yield return WaitFrames(4); // 제작 화면 연결
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 현재 조합 편집
+                Transform editor = briefing.Find("CraftedSpellEditor"); // 실제 제작 화면
+                string[] headings = { "Header", "OpenResearch", "OpenGallery", "SpellName", "Preset" }; // 상단에 나란히 보일 제목과 버튼
+                for (int i = 1; i < headings.Length; i++) // 이웃한 실제 UI 영역 비교
+                {
+                    RectTransform left = editor.Find(headings[i - 1]).GetComponent<RectTransform>(); // 왼쪽 제목 또는 버튼
+                    RectTransform right = editor.Find(headings[i]).GetComponent<RectTransform>(); // 오른쪽 제목 또는 버튼
+                    Assert.That(right.anchoredPosition.x - left.anchoredPosition.x, Is.GreaterThanOrEqualTo((left.sizeDelta.x + right.sizeDelta.x) * 0.5f)); // 제목과 버튼의 가로 겹침 방지
+                }
+                string[] footer = { "Back", "FreeFlight", "Performance", "PreviewFlight", "Recall", "Save" }; // 제작 화면 하단의 실제 버튼 순서
+                for (int i = 1; i < footer.Length; i++) // 이웃한 하단 버튼 영역 비교
+                {
+                    RectTransform left = editor.Find(footer[i - 1]).GetComponent<RectTransform>(); // 왼쪽 버튼
+                    RectTransform right = editor.Find(footer[i]).GetComponent<RectTransform>(); // 오른쪽 버튼
+                    Assert.That(right.anchoredPosition.x - left.anchoredPosition.x, Is.GreaterThanOrEqualTo((left.sizeDelta.x + right.sizeDelta.x) * 0.5f)); // 하단 버튼의 가로 겹침 방지
+                }
+                Assert.That(HudText(editor.Find("PriorityLeft/Label")), Does.Contain("보통")); // 기본 유지 우선순위 표시
+                ClickPauseButton(editor, "PriorityLeft"); // 왼쪽 편성의 우선순위 변경
+                Assert.That(HudText(editor.Find("PriorityLeft/Label")), Does.Contain("높음")); // 실제 저장된 높은 우선순위 표시
+                ClickPauseButton(editor, "Save"); // 기본 조합을 도감에 저장
+                ClickPauseButton(editor, "OpenGallery"); // 새 도감 화면 열기
+                Transform gallery = editor.Find("GalleryPanel"); // 실제 목록과 필터
+                Assert.That(HudText(gallery.Find("Entry0/Label")), Does.Contain("파이어 볼트")); // 저장한 첫 카드 표시
+                ClickPauseButton(gallery, "Entry0"); // 현재 카드 선택
+                ClickPauseButton(gallery, "Duplicate"); // 독립된 같은 구성 복제
+                ClickPauseButton(gallery, "Entry1"); // 새 복제본 선택
+                gallery.Find("Name").GetComponent<InputField>().text = "나의 연습 마법"; // 사용자 이름 입력
+                ClickPauseButton(gallery, "Rename"); // 해당 카드의 이름 저장
+                gallery.Find("Search").GetComponent<InputField>().text = "연습"; // 새 이름으로 실제 검색
+                Assert.That(HudText(gallery.Find("Entry0/Label")), Does.Contain("나의 연습 마법")); // 검색 결과에 복제본 표시
+                Assert.That(gallery.Find("Entry1").gameObject.activeSelf, Is.False); // 불일치한 원본은 결과에서 제외
+                ClickPauseButton(gallery, "ElementFilter"); // 전체에서 화염 속성으로 전환
+                Assert.That(gallery.Find("Entry0").gameObject.activeSelf, Is.True); // 실제 화염 속성과 필터 일치
+                ClickPauseButton(gallery, "Entry0"); // 검색 결과 선택
+                ClickPauseButton(gallery, "Load"); // 해당 구성을 제작 화면에 복원
+                Assert.That(gallery.gameObject.activeSelf, Is.False); // 도감 닫기와 편집 복귀
+                Assert.That(HudText(editor.Find("SpellName")), Does.Contain("파이어 볼트")); // 원래 구성으로 편집 복원
+            }
+            finally // 이번 UI 검증의 키만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 도감 저장 삭제
+                PlayerPrefs.Save(); // 검증 키 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 환경 복원
+            }
+        }
+
+        [UnityTest] // 제작 화면 안의 실제 비행과 같은 세션 전체 화면
+        public IEnumerator MagicPreviewKeepsFlightSessionAcrossFullscreenAndInputFocus() // 편집 입력과 실제 조종 입력 분리
+        {
+            string key = "ProjectG.Crafted.Embedded." + System.Guid.NewGuid().ToString("N"); // 사용자 편성과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 저장 환경 보존
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 실제 사용자 저장 격리
+            try // 제작 화면과 독립 연습 씬의 실제 연결
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 현재 캐릭터의 실제 제작 화면
+                yield return WaitFrames(4); // 버튼과 캐릭터 초기화
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 출격 준비 화면
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 제작 화면 열기
+                Transform editor = briefing.Find("CraftedSpellEditor"); // 실제 제작 UI
+                ClickPauseButton(editor, "PreviewFlight"); // 편집 중인 조합의 내장 비행 세션 시작
+                for (int frame = 0; frame < 600 && !SceneManager.GetSceneByName("FlightPrototype").isLoaded; frame++) // 비동기 연습 씬 준비 대기
+                {
+                    yield return null; // 비행 씬의 실제 로드 진행
+                }
+                Assert.That(SceneManager.GetSceneByName("FlightPrototype").isLoaded, Is.True); // 조종 가능한 실제 연습 씬 연결
+                yield return WaitFrames(10); // 비행체와 렌더 대상 연결
+                Transform pilot = FindPilot(); // 현재 캐릭터와 장비로 복제된 실제 비행체
+                Component flight = pilot.GetComponent("FirstFlightController"); // 실제 이동 입력 제어
+                ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동탄이 시험 표적에 주는 간섭 차단
+                Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전과 같은 제작 마법 발사기
+                Component embedded = briefing.GetComponent("FlightEmbeddedMagicTraining"); // 제작 화면의 독립 연습 소유자
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 연습 표적 조회
+                Component training = (Component)embedded.GetType().GetField("training", hidden).GetValue(embedded); // 추가된 실제 훈련 모드
+                Component target = (Component)training.GetType().GetField("target", hidden).GetValue(training); // 실제 중립 피해 표적
+                Transform muzzle = (Transform)caster.GetType().GetField("muzzle", hidden).GetValue(caster); // 실제 제작 마법 발사 위치
+                Assert.That(Vector3.Distance(muzzle.position, target.transform.position), Is.EqualTo(10f).Within(0.05f)); // 표시된 십 미터의 총구 기준 실제 거리
+                System.Type progressType = caster.GetType().Assembly.GetType("ProjectG.FlightProgress"); // 공용 재화 프로필
+                object progress = progressType.GetProperty("Current", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 연습 전 실제 프로필
+                int crystals = (int)progress.GetType().GetProperty("SharedCrystals").GetValue(progress); // 연습 전 공용 결정
+                int gold = (int)progress.GetType().GetProperty("Gold").GetValue(progress); // 연습 전 공용 골드
+                Vector3 initial = pilot.position; // 편집 중인 초기 비행 위치
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W)); // 편집 패널에서 비행 키 입력
+                yield return WaitFrames(12); // 입력 분리 확인
+                Assert.That(pilot.position, Is.EqualTo(initial)); // 미리보기 포커스 전 이동 차단
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 비행 입력 분리
+                ClickPauseButton(editor, "RangeView"); // 중앙 비행 화면의 입력 포커스
+                Component previewDeck = (Component)training.GetType().GetField("deck", hidden).GetValue(training); // 실제 시험 마법 입력
+                Assert.That(((Behaviour)previewDeck).enabled, Is.False); // 첫 포커스 클릭의 마법 입력 차단
+                yield return WaitFrames(3); // 포커스 클릭의 발사 입력 소비
+                Assert.That(Metric(caster, "CastCount"), Is.Zero); // 포커스 획득만으로 시험 발사 금지
+                Assert.That(flight.GetType().GetProperty("CanFly").GetValue(flight), Is.True); // 비행 포커스에서 실제 조종 허용
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W)); // 실제 전진 비행 입력
+                yield return WaitFrames(30); // 동일 세션의 실제 이동
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 이동 입력 해제
+                Assert.That(Vector3.Distance(pilot.position, initial), Is.GreaterThan(0.1f)); // 편집 화면 안의 실제 비행
+                int health = Metric(target, "Health"); // 실제 시험 발사 전 표적 체력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 편집 중인 기본 마법의 실제 발사
+                yield return WaitFrames(110); // 발사체의 비행과 충돌 대기
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 시험 클릭 해제
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 실제 제작 발사기를 통한 한 번의 시전
+                Assert.That(Metric(target, "Health"), Is.LessThan(health)); // 독립 연습 표적의 실제 피해
+                yield return WaitFrames(2); // 실제 표적 상태의 화면 반영
+                Assert.That(HudText(editor.Find("RangeResult")), Does.Contain($"표적 체력 {Metric(target, "Health")}")); // 보이는 표적의 실제 체력 표시
+                Assert.That((int)progress.GetType().GetProperty("SharedCrystals").GetValue(progress), Is.EqualTo(crystals)); // 연습으로 공용 결정 지급 금지
+                Assert.That((int)progress.GetType().GetProperty("Gold").GetValue(progress), Is.EqualTo(gold)); // 연습으로 공용 골드 지급 금지
+                Vector3 moved = pilot.position; // 전체 화면 전환 전 현재 위치
+                ClickPauseButton(editor, "PreviewFullscreen"); // 같은 비행 세션을 전체 화면으로 확대
+                yield return WaitFrames(2); // UI 크기 변경 반영
+                Assert.That(pilot, Is.Not.Null); // 전체 화면 전환에서 비행체 보존
+                Assert.That(Vector3.Distance(pilot.position, moved), Is.LessThan(2f)); // 같은 세션의 이동 위치 보존
+                RectTransform view = editor.Find("RangeView").GetComponent<RectTransform>(); // 실제 3D 비행 표시
+                Assert.That(view.sizeDelta.x, Is.GreaterThan(1000f)); // 전체 화면으로 표시 영역 확대
+                ClickPauseButton(editor, "PreviewFullscreen"); // 같은 세션의 원래 크기 복귀
+                Assert.That(view.sizeDelta.x, Is.LessThan(600f)); // 중앙 미리보기 크기 복원
+                Assert.That(PlayerPrefs.HasKey(key), Is.False); // 내장 연습과 화면 전환으로 영구 저장 금지
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 비행 입력에서 편집 포커스로 전환
+                yield return WaitFrames(4); // 실제 Esc 입력 처리
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 복귀 키 해제
+                Assert.That(flight.GetType().GetProperty("CanFly").GetValue(flight), Is.False); // 편집 포커스에서 비행 입력 차단
+                Assert.That(editor.gameObject.activeSelf, Is.True); // 같은 Esc로 제작 화면을 닫지 않음
+                Assert.That(Time.timeScale, Is.Zero); // 편집 중 실제 연습 시간 동결
+                Vector3 beforeEdit = pilot.position; // 조합 변경 전의 같은 세션 위치
+                ClickPauseButton(editor, "Performance"); // 현재 미저장 마법을 고속형으로 변경
+                Component previewBook = (Component)training.GetType().GetField("crafted", hidden).GetValue(training); // 격리된 실제 시험 편성
+                object changed = previewBook.GetType().GetMethod("ActiveSlot", hidden).Invoke(previewBook, new object[] { 0 }); // 현재 시험에 반영된 조합
+                Assert.That((string)changed.GetType().GetProperty("Id").GetValue(changed), Does.EndWith("/fast")); // 편집한 성능이 같은 실제 연습에 반영
+                Assert.That(pilot.position, Is.EqualTo(beforeEdit)); // 조합 변경 중 캐릭터 위치 유지
+                ClickPauseButton(editor, "ResetTest"); // 실제 내장 연습의 표적과 비행 초기화
+                Assert.That(Metric(target, "Health"), Is.EqualTo(Metric(target, "MaxHealth"))); // 실제 시험 표적 체력 초기화
+                Assert.That(Metric(caster, "CastCount"), Is.Zero); // 실제 연습 발사 기록 초기화
+                ClickPauseButton(editor, "Back"); // 제작 화면을 닫고 원래 출격 준비로 복귀
+                yield return WaitFrames(15); // 독립 비행 씬과 임시 리소스 종료
+                Assert.That(SceneManager.GetSceneByName("FlightPrototype").isLoaded, Is.False); // 연습 씬 완전 해제
+                Assert.That(Time.timeScale, Is.EqualTo(1f)); // 메뉴의 게임 시간 복원
+            }
+            finally // 이번 검증의 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 독립 편성 키 삭제
+                PlayerPrefs.Save(); // 삭제 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 기존 저장 환경 복원
+            }
+        }
+
+        [UnityTest] // 내장 비행을 여는 도중 제작 화면 종료
+        public IEnumerator MagicPreviewCancelsPendingSceneLoadWithoutFreezingMenu() // 비동기 로드와 정식 화면의 분리
+        {
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 출격 준비
+            yield return WaitFrames(4); // 제작 버튼 연결
+            Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 준비 화면
+            ClickPauseButton(briefing, "Ready/EditMagic"); // 제작 화면 진입
+            Transform editor = briefing.Find("CraftedSpellEditor"); // 실제 제작 화면
+            ClickPauseButton(editor, "PreviewFlight"); // 비동기 내장 연습 로드 요청
+            ClickPauseButton(editor, "Back"); // 같은 프레임에 제작 화면 닫기
+            yield return WaitFrames(90); // 요청된 씬의 로드와 취소 정리
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FlightSortieBriefing")); // 원래 출격 준비 씬 유지
+            Assert.That(SceneManager.GetSceneByName("FlightPrototype").isLoaded, Is.False); // 취소한 연습 씬 해제
+            Assert.That(Time.timeScale, Is.EqualTo(1f)); // 메뉴의 게임 시간이 멈추지 않음
+            Assert.That(briefing.Find("Ready").gameObject.activeSelf, Is.True); // 출격 준비 화면 정상 복귀
+        }
+
+        [UnityTest] // 저장 전 편집 조합으로 자유 훈련 후 편집 복귀
+        public IEnumerator MagicDraftSurvivesFreeFlightWithoutSaving() // 시험 시전과 편집 내용 분리
+        {
+            string key = "ProjectG.Crafted.Draft." + System.Guid.NewGuid().ToString("N"); // 사용자 마법 저장과 분리한 시험 키
+            string previous = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 격리 환경 보존
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 실제 사용자 편성 제외
+            try // 저장하지 않은 기본 조합의 독립 자유 훈련
+            {
+                yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 실제 제작 화면이 있는 출격 준비
+                yield return WaitFrames(4); // 실제 제작 버튼 연결
+                Transform briefing = GameObject.Find("SortieBriefing").transform; // 실제 출격 준비 하이러키
+                ClickPauseButton(briefing, "Ready/EditMagic"); // 제작 화면 열기
+                Transform editor = briefing.Find("CraftedSpellEditor"); // 저장 전 조합을 편집할 화면
+                Assert.That(PlayerPrefs.HasKey(key), Is.False); // 연습 전 별도 저장이 없는 상태
+                ClickPauseButton(editor, "FreeFlight"); // 현재 조합으로 자유 비행 시작
+                yield return WaitForActiveScene(ScenePath); // 실제 자유 비행 씬
+                Transform hud = LocateCombatHud().transform; // 자유 훈련의 실제 HUD
+                Transform card = hud.Find("FreeTraining/Options/Card"); // 훈련 표적과 복귀 메뉴
+                ClickPauseButton(card, "Target"); // 실제 피해 판정 표적 시작
+                yield return WaitFrames(4); // 비행과 시험 조합 연결
+                Transform pilot = FindPilot(); // 실제 자유 비행 조종체
+                ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 사격의 간섭 차단
+                Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전과 같은 제작 발사기
+                Component training = hud.Find("FreeTraining").GetComponent("FlightTrainingMode"); // 독립 훈련의 실제 상태
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 표적의 실제 상태 조회
+                Component target = (Component)training.GetType().GetField("target", hidden).GetValue(training); // 정산과 분리된 실제 표적
+                int health = Metric(target, "Health"); // 시험 전 표적 체력
+                InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 편집한 조합의 실제 시험 입력
+                yield return WaitFrames(110); // 실제 발사와 표적 충돌 대기
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 저장 전 조합의 실제 시험 시전
+                Assert.That(Metric(target, "Health"), Is.LessThan(health)); // 자유 비행 표적의 실제 피해
+                Assert.That(PlayerPrefs.HasKey(key), Is.False); // 시험 발사만으로 마법 영구 저장 금지
+                InputSystem.QueueStateEvent(mouse, new MouseState()); // 시험 클릭 해제
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F4)); // 자유 훈련 설정과 복귀 열기
+                yield return WaitFrames(4); // 실제 복귀 버튼 표시
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 연습 설정 입력 해제
+                ClickPauseButton(card, "Return"); // 이전 제작 화면으로 복귀
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 실제 출격 준비 씬 복원
+                yield return WaitFrames(3); // 저장 전 편집 조합 복원
+                briefing = GameObject.Find("SortieBriefing").transform; // 다시 열린 출격 준비
+                editor = briefing.Find("CraftedSpellEditor"); // 같은 조합으로 복귀한 제작 화면
+                Assert.That(editor.gameObject.activeSelf, Is.True); // 별도 저장 없이 편집 화면 복귀
+                Assert.That(HudText(editor.Find("SpellName")), Does.Contain("파이어 볼트")); // 시험했던 조합의 이름 유지
+                Assert.That(PlayerPrefs.HasKey(key), Is.False); // 복귀만으로 영구 저장 금지
+            }
+            finally // 이 검증에서 만든 설정만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 시험용 마법 저장 제거
+                PlayerPrefs.Save(); // 시험 키 정리 반영
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 이전 격리 환경 복원
+            }
+        }
+
         [UnityTest] // 정식 출격과 분리된 자유 훈련의 판정, 회수와 복귀
         public IEnumerator FreeTrainingSelectsPatternsAndTargetsWithoutProgressRewards() // 실제 준비의 해당 조종사와 반복 조건
         {
@@ -4290,6 +5123,15 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 {
                     Assert.That(GameObject.Find(i == 0 ? "Market" : "Forge"), Is.Not.Null); // 기존 재고·강화 UI가 실제로 열림
                     Assert.That(display.gameObject.activeSelf, Is.False); // 시설을 열면 대화 닫기
+                    if (i == 1) // 강화 공방의 제작 연구 연결
+                    {
+                        Transform forge = GameObject.Find("Forge").transform; // 실제로 열린 강화 공방
+                        ClickPauseButton(forge, "OpenResearch"); // 공방에서 공용 마법 연구 열기
+                        Transform research = GameObject.Find("ResearchPanel").transform; // 실제 연구 화면
+                        Assert.That(research.gameObject.activeSelf, Is.True); // 공방에서 연구 화면 표시
+                        ClickPauseButton(research, "Close"); // 공방으로 돌아가기
+                        Assert.That(research.gameObject.activeSelf, Is.False); // 공방 복귀 시 연구 화면 종료
+                    }
                     yield return TapVillage(Key.Escape); // 시설을 닫고 그대로 다음 마을 위치로
                 }
             }

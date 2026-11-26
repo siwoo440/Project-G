@@ -85,6 +85,11 @@ namespace ProjectG // 프로젝트 게임 영역
             ResetCadence(); // 이전 효과와 표적 제거
         }
 
+        internal void BindTrainingEquipment(FlightBroomEquipment equipment) // 자유 훈련의 저장 빗자루 연결
+        {
+            broom = equipment; // 실전과 같은 공격 능력치 적용
+        }
+
         public void BeginRapidFire() // 아리아 Q 집중 포화
         {
             rapidUntil = Time.time + 3f; // 3초간 자동탄 가속

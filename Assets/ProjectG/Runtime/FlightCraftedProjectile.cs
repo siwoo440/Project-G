@@ -40,7 +40,7 @@ namespace ProjectG // 프로젝트 게임 영역
             pierceLimit = maxPierce; // 이 탄의 관통 상한 고정
             castToken = token; // 같은 시전의 후속 생성 기록
             returnHits = backHits; // 왕복 마법의 공유 복귀 적중 기록
-            returningRing = cast.Id == CraftedSpellPresets.All[5].Recipe.Id; // 확정된 회류 고리 구성
+            returningRing = cast.BaseId == CraftedSpellPresets.All[5].Recipe.Id; // 확정된 회류 고리 구성
             launchPosition = transform.position; // 이동 중인 발사체의 원래 생성점
             outboundRemaining = returningRing ? stats.Range * 0.5f : 0f; // 총 왕복 거리의 절반인 편도 거리
             knocksBack = cast.FirstEffect == "knockback" || cast.SecondEffect == "knockback"; // 넉백 선택 여부
@@ -115,8 +115,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 int previousHealth = target is FlightEnemy beforeHit ? beforeHit.Health : 0; // 실제 피해 전 체력
                 Damage(target, profile.Damage); // 실제 표적 직격
                 bool statusHit = target is FlightCraftedTarget || target is FlightEnemy affected && affected.Health > 0 && affected.Health < previousHealth; // 실제 피해를 받은 마물 또는 연습 표적
-                bool flame = recipe.Id == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 화상
-                bool shadow = recipe.Id == CraftedSpellPresets.All[13].Recipe.Id; // 그림자 낙인의 저주
+                bool flame = recipe.BaseId == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 화상
+                bool shadow = recipe.BaseId == CraftedSpellPresets.All[13].Recipe.Id; // 그림자 낙인의 저주
                 if ((flame || shadow) && statusHit) // 선택한 지속 효과가 있는 유효 직격
                 {
                     if (!target.TryGetComponent(out FlightCraftedStatus status)) // 이 대상의 공통 상태 관리자

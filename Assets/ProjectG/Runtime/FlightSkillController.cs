@@ -60,6 +60,11 @@ namespace ProjectG // 프로젝트 게임 영역
             TryGetComponent(out equipment); // 부품이 없는 연습의 공통 마력 유지
         }
 
+        internal void BindTrainingEquipment(FlightBroomEquipment value) // 자유 훈련의 저장 빗자루 연결
+        {
+            equipment = value; // 실전과 같은 마력 용량·회복 적용
+        }
+
         private void Start() // 출격에서 조종사와 장비를 선택한 뒤 마력 초기화
         {
             mana = MaxMana; // 새 빗자루의 실제 마력 상한까지 충전

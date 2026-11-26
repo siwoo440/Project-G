@@ -34,6 +34,9 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private sealed class Barrier // 한 번 시전한 고정 정화 결계
         {
+            public CraftedSpellRecipe recipe; // 결계를 시전한 실제 마법
+            public float cooldown; // 종료 후 적용할 시전 당시 대기시간
+            public int lane = -1; // 결계를 시전한 실제 입력 슬롯
             public Vector3 center; // 결계가 생성된 월드 위치
             public float expires; // 결계가 종료되는 시각
             public float radius; // 시전 당시 확정한 결계 반경
@@ -44,6 +47,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private sealed class Burst // 한 번 시전한 순차 발사의 고정 수치
         {
+            public int lane = -1; // 순차 발사를 시전한 실제 입력 슬롯
             public CraftedSpellRecipe recipe; // 원래 제작 구성
             public Profile profile; // 시전 시점의 공격력과 탄환 수치
             public Quaternion aim; // 첫 발의 실제 조준 방향
@@ -55,6 +59,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private sealed class Placement // 지연 효과를 기다리는 고정 설치체
         {
+            public int lane = -1; // 설치체를 시전한 실제 입력 슬롯
             public CraftedSpellRecipe recipe; // 시전 시점의 제작 구성
             public Profile profile; // 시전 시점의 자탄 수치
             public FlightCraftedEmissionBudget.CastToken token; // 모탄과 자탄의 공통 생성 기록
@@ -68,6 +73,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private sealed class Trail // 시전 시점부터 기록한 하나의 잿불 영역
         {
+            public int lane = -1; // 경로를 시전한 실제 입력 슬롯
             public CraftedSpellRecipe recipe; // 시전 당시 제작 구성
             public Profile profile; // 지속 피해와 반경의 고정 수치
             public FlightCraftedProjectile source; // 실제 대상 피해 처리
@@ -86,6 +92,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private sealed class Orbit // 시전당 한 개의 방어 위성 묶음
         {
+            public int lane = -1; // 위성을 시전한 실제 입력 슬롯
             public CraftedSpellRecipe recipe; // 시전 시점의 제작 구성
             public Profile profile; // 흡수 반경과 재사용 수치
             public readonly List<GameObject> satellites = new(); // 함께 공전하는 네 위성
@@ -119,6 +126,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private readonly FlightCraftedEmissionBudget emissions = new(); // 시전별·플레이어 공통 생성 한도
         private readonly List<FlightCraftedProjectile> active = new(); // 살아 있는 발사체
         private readonly Dictionary<string, float> readyAt = new(); // 같은 조합 두 장이 공유하는 대기시간
+        internal Vector3 MuzzlePosition => muzzle.position; // 표적 거리 비교에 쓰는 실제 발사 위치
         private readonly List<Barrier> barriers = new(); // 살아 있는 정화 결계
         private readonly List<Burst> bursts = new(); // 시전 후 시간에 따라 발사하는 마법
         private readonly List<Placement> placements = new(); // 지연 중인 고정 설치체
@@ -170,7 +178,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             foreach (int index in Implemented) // 판정과 수치가 있는 정확한 구성
             {
-                if (recipe.Id == CraftedSpellPresets.All[index].Recipe.Id) // 구성 요소와 탄수까지 일치
+                if (recipe.BaseId == CraftedSpellPresets.All[index].Recipe.Id) // 구성 요소와 탄수까지 일치
                 {
                     return true; // 명시된 마법만 실제 발사 허용
                 }
@@ -180,22 +188,22 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private static bool IsFlameSpiral(CraftedSpellRecipe recipe) // 순차 발사와 화상이 있는 확정 구성
         {
-            return recipe != null && recipe.Id == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 고유 구성
+            return recipe != null && recipe.BaseId == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 고유 구성
         }
 
         private static bool IsReturningRing(CraftedSpellRecipe recipe) // 왕복 경로와 공유 적중이 있는 확정 구성
         {
-            return recipe != null && recipe.Id == CraftedSpellPresets.All[5].Recipe.Id; // 회류 고리의 고유 구성
+            return recipe != null && recipe.BaseId == CraftedSpellPresets.All[5].Recipe.Id; // 회류 고리의 고유 구성
         }
 
         private static bool IsPurification(CraftedSpellRecipe recipe) // 초기 정화 결계의 정확한 구성
         {
-            return recipe != null && recipe.Id == CraftedSpellPresets.All[11].Recipe.Id; // 문서의 정화 결계 식별자
+            return recipe != null && recipe.BaseId == CraftedSpellPresets.All[11].Recipe.Id; // 문서의 정화 결계 식별자
         }
 
         private static bool IsPlacement(CraftedSpellRecipe recipe) // 설치·결계 공통 동시 한도 대상
         {
-            return recipe != null && (recipe.FireMode == "placed" || recipe.Id == CraftedSpellPresets.All[14].Recipe.Id); // 설치형 구성과 지정 좌표 폭발체
+            return recipe != null && (recipe.FireMode == "placed" || recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id); // 설치형 구성과 지정 좌표 폭발체
         }
 
         private bool HasPlacementRoom(CraftedSpellRecipe recipe) // 실제로 유지하는 설치체와 결계의 합계
@@ -205,31 +213,31 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal static Profile Stats(CraftedSpellRecipe recipe) // 지원하는 조합의 초기 시험 성능
         {
-            if (recipe.Id == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 확정 수치
             {
                 return new Profile(10, 22, 10f, 0f, 30f, 0.35f, 0f); // 시작 마력과 지속 피해·길이·반경
             }
-            if (recipe.Id == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 확정 수치
             {
                 return new Profile(30, 0, 14f, 180f, 2.2f, 0.6f, 0f); // 마력과 공전 속도·거리·흡수 반경
             }
-            if (recipe.Id == CraftedSpellPresets.All[13].Recipe.Id) // 그림자 낙인의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[13].Recipe.Id) // 그림자 낙인의 확정 수치
             {
                 return new Profile(18, 14, 5f, 30f, 28f, 0.12f, 0f); // 마력과 직격 피해·탄속·사거리
             }
-            if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 잿불 항로의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[2].Recipe.Id) // 잿불 항로의 확정 수치
             {
                 return new Profile(25, 9, 8f, 0f, 12f, 1.3f, 0f); // 마력과 지속 피해·기록 거리·반경
             }
-            if (recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) // 덩굴 고리의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[6].Recipe.Id) // 덩굴 고리의 확정 수치
             {
                 return new Profile(24, 0, 10f, 0f, 18f, 3.2f, 0f); // 마력과 지정 거리·속박 반경
             }
-            if (recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 확정 수치
             {
                 return new Profile(26, 70, 7f, 0f, 20f, 3.2f, 0f); // 마력과 폭발 피해·지정 거리·반경
             }
-            if (recipe.Id == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대 자탄의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대 자탄의 확정 수치
             {
                 return new Profile(28, 26, 8f, 18f, 12f, 0.12f, 0f); // 마력과 자탄 피해·속도·거리
             }
@@ -241,7 +249,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return new Profile(30, 0, 12f, 0f, 0f, 3.5f, 0f); // 마력과 종료 후 대기시간
             }
-            if (recipe.Id == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 확정 수치
+            if (recipe.BaseId == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 확정 수치
             {
                 return new Profile(18, 22, 5f, 28f, 32f, 0.12f, 0f); // 세 침탄의 마력·피해·속도·거리
             }
@@ -282,7 +290,12 @@ namespace ProjectG // 프로젝트 게임 영역
             float width = 1f + 0.05f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Width); // 범위와 각도의 증가 배율
             float mana = 1f - 0.05f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Mana); // 소수점 마력 감소 배율
             float cooldown = 1f - 0.1f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Cooldown); // 다음 쿨타임 감소 배율
-            return new Profile(basis.Mana * mana, basis.Damage * damage, basis.Cooldown * cooldown, basis.Speed, basis.Range, basis.Radius * width, basis.Spread * width, damage, width); // 현재 강화의 시전 스냅샷
+            bool moving = recipe.BaseId == CraftedSpellPresets.All[8].Recipe.Id || recipe.FireMode != "placed" && recipe.Shape != "beam" && recipe.Trajectory != "stationary" && recipe.Trajectory != "orbit"; // 씨앗 자탄과 직접 이동형에만 장비 보정
+            float speed = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileSpeedBonus / 100f) : 1f; // 합산 탄속 비율 한 번 적용
+            float range = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileRangeBonus / 100f) : 1f; // 합산 사거리 비율 한 번 적용
+            speed *= recipe.Performance == "fast" ? 1.2f : recipe.Performance == "long" ? 0.8f : 1f; // 이동형 성능 프리셋의 탄속 비율
+            range *= recipe.Performance == "fast" ? 0.8f : recipe.Performance == "long" ? 1.2f : 1f; // 이동형 성능 프리셋의 사거리 비율
+            return new Profile(basis.Mana * mana, basis.Damage * damage, basis.Cooldown * cooldown, basis.Speed * speed, basis.Range * range, basis.Radius * width, basis.Spread * width, damage, width); // 현재 장비와 강화의 시전 스냅샷
         }
 
         internal bool HasEmissionRoom(CraftedSpellRecipe recipe) // 실제로 생성할 수 있는 플레이어 한도
@@ -319,8 +332,8 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 Front = muzzle.position, // 실제 마법 발사 지점
                 Around = practice ? muzzle.position : transform.position, // 연습과 실전의 주변 기준점
-                Point = recipe.Id == CraftedSpellPresets.All[14].Recipe.Id || recipe.Id == CraftedSpellPresets.All[6].Recipe.Id ? AimPoint(profile.Range) : null, // 지정 거리 내 실제 조준점
-                Path = recipe.Id == CraftedSpellPresets.All[2].Recipe.Id ? practice ? muzzle.position : transform.position : null // 현재 비행 위치에서 시작하는 실제 경로
+                Point = recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id || recipe.BaseId == CraftedSpellPresets.All[6].Recipe.Id ? AimPoint(profile.Range) : null, // 지정 거리 내 실제 조준점
+                Path = recipe.BaseId == CraftedSpellPresets.All[2].Recipe.Id ? practice ? muzzle.position : transform.position : null // 현재 비행 위치에서 시작하는 실제 경로
             };
             if (!FlightCraftedOrigins.TryResolve(recipe.Origin, origins, out Vector3 spawn)) // 실제로 존재하는 위치만 사용
             {
@@ -342,6 +355,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 float started = Clock; // 결계 시작 시각
                 float duration = Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f); // 여섯 초 상한의 결계 유지시간
                 Barrier barrier = CreateBarrier(spawn, started + duration, profile.Radius); // 시전 위치와 강화 반경의 고정 결계
+                barrier.recipe = recipe; // 해당 결계를 시전한 조합
+                barrier.cooldown = profile.Cooldown; // 조기 종료에도 유지할 시전 대기시간
                 barriers.Add(barrier); // 수명과 상쇄 한도 관리
                 readyAt[recipe.Id] = started + duration + profile.Cooldown; // 실제 유지 종료 후 재사용 대기
                 if (practice) // 연습 마력만 독립 차감
@@ -354,7 +369,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             float now = Clock; // 이번 시전의 시간
             Quaternion aim = AimRotation(profile.Range, spawn); // 실제 생성 위치에서 조준 목표 보정
-            if (recipe.Id == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 유지 광선
+            if (recipe.BaseId == CraftedSpellPresets.All[10].Recipe.Id) // 루미너스 레이의 유지 광선
             {
                 GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 광선 피해와 표시의 공통 객체
                 FlightCraftedProjectile source = view.GetComponent<FlightCraftedProjectile>(); // 공용 속성 피해 경로
@@ -392,7 +407,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 CastCount++; // 하나의 성공한 마법 시전
                 return true; // 광선 유지 시작
             }
-            if (recipe.Id == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 방어 위성
+            if (recipe.BaseId == CraftedSpellPresets.All[12].Recipe.Id) // 다크 오비트의 방어 위성
             {
                 float duration = Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f); // 강화와 공통 상한을 적용한 유지 시간
                 var orbit = new Orbit { recipe = recipe, profile = profile, started = now, endsAt = now + duration }; // 시전 시점의 공전 수치 고정
@@ -414,7 +429,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 CastCount++; // 하나의 성공한 마법 시전
                 return true; // 공전 시작
             }
-            if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 이동 경로를 기록하는 잿불 항로
+            if (recipe.BaseId == CraftedSpellPresets.All[2].Recipe.Id) // 이동 경로를 기록하는 잿불 항로
             {
                 GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 시전 시점의 독립 영역 표시
                 FlightCraftedProjectile source = view.GetComponent<FlightCraftedProjectile>(); // 공용 속성 피해 경로
@@ -453,7 +468,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 CastCount++; // 실제 성공한 시전 기록
                 return true; // 경로 기록 시작
             }
-            if (recipe.Id == CraftedSpellPresets.All[6].Recipe.Id || recipe.Id == CraftedSpellPresets.All[8].Recipe.Id || recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 지정 또는 지연 설치 마법
+            if (recipe.BaseId == CraftedSpellPresets.All[6].Recipe.Id || recipe.BaseId == CraftedSpellPresets.All[8].Recipe.Id || recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id) // 지정 또는 지연 설치 마법
             {
                 GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 원래 위치에 고정된 임시 외형
                 FlightCraftedProjectile installed = view.GetComponent<FlightCraftedProjectile>(); // 피해 경로를 공유할 설치체
@@ -468,14 +483,14 @@ namespace ProjectG // 프로젝트 게임 영역
                     installed.SetResonance(weapon.Resonance); // 유효 피해의 공명 처리
                 }
                 view.transform.localScale = Vector3.one * 0.5f; // 자탄과 구분되는 설치체 크기
-                float duration = recipe.Id == CraftedSpellPresets.All[6].Recipe.Id ? Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f) : 1f; // 덩굴 영역 또는 지연 시간
+                float duration = recipe.BaseId == CraftedSpellPresets.All[6].Recipe.Id ? Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f) : 1f; // 덩굴 영역 또는 지연 시간
                 var placement = new Placement { recipe = recipe, profile = profile, token = token, view = view, position = spawn, aim = aim, splitAt = now + duration }; // 유지 종료 또는 지연 효과 예약
-                if (recipe.Id != CraftedSpellPresets.All[8].Recipe.Id) // 덩굴과 파열의 실제 영역 경계
+                if (recipe.BaseId != CraftedSpellPresets.All[8].Recipe.Id) // 덩굴과 파열의 실제 영역 경계
                 {
                     DrawPlacementOutline(placement); // 판정 반경의 세 축 윤곽
                 }
                 placements.Add(placement); // 실제 설치체의 시간 관리
-                readyAt[recipe.Id] = now + profile.Cooldown + (recipe.Id == CraftedSpellPresets.All[14].Recipe.Id ? 0f : duration); // 파열은 시전부터, 설치형은 종료 후 대기
+                readyAt[recipe.Id] = now + profile.Cooldown + (recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id ? 0f : duration); // 파열은 시전부터, 설치형은 종료 후 대기
                 if (practice) // 연습 공간의 독립 마력
                 {
                     practiceMana -= profile.Mana; // 실제 연습 마력 차감
@@ -484,7 +499,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 CastCount++; // 실제 성공한 설치 기록
                 return true; // 설치 성공
             }
-            bool shared = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id || IsReturningRing(recipe); // 수압과 회류의 시전별 중복 제한
+            bool shared = recipe.BaseId == CraftedSpellPresets.All[3].Recipe.Id || IsReturningRing(recipe); // 수압과 회류의 시전별 중복 제한
             HashSet<Component> sharedHits = shared ? new HashSet<Component>() : null; // 같은 시전의 전진 적중 기록
             HashSet<Component> returnHits = IsReturningRing(recipe) ? new HashSet<Component>() : null; // 회류 고리의 별도 복귀 적중 기록
             int pierce = Mathf.Min(5, 3 + Steps(recipe, FlightCraftedSpellBook.Upgrade.Pierce)); // 관통 효과의 최대 대상 수
@@ -509,11 +524,11 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             Vector3 shotOrigin = spawn; // 해당 발사체의 실제 출발점
             Vector3 direction = CraftedSpellVectors.DirectionForCount(recipe, aim, index, profile.Spread, count); // 재현 가능한 입체 배열
-            if (recipe.Id == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대의 세 자탄
+            if (recipe.BaseId == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대의 세 자탄
             {
                 direction = Quaternion.AngleAxis(index * 120f, aim * Vector3.up) * (aim * Vector3.forward); // 수평면의 백이십 도 간격
             }
-            if (recipe.Id == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 집중 배열
+            if (recipe.BaseId == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 집중 배열
             {
                 float offset = (index - (count - 1) * 0.5f) * profile.Radius * 2f; // 탄환 지름 간격의 출발 위치
                 shotOrigin += aim * Vector3.right * offset; // 서로 겹치지 않는 수평 발사점
@@ -581,7 +596,7 @@ namespace ProjectG // 프로젝트 게임 영역
             for (int i = placements.Count - 1; i >= 0; i--) // 종료 중 목록의 안전한 순회
             {
                 Placement placement = placements[i]; // 설치 당시 위치와 고정 수치
-                if (placement.recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) // 지정 좌표에 고정된 덩굴 영역
+                if (placement.recipe.BaseId == CraftedSpellPresets.All[6].Recipe.Id) // 지정 좌표에 고정된 덩굴 영역
                 {
                     if (Clock >= placement.splitAt) // 설치 영역의 유지 종료
                     {
@@ -610,7 +625,7 @@ namespace ProjectG // 프로젝트 게임 영역
                     continue; // 예정 시각까지 유지
                 }
                 active.RemoveAll(shot => shot == null); // 종료한 발사체 제외
-                if (placement.recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 지연 폭발
+                if (placement.recipe.BaseId == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 지연 폭발
                 {
                     Collider[] overlaps = Physics.OverlapSphere(placement.position, placement.profile.Radius, hitLayers, QueryTriggerInteraction.Ignore); // 지정 반경의 실제 충돌체
                     var hit = new HashSet<Component>(); // 몸체와 약점이 공유하는 대상 기록
@@ -761,14 +776,122 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
-        internal void SetBeamLane(CraftedSpellRecipe recipe, int lane) // 유지 광선을 실제 입력 슬롯에 연결
+        internal void SetBeamLane(CraftedSpellRecipe recipe, int lane) // 새 유지 효과를 실제 입력 슬롯에 연결
         {
             foreach (Beam beam in beams) // 현재 유지 중인 광선
             {
                 if (beam.recipe.Id == recipe.Id && beam.lane < 0) // 방금 시작한 같은 마법
                 {
                     beam.lane = lane; // 시작한 좌우 버튼의 유지 여부 사용
-                    return; // 다른 시전의 입력은 변경하지 않음
+                    return; // 같은 시전의 다른 입력은 변경하지 않음
+                }
+            }
+            foreach (Barrier barrier in barriers) // 현재 정화 결계
+            {
+                if (barrier.recipe.Id == recipe.Id && barrier.lane < 0) // 방금 생성한 같은 결계
+                {
+                    barrier.lane = lane; // 실제 시전 슬롯 기록
+                    return; // 다른 시전은 변경하지 않음
+                }
+            }
+            foreach (Placement placement in placements) // 현재 설치와 지연 효과
+            {
+                if (placement.recipe.Id == recipe.Id && placement.lane < 0) // 방금 만든 같은 설치체
+                {
+                    placement.lane = lane; // 실제 시전 슬롯 기록
+                    return; // 다른 시전은 변경하지 않음
+                }
+            }
+            foreach (Trail trail in trails) // 현재 잿불 경로
+            {
+                if (trail.recipe.Id == recipe.Id && trail.lane < 0) // 방금 만든 같은 경로
+                {
+                    trail.lane = lane; // 실제 시전 슬롯 기록
+                    return; // 다른 시전은 변경하지 않음
+                }
+            }
+            foreach (Orbit orbit in orbits) // 현재 방어 위성
+            {
+                if (orbit.recipe.Id == recipe.Id && orbit.lane < 0) // 방금 만든 같은 위성
+                {
+                    orbit.lane = lane; // 실제 시전 슬롯 기록
+                    return; // 다른 시전은 변경하지 않음
+                }
+            }
+            foreach (Burst burst in bursts) // 남은 순차 발사 예약
+            {
+                if (burst.recipe.Id == recipe.Id && burst.lane < 0) // 방금 시작한 같은 순차 발사
+                {
+                    burst.lane = lane; // 실제 시전 슬롯 기록
+                    return; // 다른 시전은 변경하지 않음
+                }
+            }
+        }
+
+        internal void StopMaintained(CraftedSpellRecipe recipe, int lane) // 자동 해제된 슬롯의 유지 효과만 종료
+        {
+            if (recipe == null) // 이미 빈 슬롯
+            {
+                return; // 다른 슬롯과 독립 탄환 유지
+            }
+            for (int i = beams.Count - 1; i >= 0; i--) // 해당 슬롯의 유지 광선
+            {
+                Beam beam = beams[i]; // 현재 유지 광선
+                if (beam.recipe.Id == recipe.Id && (beam.lane == lane || beam.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    EndBeam(beam); // 실제 종료 시점부터 쿨타임 적용
+                    beams.RemoveAt(i); // 더 이상 지속 피해 없음
+                }
+            }
+            for (int i = barriers.Count - 1; i >= 0; i--) // 해당 슬롯의 정화 결계
+            {
+                Barrier barrier = barriers[i]; // 현재 유지 결계
+                if (barrier.recipe.Id == recipe.Id && (barrier.lane == lane || barrier.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    readyAt[recipe.Id] = Clock + barrier.cooldown; // 실제 종료 시점의 남은 대기시간
+                    DestroyBarrier(barrier); // 결계 판정과 외형 종료
+                    barriers.RemoveAt(i); // 더 이상 적탄 상쇄 없음
+                }
+            }
+            for (int i = placements.Count - 1; i >= 0; i--) // 해당 슬롯의 설치와 지연 효과
+            {
+                Placement placement = placements[i]; // 현재 유지 설치체
+                if (placement.recipe.Id == recipe.Id && (placement.lane == lane || placement.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    if (recipe.BaseId != CraftedSpellPresets.All[14].Recipe.Id) // 종료 후 대기시간이 시작되는 설치형
+                    {
+                        readyAt[recipe.Id] = Clock + placement.profile.Cooldown; // 실제 종료 시점의 대기시간
+                    }
+                    DestroyPlacement(placement); // 설치 판정과 외형 종료
+                    placements.RemoveAt(i); // 예약된 자탄과 피해 차단
+                }
+            }
+            for (int i = trails.Count - 1; i >= 0; i--) // 해당 슬롯의 잿불 지속 영역
+            {
+                Trail trail = trails[i]; // 현재 유지 경로
+                if (trail.recipe.Id == recipe.Id && (trail.lane == lane || trail.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    readyAt[recipe.Id] = Clock + trail.profile.Cooldown; // 종료 후 재사용 대기
+                    DestroyTrail(trail); // 지속 피해와 외형 종료
+                    trails.RemoveAt(i); // 예약된 피해 차단
+                }
+            }
+            for (int i = orbits.Count - 1; i >= 0; i--) // 해당 슬롯의 방어 위성
+            {
+                Orbit orbit = orbits[i]; // 현재 위성 묶음
+                if (orbit.recipe.Id == recipe.Id && (orbit.lane == lane || orbit.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    readyAt[recipe.Id] = Clock + orbit.profile.Cooldown; // 종료 후 재사용 대기
+                    DestroyOrbit(orbit); // 위성 판정과 외형 종료
+                    orbits.RemoveAt(i); // 이후 적탄 흡수 차단
+                }
+            }
+            for (int i = bursts.Count - 1; i >= 0; i--) // 해당 슬롯의 미발사 순차 탄환
+            {
+                Burst burst = bursts[i]; // 아직 남은 순차 발사
+                if (burst.recipe.Id == recipe.Id && (burst.lane == lane || burst.lane < 0)) // 같은 구성과 시전 슬롯
+                {
+                    bursts.RemoveAt(i); // 아직 생성하지 않은 탄환 예약 취소
                 }
             }
         }

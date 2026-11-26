@@ -29,11 +29,14 @@ namespace ProjectG // 프로젝트 게임 영역
         public int initialShots = 1; // 시전의 최초 생성 수
         public int splitChildren; // 모탄당 자탄 생성 수
         public int splitDepth; // 자탄 생성의 최대 깊이
+        public string performance = "standard"; // 이동형 탄속과 사거리의 성능 프리셋
     }
 
     public sealed class CraftedSpellRecipe // 검증에 성공한 변경 불가 제작 조합
     {
         public string Id { get; } // 구성 요소와 생성 수로 재현하는 ID
+        public string BaseId { get; } // 성능 프리셋을 제외한 실제 마법 구성
+        public string Performance { get; } // 표준·고속·장거리 성능 프리셋
         public int Cost { get; } // 마법 공격력 한도에 쓰는 구성 비용
         public int InitialShots { get; } // 최초 발사체 수
         public int SplitChildren { get; } // 모탄당 자탄 수
@@ -49,9 +52,11 @@ namespace ProjectG // 프로젝트 게임 영역
         public string FirstEffect { get; } // 정렬된 첫 번째 효과
         public string SecondEffect { get; } // 정렬된 두 번째 효과
 
-        internal CraftedSpellRecipe(string id, int cost, CraftedSpellSelection selection, string first, string second) // 검증을 끝낸 공통 발사 자료
+        internal CraftedSpellRecipe(string id, string baseId, int cost, CraftedSpellSelection selection, string first, string second) // 검증을 끝낸 공통 발사 자료
         {
             Id = id; // 조합 식별자 기록
+            BaseId = baseId; // 동작을 판별할 원래 마법 구성
+            Performance = string.IsNullOrEmpty(selection.performance) ? "standard" : selection.performance; // 실제 저장한 성능 프리셋
             Cost = cost; // 고정 비용 합계
             InitialShots = selection.initialShots; // 최초 발사 수
             SplitChildren = selection.splitChildren; // 모탄 하나의 자탄 수
@@ -153,8 +158,20 @@ namespace ProjectG // 프로젝트 게임 영역
                 cost -= CraftedSpellCatalog.FindCost(CraftedSpellGroup.FireMode, "burst"); // 같은 순차 발사 비용 중복 방지
             }
 
-            string id = Version + "/" + string.Join("/", choices) + "/" + EncodeNumber(selection.initialShots) + "/" + EncodeNumber(selection.splitChildren) + "/" + EncodeNumber(selection.splitDepth); // 문화권과 선택 순서에 독립적인 조합 식별자
-            recipe = new CraftedSpellRecipe(id, cost, selection, first, second); // 다음 단계가 공유할 검증된 조합
+            string performance = string.IsNullOrEmpty(selection.performance) ? "standard" : selection.performance; // 구형 선택은 표준형 적용
+            if (performance != "standard" && performance != "fast" && performance != "long") // 기획에 없는 성능 프리셋
+            {
+                return CraftedSpellIssue.InvalidChoice; // 잘못된 저장과 임의 수치 차단
+            }
+            bool seedChild = selection.shape == "placed" && selection.fireMode == "placed" && selection.trigger == "time" && splits; // 고정 포대에서 이동하는 분열 자탄
+            bool moving = seedChild || selection.fireMode != "placed" && selection.shape != "beam" && selection.trajectory != "stationary" && selection.trajectory != "orbit"; // 이동형과 이동 자탄 구분
+            if (performance != "standard" && !moving) // 결계·광선·영역 등 이동하지 않는 효과
+            {
+                return CraftedSpellIssue.Incompatible; // 고정 범위와 위치의 임의 변경 방지
+            }
+            string baseId = Version + "/" + string.Join("/", choices) + "/" + EncodeNumber(selection.initialShots) + "/" + EncodeNumber(selection.splitChildren) + "/" + EncodeNumber(selection.splitDepth); // 기존 저장과 같은 구성 식별자
+            string id = performance == "standard" ? baseId : baseId + "/" + performance; // 표준 저장 호환과 다른 프리셋 구분
+            recipe = new CraftedSpellRecipe(id, baseId, cost, selection, first, second); // 구성과 성능을 함께 보존
             return CraftedSpellIssue.None; // 저장 및 편성에 사용할 수 있음
         }
 
@@ -162,7 +179,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             recipe = null; // 잘못된 ID에서 기존 조합과 혼용 방지
             string[] parts = id?.Split('/'); // 저장 버전과 정해진 선택 순서
-            if (parts == null || parts.Length != 14 || parts[0] != Version) // 형식과 버전 점검
+            if (parts == null || (parts.Length != 14 && parts.Length != 15) || parts[0] != Version) // 기존 표준과 성능 프리셋 형식 점검
             {
                 return false; // 복원할 수 없는 저장 ID
             }
@@ -176,7 +193,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 element = parts[1], shape = parts[2], formation = parts[3], trajectory = parts[4], // 발사체 구성
                 fireMode = parts[5], origin = parts[6], aim = parts[7], trigger = parts[8], // 생성과 발동 방식
                 firstEffect = parts[9], secondEffect = parts[10], // 고정 정렬된 특수 효과
-                initialShots = shots, splitChildren = children, splitDepth = depth // 양과 분열
+                initialShots = shots, splitChildren = children, splitDepth = depth, // 양과 분열
+                performance = parts.Length == 15 ? parts[14] : "standard" // 이전 저장은 표준 성능
             };
             if (Compose(selection, out CraftedSpellRecipe candidate) != CraftedSpellIssue.None || candidate.Id != id) // 복원 시에도 본래 구성 규칙과 정규 형식 검사
             {

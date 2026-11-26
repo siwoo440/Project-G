@@ -48,6 +48,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
         private readonly List<FlightBroomPart> stock = new List<FlightBroomPart>(); // 지금 마을에 표시할 실제 재고
         private FlightBroomPilot selected; // 현재 변경을 적용할 조종사
         private int slot; // 공방에서 고른 장착 부위
+        private FlightCraftedResearchPanel researchPanel; // 공방에서 열 수 있는 공용 마법 연구
         public bool IsOpen => modal.activeSelf; // 뒤의 마을 조작을 잠그는 시설의 실제 표시
 
         private void Start() // 에디터에 배치한 시설 UI를 버튼과 연결
@@ -67,6 +68,8 @@ namespace ProjectG // 프로젝트 하늘섬 시설
             enhance.onClick.AddListener(Enhance); // 실제 공방 작업
             openGrowth.onClick.AddListener(ShowGrowth); // 같은 건물에서 성장 관리
             closeGrowth.onClick.AddListener(ShowForge); // 기존 강화 화면 복귀
+            researchPanel = forge.AddComponent<FlightCraftedResearchPanel>(); // 공방과 같은 화면의 공용 연구
+            researchPanel.Initialize(openGrowth, title.font, Refresh, modal.transform, new Vector2(-290f, -133f)); // 기존 공방 버튼과 전체 연구 화면 연결
             for (int i = 0; i < stockButtons.Length; i++) // 배치한 실제 매대마다 구매 연결
             {
                 int index = i; // 이 줄의 구체적인 목록 위치
@@ -96,6 +99,7 @@ namespace ProjectG // 프로젝트 하늘섬 시설
 
         internal void Close() // 마을의 시설 앞에 그대로 돌아가기
         {
+            researchPanel?.Hide(); // 연구 확인 상태까지 닫고 시설 복귀
             modal.SetActive(false); // 장비와 공방 UI만 닫기
         }
 

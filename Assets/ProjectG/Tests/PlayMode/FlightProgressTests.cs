@@ -87,6 +87,37 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
             }
         }
 
+        [Test] // 반복 포기와 클리어의 기본 재화 비교
+        public void RepeatedAbandonAndClearKeepTheirDocumentedBaseRewards() // 보상량과 숙련 경계 관찰
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 정산 저장소
+            Type pilotType = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 열거형
+            object aria = Enum.Parse(pilotType, "Aria"); // 동일 조종사의 기본 보상
+            using (var abandoned = (IDisposable)Activator.CreateInstance(type, new object[] { null })) // 디스크와 분리한 실패 프로필
+            using (var cleared = (IDisposable)Activator.CreateInstance(type, new object[] { null })) // 디스크와 분리한 성공 프로필
+            {
+                for (int i = 0; i < 6; i++) // 첫 웨이브 이후 포기 여섯 번
+                {
+                    string run = (string)Call(type, abandoned, "Begin", aria); // 실제 참여 식별자
+                    Assert.That(Call(type, abandoned, "Complete", run, false), Is.Not.Null); // 실패 기본분 정산
+                    Assert.That(Call(type, abandoned, "Complete", run, false), Is.Not.Null); // 같은 영수증 재요청
+                }
+                for (int i = 0; i < 3; i++) // 기본 보상 클리어 세 번
+                {
+                    string run = (string)Call(type, cleared, "Begin", aria); // 별도 참여 식별자
+                    Assert.That(Call(type, cleared, "Complete", run, true), Is.Not.Null); // 성공 기본분 정산
+                }
+                Assert.That(Crystals(type, abandoned), Is.EqualTo(18)); // 실패 여섯 번의 천공 결정
+                Assert.That(type.GetProperty("Gold").GetValue(abandoned), Is.EqualTo(900)); // 실패 여섯 번의 골드
+                Assert.That(Call(type, abandoned, "GetMastery", aria), Is.EqualTo(60)); // 실패 누적 숙련도
+                Assert.That(Call(type, abandoned, "GetMarks", aria), Is.EqualTo(1)); // 실패 숙련 경계의 증표
+                Assert.That(Crystals(type, cleared), Is.EqualTo(18)); // 성공 세 번의 천공 결정
+                Assert.That(type.GetProperty("Gold").GetValue(cleared), Is.EqualTo(1800)); // 성공 세 번의 골드
+                Assert.That(Call(type, cleared, "GetMastery", aria), Is.EqualTo(60)); // 성공 누적 숙련도
+                Assert.That(Call(type, cleared, "GetMarks", aria), Is.EqualTo(1)); // 성공 숙련 경계의 증표
+            }
+        }
+
         [Test] // 재실행과 같은 영수증 재요청
         public void SettlementPersistsExactlyOnceAcrossStoreInstances() // 성공·실패·복구와 조종사 분리
         {

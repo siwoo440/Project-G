@@ -1505,6 +1505,116 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(Time.timeScale, Is.EqualTo(1f)); // 실제 전투 시간 복귀
         }
 
+        [UnityTest] // 실제 본편의 빠른 포기와 재출격
+        public IEnumerator EarlyAbandonPaysOnlyAfterFirstWaveAndCanRepeat() // 참여 시작 경계와 재화 관찰
+        {
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 독립 시험 상태 접근
+            System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 본편 정산의 공유 프로필
+            var current = progressType.GetField("current", hidden); // 실제 정산 프로필 참조
+            object previous = current.GetValue(null); // 다른 시험의 프로필 보존
+            System.Type storeType = System.Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 정산 저장소
+            var isolated = (System.IDisposable)System.Activator.CreateInstance(storeType, new object[] { null }); // 디스크와 분리한 시험 프로필
+            System.Type choiceType = System.Type.GetType("ProjectG.FlightSortieChoice, Assembly-CSharp", true); // 씬 사이의 출격 선택
+            var mode = choiceType.GetField("<PendingMode>k__BackingField", hidden); // 진입할 본편 모드
+            var pending = choiceType.GetField("pending", hidden); // 이전 조종사 출격 요청
+            object oldMode = mode.GetValue(null); // 이전 모드 보존
+            object oldPending = pending.GetValue(null); // 이전 출격 요청 보존
+            current.SetValue(null, isolated); // 실제 씬에 독립 프로필 연결
+            mode.SetValue(null, System.Enum.Parse(mode.FieldType, "Story")); // 본편 항로 선택
+            pending.SetValue(null, null); // 기본 조종사의 실제 출격
+            try // 사용자 저장을 사용하지 않는 실제 UI 시험
+            {
+                yield return LoadOuterIslands(); // 배포 본편 항로
+                Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 첫 웨이브의 실제 시간
+                for (int attempt = 0; attempt < 3; attempt++) // 참여 전 1회와 참여 후 2회
+                {
+                    if (attempt > 0) // 첫 웨이브가 시작된 출격
+                    {
+                        yield return AdvanceStageTo(encounter, 3.05f); // 편집된 첫 웨이브 3초 통과
+                        Assert.That(Metric(encounter, "WaveNumber"), Is.GreaterThan(0)); // 실제 참여 기록 시작
+                    }
+                    else // 아직 첫 웨이브가 없는 출격
+                    {
+                        Assert.That(Metric(encounter, "WaveNumber"), Is.Zero); // 참여 전 상태
+                    }
+                    Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 실제 일시정지 UI
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 정지 메뉴 열기
+                    yield return WaitFrames(4); // 정지 UI 반영
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 다음 정지에 앞서 키 해제
+                    ClickPauseButton(pause, "MenuButtons/Abandon"); // 실제 포기 버튼
+                    ClickPauseButton(pause, "Confirm/Accept"); // 실제 포기 확정
+                    Assert.That(storeType.GetProperty("SharedCrystals").GetValue(isolated), Is.EqualTo(attempt * 3)); // 참여 뒤 3개씩 지급
+                    Assert.That(storeType.GetProperty("Gold").GetValue(isolated), Is.EqualTo(attempt * 150)); // 참여 뒤 150골드씩 지급
+                    ClickPauseButton(pause, "MenuButtons/Restart"); // 실제 같은 항로 재출격
+                    yield return WaitFrames(4); // 새 출격 초기화
+                }
+            }
+            finally // 다른 시험의 기존 상태 복원
+            {
+                Time.timeScale = 1f; // 실패 시에도 전투 시간 복구
+                current.SetValue(null, previous); // 원래 공유 프로필 복원
+                isolated.Dispose(); // 독립 메모리 프로필 해제
+                mode.SetValue(null, oldMode); // 이전 출격 모드 복원
+                pending.SetValue(null, oldPending); // 이전 조종사 요청 복원
+            }
+        }
+
+        [UnityTest] // 실제 카드 후보와 등급별 추첨 실측
+        public IEnumerator CardRarityWeightsRenormalizeWhenTiersAreAbsent() // 75:20:5와 남은 등급 재계산
+        {
+            yield return LoadFlight(); // 실제 후보와 레벨업 씬
+            Component choices = LocateCombatHud().GetComponent("FlightUpgradeChoices"); // 실제 카드 선택기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 후보와 추첨 접근
+            var collect = choices.GetType().GetMethod("CollectCandidates", hidden); // 실제 유효 후보 생성
+            var pick = choices.GetType().GetMethod("PickCandidate", hidden); // 실제 등급 추첨
+            var candidates = (IList)choices.GetType().GetField("candidates", hidden).GetValue(choices); // 현재 유효 후보
+            UnityEngine.Random.State previous = UnityEngine.Random.state; // 다른 시험의 무작위 상태 보존
+            try // 고정 시드의 반복 추첨
+            {
+                for (int scenario = 0; scenario < 3; scenario++) // 전체·희귀 제외·일반 제외
+                {
+                    collect.Invoke(choices, null); // 실제 조건으로 후보 재구성
+                    for (int i = candidates.Count - 1; i >= 0; i--) // 해당 등급의 부재 재현
+                    {
+                        int tier = (int)candidates[i].GetType().GetField("rarity").GetValue(candidates[i]); // 후보의 실제 등급
+                        if ((scenario == 1 && tier == 1) || (scenario == 2 && tier == 0)) // 제외할 등급
+                        {
+                            candidates.RemoveAt(i); // 선택 조건에 없는 후보 제거
+                        }
+                    }
+                    UnityEngine.Random.InitState(6500 + scenario); // 재현 가능한 고정 시드
+                    int[] counts = new int[3]; // 각 등급의 선택 횟수
+                    for (int i = 0; i < 5000; i++) // 첫 카드 추첨 반복
+                    {
+                        int index = (int)pick.Invoke(choices, null); // 실제 가중치 추첨 결과
+                        int tier = (int)candidates[index].GetType().GetField("rarity").GetValue(candidates[index]); // 선택한 카드 등급
+                        counts[tier]++; // 관찰 횟수 누적
+                    }
+                    Debug.Log($"65일차 카드 추첨 {scenario}: {counts[0]}/{counts[1]}/{counts[2]}"); // 실제 표본 기록
+                    if (scenario == 0) // 모든 등급이 있는 경우
+                    {
+                        Assert.That(counts[0], Is.InRange(3600, 3900)); // 일반 약 75%
+                        Assert.That(counts[1], Is.InRange(850, 1150)); // 희귀 약 20%
+                        Assert.That(counts[2], Is.InRange(175, 325)); // 영웅 약 5%
+                    }
+                    else if (scenario == 1) // 희귀 후보가 없는 경우
+                    {
+                        Assert.That(counts[1], Is.Zero); // 없는 등급 미선택
+                        Assert.That(counts[2], Is.InRange(240, 390)); // 영웅 5/80 재계산
+                    }
+                    else // 일반 후보가 없는 경우
+                    {
+                        Assert.That(counts[0], Is.Zero); // 없는 등급 미선택
+                        Assert.That(counts[2], Is.InRange(850, 1150)); // 영웅 5/25 재계산
+                    }
+                }
+            }
+            finally // 다른 시험의 무작위 상태 복원
+            {
+                UnityEngine.Random.state = previous; // 원래 무작위 상태
+            }
+        }
+
         [UnityTest] // 최대 단계와 후보 부족, E 교체 확인
         public IEnumerator LevelUpChoicesReplaceGuardAndFillMissingCandidates() // 대체 세 장과 원래 효과 해제
         {

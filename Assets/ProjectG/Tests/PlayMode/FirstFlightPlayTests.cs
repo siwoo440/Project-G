@@ -5050,6 +5050,185 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 제작 해금과 개별 분해의 영구 저장
+        public IEnumerator BroomCraftingUnlocksLowerGradesAndProtectsLockedItems() // 확정 제작·재화·분해 제한
+        {
+            yield return LoadOuterIslands(); // 실제 세트 부품이 연결된 씬
+            Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 실제 카탈로그 참조
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 영구 저장 경로
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 여든 종류의 카탈로그
+            System.Type storeType = equipment.GetType().Assembly.GetType("ProjectG.FlightProgressStore"); // 공용 재화와 부품 저장소
+            System.Type pilotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 출격 조종사 유형
+            object aria = System.Enum.Parse(pilotType, "Aria"); // 참여할 실제 캐릭터
+            string path = System.IO.Path.Combine(Application.temporaryCachePath, "projectg-craft-" + System.Guid.NewGuid().ToString("N") + ".json"); // 독립 검증용 저장 경로
+            System.IDisposable storage = null; // 저장 잠금의 안전한 해제
+            try // 지급·제작·분해와 재실행의 실제 저장
+            {
+                storage = (System.IDisposable)System.Activator.CreateInstance(storeType, new object[] { path }); // 고유한 실제 저장 파일
+                string run = (string)storeType.GetMethod("Begin").Invoke(storage, new[] { aria }); // 정상 출격 참여 기록
+                object receipt = storeType.GetMethod("CompleteWithBroomRewards", hidden).Invoke(storage, new[] { (object)run, true, false, 20, 0, false, false, false, catalog, "test.stage" }); // 세트 부품 한 개 획득
+                object reward = ((System.Array)receipt.GetType().GetField("BroomRewards").GetValue(receipt)).GetValue(0); // 실제 추첨한 개별 부품
+                string definition = (string)reward.GetType().GetField("DefinitionId").GetValue(reward); // 획득한 실제 종류
+                int grade = (int)reward.GetType().GetField("Grade").GetValue(reward); // 획득한 실제 등급
+                var hasRecipe = storeType.GetMethod("HasBroomRecipe", hidden); // 획득 이력에 따른 제작 자격
+                for (int level = 1; level <= 5; level++) // 일반부터 전설까지 해금 경계
+                {
+                    Assert.That(hasRecipe.Invoke(storage, new object[] { definition, level }), Is.EqualTo(level <= grade)); // 획득 등급과 모든 하위 등급만 해금
+                }
+                Assert.That(hasRecipe.Invoke(storage, new object[] { "missing", 1 }), Is.False); // 얻지 않은 다른 종류 차단
+                var craft = storeType.GetMethod("CraftBroom", hidden); // 비용과 보유를 함께 저장하는 확정 제작
+                Assert.That(craft.Invoke(storage, new object[] { catalog, definition, 1 }), Is.Not.Null); // 클리어 1회 재화로 일반 부품 제작
+                Assert.That(storeType.GetProperty("SharedCrystals").GetValue(storage), Is.EqualTo(0)); // 일반 제작 결정 여섯 개 차감
+                Assert.That(storeType.GetProperty("Gold").GetValue(storage), Is.EqualTo(0)); // 일반 제작 골드 600 차감
+                Assert.That(craft.Invoke(storage, new object[] { catalog, definition, 1 }), Is.Null); // 재화 부족 시 추가 제작 금지
+                var inventory = (System.Array)storeType.GetMethod("RewardBrooms", hidden).Invoke(storage, null); // 획득과 제작을 포함한 개별 보유
+                string craftedId = (string)inventory.GetValue(1).GetType().GetField("Id").GetValue(inventory.GetValue(1)); // 새 제작 부품의 고유 ID
+                var lockItem = storeType.GetMethod("SetBroomLock", hidden); // 개별 부품의 영구 잠금
+                var dismantle = storeType.GetMethod("DismantleBroom", hidden); // 원자적인 개별 분해와 반환
+                Assert.That(dismantle.Invoke(storage, new object[] { craftedId, true }), Is.False); // 장착 중 분해 금지
+                Assert.That(lockItem.Invoke(storage, new object[] { craftedId, true }), Is.True); // 제작 사본 잠금 저장
+                Assert.That(dismantle.Invoke(storage, new object[] { craftedId, false }), Is.False); // 잠금 부품 분해 금지
+                Assert.That(lockItem.Invoke(storage, new object[] { craftedId, false }), Is.True); // 실제 잠금 해제
+                Assert.That(dismantle.Invoke(storage, new object[] { craftedId, false }), Is.True); // 미장착 개별 부품 분해
+                Assert.That(storeType.GetProperty("SharedCrystals").GetValue(storage), Is.EqualTo(3)); // 기준 제작 결정의 절반 반환
+                Assert.That(storeType.GetProperty("Gold").GetValue(storage), Is.EqualTo(300)); // 기준 제작 골드의 절반 반환
+                Assert.That(dismantle.Invoke(storage, new object[] { craftedId, false }), Is.False); // 같은 개별 부품의 중복 분해 금지
+                storage.Dispose(); // 저장 파일의 독점 잠금 반환
+                storage = (System.IDisposable)System.Activator.CreateInstance(storeType, new object[] { path }); // 실제 파일의 재실행 복원
+                Assert.That(hasRecipe.Invoke(storage, new object[] { definition, 1 }), Is.True); // 보유 수량과 독립된 제작법 영구 유지
+                Assert.That(((System.Array)storeType.GetMethod("RewardBrooms", hidden).Invoke(storage, null)).Length, Is.EqualTo(1)); // 분해한 사본만 제거
+                Assert.That(storeType.GetProperty("Gold").GetValue(storage), Is.EqualTo(300)); // 반환 재화의 실제 파일 복원
+            }
+            finally // 독립 시험이 만든 파일만 정리
+            {
+                storage?.Dispose(); // 이 시험의 파일 잠금 반환
+                foreach (string suffix in new[] { string.Empty, ".bak", ".tmp", ".lock" }) // 고유 시험 경로의 파일
+                {
+                    string file = path + suffix; // 해당 시험의 실제 경로
+                    if (System.IO.File.Exists(file)) // 생성한 파일이 있는 경우
+                    {
+                        System.IO.File.Delete(file); // 다른 저장을 건드리지 않는 정리
+                    }
+                }
+            }
+        }
+
+        [UnityTest] // 이전 시험 부품의 제작법과 개별 보유 호환
+        public IEnumerator LegacySetBroomsKeepRecipesAndDismantleIndividually() // 기존 ID·잠금·장착 보호
+        {
+            System.Type progress = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 게임이 공유하는 영구 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 독립 시험의 프로필 초기화
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 공방의 실제 장비 작업
+            progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이전 시험의 메모리 자산 분리
+            try // 이전 버전에서 이미 보유한 세트 사본
+            {
+                yield return LoadOuterIslands(); // 실제 빗자루와 기존 두 사본 복원
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 실제 조합과 공용 인벤토리
+                var canCraft = equipment.GetType().GetMethod("CanCraft", hidden); // 기존 획득까지 반영한 제작법
+                var locked = equipment.GetType().GetMethod("SetItemLocked", hidden); // 개별 사본의 저장 잠금
+                var dismantle = equipment.GetType().GetMethod("DismantleItem", hidden); // 장착과 시작 부품을 검사하는 분해
+                Assert.That(canCraft.Invoke(equipment, new object[] { "trial.storm-body", 5 }), Is.True); // 기존 전설 보유의 모든 제작법 해금
+                Assert.That(locked.Invoke(equipment, new object[] { "trial.storm-body:1", true }), Is.True); // 기존 개별 사본 잠금
+                Assert.That(dismantle.Invoke(equipment, new object[] { "trial.storm-body:1" }), Is.False); // 잠금한 기존 사본 보호
+                Assert.That(locked.Invoke(equipment, new object[] { "trial.storm-body:1", false }), Is.True); // 정확한 기존 사본 잠금 해제
+                Assert.That(dismantle.Invoke(equipment, new object[] { "trial.storm-body:1" }), Is.True); // 미장착 기존 세트 사본 분해
+                Assert.That(equipment.GetType().GetMethod("IsOwned", hidden).Invoke(equipment, new object[] { "trial.storm-body:2" }), Is.True); // 같은 종류의 다른 사본 보존
+                yield return LoadOuterIslands(); // 같은 프로필로 다음 출격 복원
+                equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 새 씬의 실제 장비
+                Assert.That(equipment.GetType().GetMethod("IsOwned", hidden).Invoke(equipment, new object[] { "trial.storm-body:1" }), Is.False); // 분해한 기존 ID의 재생성 방지
+                Assert.That(equipment.GetType().GetMethod("IsOwned", hidden).Invoke(equipment, new object[] { "trial.storm-body:2" }), Is.True); // 분해하지 않은 사본의 복원
+                Assert.That(canCraft.Invoke(equipment, new object[] { "trial.storm-body", 5 }), Is.True); // 보유 여부와 독립된 기존 제작법 유지
+            }
+            finally // 다른 자동 시험의 프로필 보호
+            {
+                progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이 시험의 메모리 자산만 정리
+            }
+        }
+
+        [UnityTest] // 기존 상점 부품과 제작·분해 호환
+        public IEnumerator PurchasedShopBroomUnlocksRecipeAndCanBeRepurchased() // 구입·분해·재구입의 실제 저장
+        {
+            System.Type progress = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 게임이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리 프로필 초기화
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 공방과 상점의 내부 동작
+            progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 기존 시험의 메모리 자산 분리
+            try // 기존 상점 상품의 전체 거래 흐름
+            {
+                yield return LoadOuterIslands(); // 실제 카탈로그와 공용 장비
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 실제 상점과 같은 인벤토리
+                object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 기존 상품을 포함한 카탈로그
+                object definition = catalog.GetType().GetMethod("Find", hidden).Invoke(catalog, new object[] { "shop.harbor-grip" }); // 원래 상점의 일반 손잡이
+                object store = progress.GetProperty("Current", hiddenStatic).GetValue(null); // 사용자 파일과 분리된 저장
+                object state = store.GetType().GetField("state", hidden).GetValue(store); // 독립 시험의 메모리 재화
+                state.GetType().GetField("gold").SetValue(state, 3000); // 구입과 재구입에 필요한 골드
+                var purchase = equipment.GetType().GetMethod("Purchase", hidden); // 기존 마을 상점의 실제 구매
+                var canCraft = equipment.GetType().GetMethod("CanCraft", hidden); // 획득한 종류의 제작법
+                var dismantle = equipment.GetType().GetMethod("DismantleItem", hidden); // 공방의 실제 개별 분해
+                Assert.That(purchase.Invoke(equipment, new[] { definition }), Is.True); // 기존 상품의 실제 구매
+                Assert.That(canCraft.Invoke(equipment, new object[] { "shop.harbor-grip", 1 }), Is.True); // 구입한 일반 등급의 제작법
+                Assert.That(canCraft.Invoke(equipment, new object[] { "shop.harbor-grip", 2 }), Is.False); // 획득하지 않은 상위 등급 보호
+                Assert.That(dismantle.Invoke(equipment, new object[] { "shop.harbor-grip:1" }), Is.True); // 상점에서 산 미장착 사본 분해
+                yield return LoadOuterIslands(); // 같은 프로필의 다음 출격
+                equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 다시 복원한 인벤토리
+                Assert.That(equipment.GetType().GetMethod("IsOwned", hidden).Invoke(equipment, new object[] { "shop.harbor-grip:1" }), Is.False); // 분해한 기존 상점 사본 재생성 금지
+                Assert.That(canCraft.Invoke(equipment, new object[] { "shop.harbor-grip", 1 }), Is.True); // 사본 분해 후에도 제작법 보존
+                Assert.That(purchase.Invoke(equipment, new[] { definition }), Is.True); // 기존 상점 상품의 정상 재구입
+                yield return LoadOuterIslands(); // 다시 구매한 상태의 새 씬
+                equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 같은 영구 프로필 복원
+                Assert.That(equipment.GetType().GetMethod("IsOwned", hidden).Invoke(equipment, new object[] { "shop.harbor-grip:1" }), Is.True); // 재구입한 정확한 기존 ID 복원
+            }
+            finally // 다른 시험과 사용자 저장 보호
+            {
+                progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이번 검증의 메모리 프로필 정리
+            }
+        }
+
+        [UnityTest] // 모든 등급의 제작비와 보호 조건
+        public IEnumerator BroomCraftingUsesConfirmedPricesAndProtectsEquippedParts() // 등급별 재화와 강화비 미반환
+        {
+            System.Type progress = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 게임이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리 프로필 초기화
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 공방의 실제 장비 작업
+            progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 기존 시험의 메모리 프로필 분리
+            try // 다섯 등급의 제작·강화·분해
+            {
+                yield return LoadOuterIslands(); // 실제 세트 부품과 장착
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 개별 보유를 검사하는 장비
+                object store = progress.GetProperty("Current", hiddenStatic).GetValue(null); // 공용 재화 저장소
+                object state = store.GetType().GetField("state", hidden).GetValue(store); // 이번 시험의 격리 메모리
+                state.GetType().GetField("crystals").SetValue(state, 200); // 모든 등급을 검증할 시험 결정
+                state.GetType().GetField("gold").SetValue(state, 30000); // 모든 등급을 검증할 시험 골드
+                var craft = equipment.GetType().GetMethod("CraftItem", hidden); // 실제 공방의 확정 제작
+                var dismantle = equipment.GetType().GetMethod("DismantleItem", hidden); // 실제 장착 검사를 포함한 분해
+                int[] crystals = { 6, 10, 16, 24, 36 }; // 기획서의 등급별 결정 제작비
+                int[] gold = { 600, 1200, 2000, 3000, 4500 }; // 기획서의 등급별 골드 제작비
+                object pilot = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 장착할 조종사
+                object body = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"), "Body"); // 같은 종류의 몸체 슬롯
+                string starter = (string)equipment.GetType().GetMethod("GetEquippedId").Invoke(equipment, new[] { pilot, body }); // 실제 아리아 시작 몸체
+                Assert.That(dismantle.Invoke(equipment, new object[] { starter }), Is.False); // 캐릭터 시작 부품 분해 금지
+                for (int grade = 1; grade <= 5; grade++) // 일반부터 전설까지 각 한 개
+                {
+                    int beforeCrystal = (int)store.GetType().GetProperty("SharedCrystals").GetValue(store); // 제작 전 실제 결정
+                    int beforeGold = (int)store.GetType().GetProperty("Gold").GetValue(store); // 제작 전 실제 골드
+                    string id = (string)craft.Invoke(equipment, new object[] { "trial.storm-body", grade }); // 기존 전설 보유로 열린 등급 제작
+                    Assert.That(id, Is.Not.Null); // 해당 등급의 확정 제작 성공
+                    Assert.That(store.GetType().GetProperty("SharedCrystals").GetValue(store), Is.EqualTo(beforeCrystal - crystals[grade - 1])); // 해당 등급의 정확한 결정 차감
+                    Assert.That(store.GetType().GetProperty("Gold").GetValue(store), Is.EqualTo(beforeGold - gold[grade - 1])); // 해당 등급의 정확한 골드 차감
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { pilot, body, id }), Is.True); // 제작한 실제 사본 장착
+                    Assert.That(dismantle.Invoke(equipment, new object[] { id }), Is.False); // 장착 중인 모든 등급의 분해 금지
+                    Assert.That(equipment.GetType().GetMethod("Unequip").Invoke(equipment, new[] { pilot, body }), Is.True); // 확인을 위한 실제 장착 해제
+                    Assert.That(store.GetType().GetMethod("UpgradeBroomPart", hidden).Invoke(store, new object[] { id, 0 }), Is.True); // 분해 전 +1 강화 비용 차감
+                    Assert.That(dismantle.Invoke(equipment, new object[] { id }), Is.True); // 해당 미장착 사본 분해
+                    Assert.That(store.GetType().GetProperty("SharedCrystals").GetValue(store), Is.EqualTo(beforeCrystal - crystals[grade - 1] - 3 + crystals[grade - 1] / 2)); // 기준 제작비 절반만 반환
+                    Assert.That(store.GetType().GetProperty("Gold").GetValue(store), Is.EqualTo(beforeGold - gold[grade - 1] - 300 + gold[grade - 1] / 2)); // 강화에 쓴 골드는 반환하지 않음
+                }
+            }
+            finally // 다른 자동 시험의 프로필 정리
+            {
+                progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 사용자 파일과 분리된 메모리 상태 초기화
+            }
+        }
+
         [UnityTest] // 10개 세트와 56개 시작 부품의 실제 카탈로그
         public IEnumerator BroomCatalogContainsEightySetPartsAndPreservesStarterIds() // 기획 명칭·부위·등급 수치와 기존 저장
         {
@@ -5394,6 +5573,144 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             yield return WaitForActiveScene("Assets/Scenes/FlightSortieBriefing.unity"); // 같은 실제 준비 메뉴
             Transform restored = GameObject.Find("SortieBriefing").transform; // 새로 열린 조종사 정보
             Assert.That(restored.Find("Ready/Portrait").GetComponent<RawImage>().texture.name, Is.EqualTo("LumiStanding")); // 연습에서 선택한 캐릭터 복원
+        }
+
+        [UnityTest] // 마을 공방의 일곱 캐릭터 초상화 원본 품질
+        public IEnumerator VillagePortraitsKeepSourceResolutionWithSharpMipmaps() // 실제 UI 이미지의 크기와 필터
+        {
+            yield return SceneManager.LoadSceneAsync("FlightIslandVillage"); // 실제 상점과 공방의 캐릭터 버튼
+            yield return WaitFrames(5); // 시설과 이미지 초기화
+            Component facilities = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightVillageFacilities, Assembly-CSharp", true)) as Component; // 실제 마을 시설
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 씬에 연결한 캐릭터 버튼
+            string[] actors = { "aria", "rian", "lumi", "sera", "nox", "vera", "iris" }; // 실제 일곱 캐릭터 버튼
+            foreach (string actor in actors) // 화면에 사용하는 각 초상화
+            {
+                Button button = (Button)facilities.GetType().GetField(actor, hidden).GetValue(facilities); // 캐릭터의 실제 선택 버튼
+                Texture2D portrait = button.transform.Find("Portrait").GetComponent<RawImage>().texture as Texture2D; // 버튼에 연결된 투명 초상화
+                Assert.That(portrait, Is.Not.Null); // 실제 캐릭터 이미지 연결
+                Assert.That(portrait.width, Is.EqualTo(1254), actor); // 원본 가로 해상도 보존
+                Assert.That(portrait.height, Is.EqualTo(1254), actor); // 원본 세로 해상도 보존
+                Assert.That(portrait.mipmapCount, Is.GreaterThan(1), actor); // 작은 초상화의 축소 계단 현상 방지
+                Assert.That(portrait.filterMode, Is.EqualTo(FilterMode.Trilinear), actor); // 축소 단계의 부드러운 보간
+                Assert.That(portrait.mipMapBias, Is.EqualTo(-0.5f).Within(0.01f), actor); // 원본 세부를 유지할 선명도 조정
+            }
+        }
+
+        [UnityTest] // 마을 공방과 출격 준비의 보유 재화 배치
+        public IEnumerator WalletsStayAtUpperRightWithoutOverlappingControls() // 두 재화의 실제 화면 위치
+        {
+            yield return SceneManager.LoadSceneAsync("FlightIslandVillage"); // 상점과 공방이 공유하는 실제 마을
+            yield return WaitFrames(5); // 시설과 씬 UI 초기화
+            Component facilities = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightVillageFacilities, Assembly-CSharp", true)) as Component; // 상점과 공방의 실제 패널
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 씬에 연결된 재화 참조
+            facilities.GetType().GetMethod("Open", hidden).Invoke(facilities, new object[] { false }); // 실제 강화 공방 열기
+            Canvas.ForceUpdateCanvases(); // 레이아웃 계산 후 실제 모서리 확인
+            var crystals = (Component)facilities.GetType().GetField("walletCrystals", hidden).GetValue(facilities); // 결정 보유량 묶음
+            var gold = (Component)facilities.GetType().GetField("walletGold", hidden).GetValue(facilities); // 골드 보유량 묶음
+            var frame = (RectTransform)crystals.transform.parent; // 상점과 공방이 공유하는 외곽 패널
+            var a = new Vector3[4]; // 결정의 실제 UI 모서리
+            var b = new Vector3[4]; // 골드의 실제 UI 모서리
+            var bounds = new Vector3[4]; // 외곽 패널의 실제 UI 모서리
+            ((RectTransform)crystals.transform).GetWorldCorners(a); // 결정 표시의 표시 영역
+            ((RectTransform)gold.transform).GetWorldCorners(b); // 골드 표시의 표시 영역
+            frame.GetWorldCorners(bounds); // 공방 외곽의 표시 영역
+            Assert.That(a[0].x, Is.GreaterThan((bounds[0].x + bounds[2].x) / 2f)); // 두 재화를 패널 오른쪽에 배치
+            Assert.That(a[0].y, Is.GreaterThan(bounds[0].y + (bounds[2].y - bounds[0].y) * 0.8f)); // 이미지에서 지정한 위쪽 영역
+            Assert.That(b[2].x, Is.LessThanOrEqualTo(bounds[2].x)); // 골드가 패널 오른쪽 밖으로 나가지 않음
+            Assert.That(a[2].x, Is.LessThanOrEqualTo(b[0].x)); // 결정과 골드 표시가 겹치지 않음
+            var iconCorners = new Vector3[4]; // 재화 아이콘의 실제 표시 영역
+            var amountCorners = new Vector3[4]; // 긴 숫자의 실제 표시 영역
+            ((RectTransform)gold.transform.Find("Icon")).GetWorldCorners(iconCorners); // 골드 아이콘의 경계
+            Text goldAmount = gold.transform.Find("Amount").GetComponent<Text>(); // 실제 골드 숫자 텍스트
+            goldAmount.rectTransform.GetWorldCorners(amountCorners); // 금액 텍스트의 경계
+            Assert.That(iconCorners[2].x, Is.LessThanOrEqualTo(amountCorners[0].x)); // 골드 아이콘과 숫자가 겹치지 않음
+            Assert.That(amountCorners[2].x, Is.LessThanOrEqualTo(bounds[2].x)); // 긴 금액이 패널 바깥으로 나가지 않음
+            Assert.That(goldAmount.resizeTextForBestFit, Is.True); // 여러 자리 숫자의 자동 크기 조정
+            Texture2D goldIcon = gold.transform.Find("Icon").GetComponent<RawImage>().texture as Texture2D; // 실제 화면의 골드 원본 그림
+            Texture2D crystalIcon = crystals.transform.Find("Icon").GetComponent<RawImage>().texture as Texture2D; // 실제 화면의 결정 원본 그림
+            Assert.That(goldIcon.width, Is.EqualTo(548)); // 상점 아이콘의 원본 해상도 보존
+            Assert.That(crystalIcon.width, Is.EqualTo(1254)); // 결정 아이콘의 원본 해상도 보존
+            facilities.GetType().GetMethod("Open", hidden).Invoke(facilities, new object[] { true }); // 같은 지갑을 쓰는 장비 상점
+            Assert.That(crystals.gameObject.activeInHierarchy && gold.gameObject.activeInHierarchy, Is.True); // 두 시설 모두 같은 재화 위치 사용
+            yield return SceneManager.LoadSceneAsync("FlightSortieBriefing"); // 출격 준비의 별도 보유 재화
+            yield return WaitFrames(4); // 실제 화면 초기화
+            Canvas.ForceUpdateCanvases(); // 표시할 위치 계산
+            Transform ready = GameObject.Find("SortieBriefing").transform.Find("Ready"); // 실제 출격 준비 UI
+            var briefingCrystals = (RectTransform)ready.Find("Crystals"); // 출격 준비의 결정
+            var briefingGold = (RectTransform)ready.Find("Gold"); // 출격 준비의 골드
+            Assert.That(briefingCrystals.anchoredPosition.x, Is.GreaterThan(0f)); // 화면 오른쪽의 실제 재화
+            Assert.That(briefingCrystals.anchoredPosition.y, Is.GreaterThan(300f)); // 비어 있는 오른쪽 위 영역
+            Assert.That(briefingCrystals.anchoredPosition.x + briefingCrystals.rect.width / 2f, Is.LessThanOrEqualTo(briefingGold.anchoredPosition.x - briefingGold.rect.width / 2f)); // 두 재화의 표시 영역 분리
+        }
+
+        [UnityTest] // 마을 공방의 실제 제작과 분해 화면
+        public IEnumerator VillageBroomCraftPanelCreatesLocksAndDismantles() // 실제 버튼의 비용·잠금·확인
+        {
+            System.Type progress = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 실제 공용 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 독립 검증 프로필 초기화
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 시설 열기
+            progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 시험의 임시 재화 분리
+            try // 마을 공방의 실제 거래 흐름
+            {
+                yield return SceneManager.LoadSceneAsync("FlightIslandVillage"); // 실제 배포 마을
+                yield return WaitFrames(5); // 시설과 버튼의 초기화
+                object store = progress.GetProperty("Current", hiddenStatic).GetValue(null); // 실제 공용 저장
+                object state = store.GetType().GetField("state", hidden).GetValue(store); // 독립 시험의 메모리 재화
+                state.GetType().GetField("crystals").SetValue(state, 36); // 제작 가능한 시험 결정
+                state.GetType().GetField("gold").SetValue(state, 4500); // 제작 가능한 시험 골드
+                Component facilities = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightVillageFacilities, Assembly-CSharp", true)) as Component; // 실제 마을 시설
+                facilities.GetType().GetMethod("Open", hidden).Invoke(facilities, new object[] { false }); // 공방 열기
+                Canvas.ForceUpdateCanvases(); // 실제 시설 버튼의 위치 확정
+                Transform forge = GameObject.Find("Forge").transform; // 현재 표시하는 강화 공방
+                var entryCorners = new Vector3[4]; // 제작 버튼의 실제 화면 영역
+                var growthCorners = new Vector3[4]; // 기존 후속 성장 버튼의 화면 영역
+                ((RectTransform)forge.Find("OpenBroomCraft")).GetWorldCorners(entryCorners); // 새 제작 버튼의 사각형
+                ((RectTransform)((Button)facilities.GetType().GetField("openGrowth", hidden).GetValue(facilities)).transform).GetWorldCorners(growthCorners); // 원래 후속 성장 버튼의 사각형
+                bool overlap = entryCorners[0].x < growthCorners[2].x && entryCorners[2].x > growthCorners[0].x && entryCorners[0].y < growthCorners[2].y && entryCorners[2].y > growthCorners[0].y; // 두 버튼의 실제 겹침 여부
+                Assert.That(overlap, Is.False); // 기존 후속 성장 조작을 가리지 않음
+                ClickPauseButton(GameObject.Find("Forge").transform, "OpenBroomCraft"); // 실제 부품 제작 버튼
+                Transform panel = GameObject.Find("BroomCraftPanel").transform; // 공방의 전체 제작 화면
+                ClickPauseButton(panel, "Row0"); // 기존에 보유한 첫 제작법 선택
+                ClickPauseButton(panel, "Grade1"); // 일반 등급 선택
+                ClickPauseButton(panel, "Craft"); // 실제 비용 확인
+                Transform confirm = panel.Find("Confirm"); // 제작 확인 화면
+                Assert.That(confirm.gameObject.activeSelf, Is.True); // 비용 차감 전 확인
+                ClickPauseButton(confirm, "Accept"); // 확정 제작과 실제 저장
+                Assert.That(((System.Array)store.GetType().GetMethod("RewardBrooms", hidden).Invoke(store, null)).Length, Is.EqualTo(1)); // 개별 제작 사본 영구 보유
+                ClickPauseButton(panel, "InventoryTab"); // 보유 사본의 분해 화면
+                object created = ((System.Array)store.GetType().GetMethod("RewardBrooms", hidden).Invoke(store, null)).GetValue(0); // 실제 제작한 사본의 기록
+                string createdId = (string)created.GetType().GetField("Id").GetValue(created); // 같은 종류와 구분할 실제 ID
+                Component ui = GameObject.Find("Forge").GetComponent("FlightBroomCraftPanel"); // 화면이 표시하는 실제 목록
+                var visibleItems = (System.Collections.IList)ui.GetType().GetField("items", hidden).GetValue(ui); // 모든 개별 보유 사본
+                int index = -1; // 제작 사본의 정확한 전체 위치
+                for (int i = 0; i < visibleItems.Count; i++) // 페이지를 포함한 전체 보유 목록
+                {
+                    if ((string)visibleItems[i].GetType().GetField("Id").GetValue(visibleItems[i]) == createdId) // 제작한 고유 사본과 일치
+                    {
+                        index = i; // 실제 표시할 목록 위치
+                        break; // 중복 없는 ID 검색 종료
+                    }
+                }
+                Assert.That(index, Is.GreaterThanOrEqualTo(0)); // 실제 제작 사본의 목록 포함
+                for (int i = 0; i < index / 8; i++) // 실제 페이지 버튼으로 필요한 만큼 이동
+                {
+                    ClickPauseButton(panel, "Next"); // 다음 개별 사본 페이지
+                }
+                ClickPauseButton(panel, "Row" + index % 8); // 해당 페이지의 정확한 제작 사본 선택
+                ClickPauseButton(panel, "Lock"); // 실제 개별 사본 잠금
+                Assert.That(panel.Find("Dismantle").GetComponent<Button>().interactable, Is.False); // 잠금 중 분해 차단
+                ClickPauseButton(panel, "Lock"); // 같은 사본 잠금 해제
+                ClickPauseButton(panel, "Dismantle"); // 실제 반환량 확인
+                Assert.That(confirm.gameObject.activeSelf, Is.True); // 분해 전 별도 확인
+                ClickPauseButton(confirm, "Accept"); // 해당 개별 사본의 분해
+                Assert.That(((System.Array)store.GetType().GetMethod("RewardBrooms", hidden).Invoke(store, null)).Length, Is.Zero); // 분해한 사본만 제거
+                ClickPauseButton(panel, "Close"); // 원래 마을 공방 복귀
+                Assert.That(panel.gameObject.activeSelf, Is.False); // 제작 화면 닫기
+            }
+            finally // 다른 시험과 사용자 저장 보호
+            {
+                progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이번 메모리 프로필 정리
+            }
         }
 
         [UnityTest] // 마을에서 거리 입력과 선택형 대화, 실제 시설 이용

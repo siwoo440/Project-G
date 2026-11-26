@@ -5,7 +5,7 @@ namespace ProjectG // 프로젝트 제작 마법 영역
 {
     internal static class FlightCraftedUi // 복제한 버튼의 글자 영역 보정
     {
-        internal static void FitLabel(Button button, int maximum = 22) // 버튼 크기에 맞는 한글 문구
+        internal static void FitLabel(Button button, int maximum = 26) // 버튼 크기에 맞는 선명한 한글 문구
         {
             Text label = button.GetComponentInChildren<Text>(); // 실제 표시할 버튼 글자
             RectTransform rect = label.rectTransform; // 복제된 글자의 원래 고정 폭

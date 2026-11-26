@@ -51,6 +51,26 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal readonly struct InventoryItem // 제작·분해 화면의 개별 보유 정보
+        {
+            public readonly string Id; // 같은 종류를 구분하는 실제 보유 ID
+            public readonly FlightBroomPart Definition; // 부품 종류와 보호 여부
+            public readonly int Grade; // 개별 희귀도
+            public readonly int Upgrade; // 개별 강화 단계
+            public readonly int Owner; // 미장착 또는 실제 장착 캐릭터
+            public readonly bool Locked; // 저장된 분해 잠금
+
+            internal InventoryItem(string id, FlightBroomPart definition, int grade, int upgrade, int owner, bool locked) // 사용자에게 표시할 실제 사본
+            {
+                Id = id; // 개별 부품 ID
+                Definition = definition; // 실제 카탈로그의 종류
+                Grade = grade; // 실제 획득 등급
+                Upgrade = upgrade; // 저장된 강화 단계
+                Owner = owner; // 현재 장착 상태
+                Locked = locked; // 영구 잠금 상태
+            }
+        }
+
         private static string SaveKey => Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY") ?? (FlightBindings.UsesPreferences ? LoadoutKey : null); // 실제 설정과 격리 검증 분리
 
         public int OwnedCount => owned.Count; // 전체 보유 부품 수
@@ -71,6 +91,10 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 for (int copy = 1; copy <= definition.ownedCopies; copy++) // 같은 종류의 개별 보유 수량
                 {
+                    if (FlightProgress.Current.IsBroomRemoved($"{definition.id}:{copy}")) // 기존 세트 부품의 실제 분해 기록
+                    {
+                        continue; // 분해한 사본을 다시 만들지 않음
+                    }
                     OwnedPart item = AddOwned(definition, copy); // 보유 ID와 이전 강화 상태 등록
                     if (definition.starter && copy == 1) // 기본 조합에 첫 번째 부품 장착
                     {
@@ -127,6 +151,73 @@ namespace ProjectG // 프로젝트 게임 영역
         }
 
         internal bool IsOwned(string id) => owned.ContainsKey(id); // 실제 장착 가능한 인벤토리 조회
+
+        internal void ListInventory(List<InventoryItem> result) // 모든 캐릭터의 실제 개별 사본
+        {
+            result.Clear(); // 이전 화면의 목록 제거
+            foreach (OwnedPart item in owned.Values) // 현재 공용 인벤토리 순회
+            {
+                result.Add(new InventoryItem(item.Id, item.Definition, item.Grade, item.Upgrade, item.Owner, FlightProgress.Current.IsBroomLocked(item.Id))); // 개별 상태와 영구 잠금 표시
+            }
+            result.Sort((left, right) => string.CompareOrdinal(left.Id, right.Id)); // 새로고침에도 같은 순서 유지
+        }
+
+        internal void ListCraftable(List<FlightBroomPart> result) // 획득 이력으로 제작법이 열린 세트 종류
+        {
+            result.Clear(); // 이전 제작 목록 제거
+            foreach (FlightBroomPart part in catalog.Parts) // 실제 기획된 카탈로그 순회
+            {
+                if (part != null && CanCraft(part.id, 1)) // 일반 등급 이상의 제작법이 열린 종류
+                {
+                    result.Add(part); // 획득한 종류만 선택 가능
+                }
+            }
+        }
+
+        internal bool CanCraft(string definitionId, int grade) // 보유 이력에 따른 종류·등급 제작 자격
+        {
+            FlightBroomPart definition = catalog.Find(definitionId); // 실제 카탈로그의 부품 종류
+            return definition != null && !definition.starter && (!string.IsNullOrEmpty(definition.setId) || definition.stocked) && grade >= 1 && grade <= 5 // 기획된 세트·상점 부품과 유효 등급
+                && (FlightProgress.Current.HasBroomRecipe(definitionId, grade) || (grade <= definition.grade && (definition.ownedCopies > 0 || (definition.stocked && FlightProgress.Current.OwnsBroomPart(definition.id + ":1"))))); // 신규 획득·기존 보유·기존 구매의 해금
+        }
+
+        internal string CraftItem(string definitionId, int grade) // 확정 제작한 부품을 현재 인벤토리에 추가
+        {
+            string id = FlightProgress.Current.CraftBroom(catalog, definitionId, grade); // 해금과 재화를 검사한 원자 저장
+            if (id != null) // 실제 저장에 성공한 경우
+            {
+                AddOwned(catalog.Find(definitionId), id, grade); // 다음 씬 전에도 실제 사본 사용
+            }
+            return id; // 저장한 고유 사본 또는 실패
+        }
+
+        internal bool SetItemLocked(string id, bool locked) // 현재 보유한 개별 부품의 분해 잠금
+        {
+            if (!owned.TryGetValue(id, out OwnedPart item) || item.Definition.starter || (string.IsNullOrEmpty(item.Definition.setId) && !item.Definition.stocked)) // 존재하지 않거나 지원하지 않는 부품
+            {
+                return false; // 다른 아이템의 임의 저장 금지
+            }
+            return (item.Definition.ownedCopies > 0 || item.Definition.stocked) && id.StartsWith(item.Definition.id + ":", StringComparison.Ordinal) // 기존 버전의 원래 사본
+                ? FlightProgress.Current.SetLegacyBroomLock(id, locked) // 기존 ID의 영구 잠금
+                : FlightProgress.Current.SetBroomLock(id, locked); // 새 획득·제작 사본의 잠금
+        }
+
+        internal bool DismantleItem(string id) // 실제 장착 상태를 검사한 개별 분해
+        {
+            if (!owned.TryGetValue(id, out OwnedPart item) || item.Definition.starter || (string.IsNullOrEmpty(item.Definition.setId) && !item.Definition.stocked)) // 시작 부품과 알 수 없는 종류 보호
+            {
+                return false; // 소유와 재화 유지
+            }
+            bool legacy = (item.Definition.ownedCopies > 0 || item.Definition.stocked) && id.StartsWith(item.Definition.id + ":", StringComparison.Ordinal); // 이전 버전에서 지급하거나 구매한 고정 사본
+            bool saved = legacy // 개별 ID의 실제 획득 방식
+                ? FlightProgress.Current.DismantleLegacyBroom(id, item.Definition, item.Grade, item.Owner >= 0) // 고정 사본의 영구 삭제 표시
+                : FlightProgress.Current.DismantleBroom(id, item.Owner >= 0); // 새 사본의 삭제와 반환
+            if (saved) // 디스크 저장이 성공한 경우에만
+            {
+                owned.Remove(id); // 현재 인벤토리에서도 정확한 사본 제거
+            }
+            return saved; // 원자 정산의 실제 결과
+        }
 
         internal bool Purchase(FlightBroomPart definition) // 전용 재고 한 개를 골드로 구입
         {

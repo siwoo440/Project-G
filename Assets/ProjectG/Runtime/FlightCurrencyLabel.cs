@@ -12,6 +12,9 @@ namespace ProjectG // 프로젝트 게임 영역
             gameObject.SetActive(value.HasValue); // 비용이나 보상이 없으면 같은 묶음을 숨김
             if (value.HasValue) // 정산과 비용에서만 편집 가능한 텍스트 변경
             {
+                amount.resizeTextForBestFit = true; // 긴 금액의 표시 영역 자동 맞춤
+                amount.resizeTextMinSize = 12; // 큰 금액에서도 읽을 최소 글자
+                amount.resizeTextMaxSize = amount.fontSize; // 원래 화면의 최대 글자 크기
                 amount.text = isReward ? $"+{value.Value:N0}" : value.Value.ToString("N0"); // 보상은 더하기 기호, 보유량과 가격은 숫자
             }
         }

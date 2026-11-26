@@ -45,6 +45,15 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public int grade; // 실제 획득한 부품의 개별 희귀도
             public string name; // 정산 당시의 기획 부품 이름
             public string source; // 지정 처치의 실제 지급 유형
+            public bool locked; // 분해를 막는 개별 부품 잠금
+            public bool removed; // 원래 지급된 세트 사본의 영구 분해 표시
+        }
+
+        [Serializable] // 부품을 처분해도 유지하는 제작 이력
+        private sealed class BroomRecipe // 세트 부품 종류별 최고 해금 등급
+        {
+            public string id; // 카탈로그의 안정적인 부품 종류
+            public int grade; // 획득한 등급과 하위 등급 해금
         }
 
         [Serializable] // 출격 또는 스테이지 최초 격파의 영구 선택권
@@ -68,12 +77,14 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public FlightProgressReceipt recent; // 마지막 지급의 중복 요청 확인
             public string[] unlocks = { "pilot.aria", "pilot.rian" }; // 기존 출격 선택에서 제공하는 기본 해금
             public BroomProgress[] brooms = Array.Empty<BroomProgress>(); // 시작 부품 이후 추가한 개별 보유와 강화 내역
+            public BroomRecipe[] broomRecipes = Array.Empty<BroomRecipe>(); // 종류별 영구 제작법 해금
             public ResearchReward[] researchRewards = Array.Empty<ResearchReward>(); // 출격·스테이지별 무료 선택권
         }
 
         private const int MarkInterval = 60; // 전용 재료의 시험 숙련도 간격
         private static readonly int[] ShopPrices = { 900, 1800, 3000 }; // 일반·고급·희귀 부품의 기획 상점가
         private static readonly (int Crystals, int Gold)[] ForgePrices = { (3, 300), (4, 450), (5, 600), (7, 800), (9, 1100) }; // +1부터 +5까지 목표 단계 비용
+        private static readonly (int Crystals, int Gold)[] CraftPrices = { (6, 600), (10, 1200), (16, 2000), (24, 3000), (36, 4500) }; // 일반부터 전설까지 확정 제작 비용
         private readonly string path; // 단일 영구 저장 원본
         private FileStream ownership; // 같은 프로필에서 다른 실행의 쓰기 차단
         private bool primaryUnreadable; // 복구용 사본을 그대로 보호할 상태
@@ -122,7 +133,11 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int GetMarks(FlightBroomPilot pilot) => state.pilots[(int)pilot].marks; // 현재 캐릭터 전용 재료
         public bool HasUnlock(string id) => Array.IndexOf(state.unlocks, id) >= 0; // 실제로 저장된 영구 선택지
         internal bool GetCommonFan(FlightBroomPilot pilot) => state.pilots[(int)pilot].commonFan; // 캐릭터별 현재 공용 스킬
-        internal bool OwnsBroomPart(string id) => FindBroom(state, id)?.purchased == true; // 상점에서 산 실제 개별 보유
+        internal bool OwnsBroomPart(string id) // 상점에서 산 실제 개별 보유
+        {
+            BroomProgress item = FindBroom(state, id); // 기존 상점의 개별 사본
+            return item != null && item.purchased && !item.removed; // 분해하지 않은 실제 보유만 인정
+        }
         internal int BroomUpgrade(string id, int initial) => FindBroom(state, id)?.upgrade ?? initial; // 시작 부품과 강화한 부품의 실제 단계
 
         internal FlightBroomReward[] RewardBrooms() // 정산으로 획득한 공용 인벤토리
@@ -136,6 +151,122 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 }
             }
             return result.ToArray(); // 장착 화면이 안전하게 읽을 보유 목록
+        }
+
+        internal static (int Crystals, int Gold) BroomCraftPrice(int grade) // 실제 등급별 기획 제작 비용
+        {
+            return grade >= 1 && grade <= CraftPrices.Length ? CraftPrices[grade - 1] : (0, 0); // 유효하지 않은 등급은 비용 없음
+        }
+
+        internal bool HasBroomRecipe(string definitionId, int grade) // 보유 사본과 독립된 종류별 해금
+        {
+            if (string.IsNullOrEmpty(definitionId) || grade < 1 || grade > 5) // 잘못된 종류 또는 등급
+            {
+                return false; // 임의 제작법 금지
+            }
+            return Array.Exists(state.broomRecipes, value => value.id == definitionId && value.grade >= grade) // 영구 저장한 최고 해금 등급
+                || Array.Exists(state.brooms, value => value.purchased && value.definitionId == definitionId && value.grade >= grade); // 이전 버전에서 이미 획득한 사본 호환
+        }
+
+        private static void UnlockBroomRecipe(Save profile, string definitionId, int grade) // 지급과 제작법을 하나의 저장에 기록
+        {
+            BroomRecipe recipe = Array.Find(profile.broomRecipes, value => value.id == definitionId); // 같은 종류의 기존 영구 이력
+            if (recipe == null) // 처음 획득한 종류
+            {
+                recipe = new BroomRecipe { id = definitionId }; // 새로운 종류의 제작 이력
+                Array.Resize(ref profile.broomRecipes, profile.broomRecipes.Length + 1); // 새 이력 한 칸 확장
+                profile.broomRecipes[profile.broomRecipes.Length - 1] = recipe; // 확정할 종류 등록
+            }
+            recipe.grade = Math.Max(recipe.grade, grade); // 이미 해금된 상위 등급 보존
+        }
+
+        internal string CraftBroom(FlightBroomCatalog catalog, string definitionId, int grade) // 종류와 등급을 고르는 확정 제작
+        {
+            FlightBroomPart definition = catalog != null ? catalog.Find(definitionId) : null; // 실제 카탈로그의 해당 부품
+            (int crystals, int gold) = BroomCraftPrice(grade); // 기획서의 등급별 제작비
+            bool legacyRecipe = definition != null && definition.grade >= grade && (definition.ownedCopies > 0 || (definition.stocked && OwnsBroomPart(definition.id + ":1"))); // 이전 기본 보유와 기존 상점 구매의 해금
+            if (definition == null || definition.starter || (string.IsNullOrEmpty(definition.setId) && !definition.stocked) || (!legacyRecipe && !HasBroomRecipe(definitionId, grade)) || crystals <= 0 || state.crystals < crystals || state.gold < gold) // 종류·해금·공용 재화 검증
+            {
+                return null; // 비용과 인벤토리의 부분 변경 금지
+            }
+            Save next = Copy(); // 기존 파일과 재화를 보존하는 새 스냅샷
+            string id = "craft." + Guid.NewGuid().ToString("N"); // 같은 종류도 구분할 고유 사본 ID
+            BroomProgress item = EnsureBroom(next, id); // 확정 제작할 개별 부품
+            item.purchased = true; // 실제 장착 가능한 영구 소유
+            item.definitionId = definitionId; // 선택한 카탈로그 종류
+            item.grade = grade; // 선택한 해금 등급
+            item.name = definition.displayName; // 실제 부품 이름
+            item.source = "Craft"; // 확정 제작의 획득 출처
+            UnlockBroomRecipe(next, definitionId, grade); // 이전 버전 사본의 제작법도 영구 보존
+            next.crystals -= crystals; // 기획된 결정 비용 차감
+            next.gold -= gold; // 기획된 골드 비용 차감
+            return Write(next) ? id : null; // 비용과 신규 사본을 같은 파일에 확정
+        }
+
+        internal bool SetBroomLock(string id, bool locked) // 개별 보유 사본의 분해 잠금
+        {
+            BroomProgress item = FindBroom(state, id); // 현재 저장의 실제 부품
+            if (item == null || !item.purchased || string.IsNullOrEmpty(item.definitionId)) // 세트 사본이 아닌 부품
+            {
+                return false; // 알 수 없는 ID의 임의 보유 생성 금지
+            }
+            Save next = Copy(); // 기존 잠금 상태를 보존하는 새 저장
+            FindBroom(next, id).locked = locked; // 요청한 사본만 잠금 변경
+            return Write(next); // 실제 잠금의 영구 확정
+        }
+
+        internal bool IsBroomLocked(string id) => FindBroom(state, id)?.locked == true; // 선택 사본의 현재 잠금 상태
+        internal bool IsBroomRemoved(string id) => FindBroom(state, id)?.removed == true; // 이전 버전의 분해한 개별 사본
+
+        internal bool SetLegacyBroomLock(string id, bool locked) // 장비에서 검증한 기존 사본의 잠금
+        {
+            if (string.IsNullOrEmpty(id) || IsBroomRemoved(id)) // 없는 ID 또는 이미 분해한 사본
+            {
+                return false; // 사라진 개체의 임의 잠금 금지
+            }
+            Save next = Copy(); // 기존 강화와 보유 상태를 보존할 스냅샷
+            EnsureBroom(next, id).locked = locked; // 기존 개별 ID의 잠금만 변경
+            return Write(next); // 강화와 함께 같은 파일에 기록
+        }
+
+        internal bool DismantleLegacyBroom(string id, FlightBroomPart definition, int grade, bool equipped) // 이전 버전의 세트 사본 분해
+        {
+            bool legacyOwned = definition != null && (definition.ownedCopies > 0 || (definition.stocked && id == definition.id + ":1" && OwnsBroomPart(id))); // 실제 기존 지급 또는 구매 사본
+            if (equipped || definition == null || definition.starter || (string.IsNullOrEmpty(definition.setId) && !definition.stocked) || !legacyOwned || IsBroomRemoved(id) || IsBroomLocked(id)) // 장착·시작·미보유·잠금 보호
+            {
+                return false; // 기존 보유와 재화 변경 없음
+            }
+            (int crystals, int gold) = BroomCraftPrice(grade); // 보유 등급의 기준 제작비
+            if (crystals <= 0) // 잘못된 희귀도
+            {
+                return false; // 임의 재화 지급 금지
+            }
+            Save next = Copy(); // 삭제 표시와 반환을 함께 기록할 스냅샷
+            EnsureBroom(next, id).removed = true; // 원래 ID의 재생성만 영구 차단
+            UnlockBroomRecipe(next, definition.id, grade); // 마지막 사본 분해 후에도 제작법 유지
+            next.crystals += crystals / 2; // 결정 제작비의 절반 내림
+            next.gold += gold / 2; // 골드 제작비의 절반 내림
+            return Write(next); // 분해 표시와 반환을 원자적으로 저장
+        }
+
+        internal bool DismantleBroom(string id, bool equipped) // 장착되지 않은 개별 세트 사본 분해
+        {
+            BroomProgress item = FindBroom(state, id); // 실제 소유한 개별 사본
+            if (equipped || item == null || !item.purchased || item.locked || string.IsNullOrEmpty(item.definitionId)) // 장착·잠금·시작 부품 보호
+            {
+                return false; // 보유와 재화 변경 없음
+            }
+            (int crystals, int gold) = BroomCraftPrice(item.grade); // 획득 경로와 무관한 기준 제작비
+            if (crystals <= 0) // 손상되거나 존재하지 않는 등급
+            {
+                return false; // 임의 보상 금지
+            }
+            Save next = Copy(); // 사본 제거와 반환을 함께 기록할 스냅샷
+            UnlockBroomRecipe(next, item.definitionId, item.grade); // 마지막 사본의 분해 후에도 제작법 보존
+            next.brooms = Array.FindAll(next.brooms, value => value.id != id); // 분해한 정확한 개별 사본만 제거
+            next.crystals += crystals / 2; // 결정 기준 비용의 절반 내림
+            next.gold += gold / 2; // 골드 기준 비용의 절반 내림
+            return Write(next); // 사본 제거와 두 재화 반환의 원자 저장
         }
         internal bool HasCompletedFirstTask(FlightBroomPilot pilot) => state.pilots[(int)pilot].completedFirstTask; // 각 조종사 최초 과제 정산
 
@@ -372,7 +503,17 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             }
             Save next = Copy(); // 구매 전의 기존 자산 보호
             BroomProgress item = EnsureBroom(next, id); // 같은 종류에서도 실제 개별 보유 식별
+            if (item.removed) // 분해한 뒤 같은 상점에서 다시 구매
+            {
+                item.upgrade = 0; // 새 사본의 무강화 상태
+                item.locked = false; // 새 사본의 잠금 초기화
+            }
             item.purchased = true; // 공용 인벤토리에서 조회할 소유권
+            item.removed = false; // 정상 재구입 시 분해 기록 해제
+            if (id.EndsWith(":1", StringComparison.Ordinal)) // 기존 상점의 실제 종류별 고정 사본
+            {
+                UnlockBroomRecipe(next, id.Substring(0, id.Length - 2), grade); // 획득한 등급과 하위 제작법 영구 해금
+            }
             next.gold -= price; // 골드와 보유 권한을 한 파일로 저장
             return Write(next); // 실제 기록을 마친 지급
         }
@@ -498,6 +639,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                     item.name = reward.Name; // 정산에 표시할 실제 이름
                     item.source = reward.Source; // 실제 보상 적 유형
                     item.upgrade = 0; // 새로 획득한 부품의 무강화 상태
+                    UnlockBroomRecipe(next, reward.DefinitionId, reward.Grade); // 획득 등급과 하위 등급의 영구 제작법
                 }
             }
             progress.mastery += receipt.Mastery; // 이번 출격의 캐릭터별 참여 숙련도
@@ -579,6 +721,15 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 }
                 saved.clearedStory |= saved.recent?.Cleared == true; // 기존 형식의 마지막 확정 클리어 복원
                 saved.brooms ??= Array.Empty<BroomProgress>(); // 26~29일차의 골드 없는 기존 프로필을 보존
+                saved.broomRecipes ??= Array.Empty<BroomRecipe>(); // 이전 저장의 제작법 항목 기본값
+                var recipeIds = new HashSet<string>(); // 제작법별 중복 및 범위 확인
+                foreach (BroomRecipe recipe in saved.broomRecipes) // 저장된 종류별 최고 해금 등급
+                {
+                    if (recipe == null || string.IsNullOrEmpty(recipe.id) || recipe.grade < 1 || recipe.grade > 5 || !recipeIds.Add(recipe.id)) // 손상된 종류·등급 또는 중복
+                    {
+                        return null; // 원본을 덮지 않고 유효 백업 확인
+                    }
+                }
                 saved.researchRewards ??= Array.Empty<ResearchReward>(); // 연구 보상이 없던 이전 프로필 보존
                 var rewardIds = new HashSet<string>(); // 원래 보상 건의 중복 확인
                 foreach (ResearchReward reward in saved.researchRewards) // 실제 저장된 보류와 수령 이력

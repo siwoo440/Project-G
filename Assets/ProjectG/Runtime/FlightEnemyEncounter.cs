@@ -37,6 +37,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private int researchNormalKills; // 이번 본편 출격의 지정 일반 적 처치 수
         private int researchEliteKills; // 이번 본편 출격의 지정 정예 적 처치 수
         private bool researchMidBoss; // 이번 본편 출격의 실제 중간 보스 격파
+        private bool rewardFinalBoss; // 이번 본편 출격의 실제 최종 보스 격파
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
         public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
@@ -198,6 +199,7 @@ namespace ProjectG // 프로젝트 게임 영역
             researchNormalKills = 0; // 이전 출격의 일반 적 과제 초기화
             researchEliteKills = 0; // 이전 출격의 정예 보상 조건 초기화
             researchMidBoss = false; // 이전 출격의 보스 과제 초기화
+            rewardFinalBoss = false; // 이전 출격의 최종 보스 보상 초기화
             StopTrial(); // 이전 웨이브 정리
             WaveNumber = IsStage ? 0 : 1; // 실전 준비 또는 시험 첫 웨이브
             ElapsedSeconds = 0f; // 첫 타이머
@@ -219,7 +221,8 @@ namespace ProjectG // 프로젝트 게임 영역
         internal FlightProgressReceipt Conclude(bool cleared) // 결과, 일시정지 포기와 재출격의 공통 정산
         {
             string stageId = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path; // 현재 본편 스테이지의 안정적인 씬 경로
-            return sortieId == null ? null : FlightProgress.Current.CompleteWithResearchRewards(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchEliteKills, researchMidBoss, stageId); // 정상 보상과 연구 과제·선택권의 원자 정산
+            FlightBroomEquipment equipment = playerWeapon != null ? playerWeapon.GetComponent<FlightBroomEquipment>() : null; // 실제 조종사의 부품 카탈로그
+            return sortieId == null ? null : FlightProgress.Current.CompleteWithBroomRewards(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchEliteKills, researchMidBoss, rewardFinalBoss, false, equipment != null ? equipment.Catalog : null, stageId); // 기본 난이도의 실제 보상 전체 원자 정산
         }
 
         internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
@@ -305,6 +308,7 @@ namespace ProjectG // 프로젝트 게임 영역
             activeBoss = null; // 전투 목표와 레이더 해제
             if (enemy.LootTier == FlightLootTier.FinalBoss) // 마지막 관문을 실제로 격파한 경우
             {
+                rewardFinalBoss = Mode == FlightSortieMode.Story && sortieId != null; // 실제 본편 참여의 최종 보스 지급 조건
                 IsStageComplete = true; // 출격 성공과 전투·전체 시각 확정
                 StopStage(); // 보스 적탄과 이후 웨이브 종료
                 return; // 후속 일반 전투 없음

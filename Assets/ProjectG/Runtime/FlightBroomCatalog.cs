@@ -105,6 +105,18 @@ namespace ProjectG // 프로젝트 게임 영역
         internal ReadOnlySpan<FlightBroomPart> Parts => parts; // 장착 구성에서 읽는 부품 목록
         internal ReadOnlySpan<FlightBroomSet> Sets => sets; // 후속 도감과 세트 효과가 공유할 기획
 
+        internal FlightBroomPart Find(string id) // 저장한 부품 종류의 정확한 복원
+        {
+            foreach (FlightBroomPart part in parts) // 실제 카탈로그의 각 부품
+            {
+                if (part.id == id) // 같은 종류의 안정 ID
+                {
+                    return part; // 장착에 사용할 원본 정의
+                }
+            }
+            return null; // 현재 카탈로그에서 찾지 못한 종류
+        }
+
         internal static string GradeName(int grade) // 실제 희귀도 순서의 한국어 이름
         {
             return grade switch // 기획서의 일반부터 전설까지 다섯 단계

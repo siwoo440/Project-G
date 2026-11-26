@@ -54,6 +54,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private static string SaveKey => Environment.GetEnvironmentVariable("PROJECTG_BROOM_TEST_KEY") ?? (FlightBindings.UsesPreferences ? LoadoutKey : null); // 실제 설정과 격리 검증 분리
 
         public int OwnedCount => owned.Count; // 전체 보유 부품 수
+        internal FlightBroomCatalog Catalog => catalog; // 실제 출격의 보상 후보
         public FlightBroomPilot ActivePilot { get; private set; } // 씬에서 조작하는 캐릭터
 
         private void Awake() // 씬 참조와 시작 장착 초기화
@@ -82,6 +83,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
             }
 
+            foreach (FlightBroomReward reward in FlightProgress.Current.RewardBrooms()) // 정산에서 영구 저장한 개별 부품
+            {
+                FlightBroomPart definition = catalog.Find(reward.DefinitionId); // 저장된 종류의 실제 정의
+                if (definition != null && !owned.ContainsKey(reward.Id)) // 유효하고 아직 복원하지 않은 사본
+                {
+                    AddOwned(definition, reward.Id, reward.Grade); // 개별 등급과 강화 상태 복원
+                }
+            }
             RestoreLoadouts(); // 재실행 시 마지막으로 확정한 부품 적용
             ApplyLoadout(); // 첫 비행의 외형과 수치 적용
         }
@@ -89,11 +98,16 @@ namespace ProjectG // 프로젝트 게임 영역
         private OwnedPart AddOwned(FlightBroomPart definition, int copy) // 시작 부품과 상점 구입을 같은 목록에 등록
         {
             string id = $"{definition.id}:{copy}"; // 해당 종류의 개별 보유 ID
+            return AddOwned(definition, id, definition.grade); // 기존 초기·상점 부품의 고정 등급
+        }
+
+        private OwnedPart AddOwned(FlightBroomPart definition, string id, int grade) // 개별 보상과 기존 부품의 공통 복원
+        {
             var item = new OwnedPart // UI와 비행이 함께 읽는 실제 부품
             {
                 Id = id, // 각 보유 사본의 고정 ID
                 Definition = definition, // 재질과 능력치 정의
-                Grade = definition.grade, // 구매 또는 초기 보유 등급
+                Grade = grade, // 개별 사본의 실제 등급
                 Upgrade = FlightProgress.Current.BroomUpgrade(id, definition.upgrade) // 개별 부품의 확정 강화
             };
             owned.Add(item.Id, item); // 실제 장착에서 조회할 보유 목록

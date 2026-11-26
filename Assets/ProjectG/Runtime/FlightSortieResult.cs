@@ -29,6 +29,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private static FlightSortieReport staged; // 이전 씬으로부터 한 번 전달되는 결과
         private FlightSortieReport report; // 현재 보이는 결과
         private bool moving; // 버튼 중복 클릭과 씬 이동 보호
+        private GameObject broomRewardOverlay; // 실제 획득 부품을 펼쳐 보는 창
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] // 에디터 도메인 유지에서도 초기화
         private static void Clear() // 이전 시험의 종료 결과 정리
@@ -82,6 +83,59 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             crystals?.Show(receipt?.Crystals, true); // 실제 확정한 출격 결정 증가량
             gold?.Show(receipt?.Gold, true); // 실제 확정한 출격 골드 증가량
+            ShowBroomRewards(receipt?.BroomRewards); // 정산에서 실제로 저장한 개별 부품
+        }
+
+        private void ShowBroomRewards(FlightBroomReward[] items) // 실제 획득 목록을 여는 결과 버튼
+        {
+            if (items == null || items.Length == 0) // 지급한 부품이 없는 출격
+            {
+                return; // 빈 보상 창을 만들지 않음
+            }
+            Button open = Instantiate(retry, rewards.transform.parent); // 기존 결과 버튼의 테두리와 글꼴 재사용
+            open.name = "BroomRewards"; // 획득 부품 버튼 식별
+            open.onClick = new Button.ButtonClickedEvent(); // 재출격 동작 복사 방지
+            RectTransform openRect = open.GetComponent<RectTransform>(); // 결과 화면의 버튼 위치
+            openRect.anchorMin = openRect.anchorMax = new Vector2(0.5f, 0.5f); // 결과 패널 중심 기준
+            openRect.anchoredPosition = new Vector2(250f, -193f); // 재화 옆의 빈 영역
+            openRect.sizeDelta = new Vector2(180f, 34f); // 실제 목록을 여는 버튼 크기
+            FlightCraftedUi.FitLabel(open, 19); // 긴 한국어 문구 크기 보정
+            open.GetComponentInChildren<Text>().text = $"획득 부품 {items.Length}개"; // 저장된 개별 보유 수
+            Canvas canvas = rewards.GetComponentInParent<Canvas>().rootCanvas; // 결과 전체를 가리는 최상위 캔버스
+            broomRewardOverlay = new GameObject("BroomRewardOverlay", typeof(RectTransform), typeof(Image)); // 다른 결과 버튼을 차단할 배경
+            broomRewardOverlay.transform.SetParent(canvas.transform, false); // 기존 UI 위의 자식 창
+            RectTransform overlayRect = broomRewardOverlay.GetComponent<RectTransform>(); // 전체 배경의 위치
+            overlayRect.anchorMin = Vector2.zero; // 왼쪽 아래 모서리 기준
+            overlayRect.anchorMax = Vector2.one; // 오른쪽 위 모서리까지 확장
+            overlayRect.offsetMin = overlayRect.offsetMax = Vector2.zero; // 화면 전체 영역
+            broomRewardOverlay.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.86f); // 목록 뒤의 어두운 배경
+            Text list = Instantiate(rewards, broomRewardOverlay.transform); // 게임의 한국어 글꼴과 효과 재사용
+            list.name = "BroomRewardList"; // 실제 획득 내역 식별
+            RectTransform listRect = list.rectTransform; // 목록 글자의 화면 위치
+            listRect.anchorMin = listRect.anchorMax = new Vector2(0.5f, 0.5f); // 화면 중심 기준
+            listRect.anchoredPosition = new Vector2(0f, 35f); // 닫기 버튼 위의 목록
+            listRect.sizeDelta = new Vector2(780f, 330f); // 다섯 부품까지 표시할 영역
+            list.alignment = TextAnchor.MiddleCenter; // 부품별 중앙 정렬
+            list.resizeTextForBestFit = true; // 긴 이름의 화면 밖 넘침 방지
+            list.resizeTextMinSize = 16; // 가장 작은 목록 글자
+            list.resizeTextMaxSize = 26; // 기준 목록 글자
+            list.text = "획득한 빗자루 부품"; // 실제 정산 내역 제목
+            foreach (FlightBroomReward item in items) // 이번 출격의 개별 획득 부품
+            {
+                list.text += "\n" + FlightBroomCatalog.GradeName(item.Grade) + " · " + item.Name; // 희귀도와 실제 부품 이름
+            }
+            Button close = Instantiate(retry, broomRewardOverlay.transform); // 동일한 버튼 디자인의 닫기
+            close.name = "CloseBroomRewards"; // 목록 닫기 버튼 식별
+            close.onClick = new Button.ButtonClickedEvent(); // 재출격 동작 복사 방지
+            RectTransform closeRect = close.GetComponent<RectTransform>(); // 닫기 버튼 위치
+            closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 0.5f); // 화면 중심 기준
+            closeRect.anchoredPosition = new Vector2(0f, -185f); // 목록 아래 중앙
+            closeRect.sizeDelta = new Vector2(180f, 48f); // 마우스로 누르기 쉬운 크기
+            FlightCraftedUi.FitLabel(close, 21); // 한국어 닫기 글자 크기 보정
+            close.GetComponentInChildren<Text>().text = "닫기"; // 실제 닫기 동작 안내
+            close.onClick.AddListener(() => broomRewardOverlay.SetActive(false)); // 결과 화면으로 복귀
+            open.onClick.AddListener(() => broomRewardOverlay.SetActive(true)); // 저장된 획득 목록 표시
+            broomRewardOverlay.SetActive(false); // 처음에는 결과 화면을 가리지 않음
         }
 
         private void ShowPortrait(Texture2D art) // 출격 캐릭터의 화면 왼쪽 스탠딩
@@ -100,6 +154,14 @@ namespace ProjectG // 프로젝트 게임 영역
             if (keyboard == null || moving) // 이미 화면 이동 중인 상태
             {
                 return; // 물리 키 입력 처리 없음
+            }
+            if (broomRewardOverlay != null && broomRewardOverlay.activeSelf) // 실제 획득 부품 목록이 열린 상태
+            {
+                if (keyboard.escapeKey.wasPressedThisFrame) // 닫기 버튼과 같은 취소 키
+                {
+                    broomRewardOverlay.SetActive(false); // 결과 화면으로 복귀
+                }
+                return; // 같은 키로 재출격하거나 타이틀에 이동하지 않음
             }
             if (incident != null && incident.HandleArchiveKey(keyboard, true)) // 기록 창을 먼저 닫거나 열기
             {

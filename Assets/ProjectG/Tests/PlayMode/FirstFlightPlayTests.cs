@@ -3853,11 +3853,30 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 object store = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 현재 본편의 실제 영구 프로필
                 var pending = store.GetType().GetMethod("PendingResearchRewards", hidden); // 단계별 보류 선택권
                 Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.Zero); // 정상 정산 전 보상 미발급
-                Assert.That(encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }), Is.Not.Null); // 실제 정상 실패 정산
+                object receipt = encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }); // 실제 정상 실패 정산
+                Assert.That(receipt, Is.Not.Null); // 실제 영수증 저장 성공
+                var earned = (System.Array)receipt.GetType().GetField("BroomRewards").GetValue(receipt); // 일반과 정예의 실제 부품 보상
+                Assert.That(earned.Length, Is.EqualTo(2)); // 스무 마리와 정예 첫 처치 지급
                 Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.EqualTo(1)); // 일반 처치 보상 한 건
                 Assert.That(((string[])pending.Invoke(store, new object[] { 2 })).Length, Is.EqualTo(1)); // 정예 처치 보상 한 건
                 encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }); // 같은 출격의 정산 재요청
                 Assert.That(((string[])pending.Invoke(store, new object[] { 1 })).Length, Is.EqualTo(1)); // 같은 출격의 중복 지급 방지
+                Assert.That(((System.Array)store.GetType().GetMethod("RewardBrooms", hidden).Invoke(store, null)).Length, Is.EqualTo(2)); // 반복 정산에도 부품 두 개만 보유
+                string earnedId = (string)earned.GetValue(0).GetType().GetField("Id").GetValue(earned.GetValue(0)); // 첫 부품의 실제 개별 ID
+                yield return LoadOuterIslands(); // 같은 영구 프로필의 다음 출격 씬
+                Component restored = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightBroomEquipment, Assembly-CSharp", true)) as Component; // 다음 출격의 부품 장착 구성
+                Assert.That(restored.GetType().GetMethod("IsOwned", hidden).Invoke(restored, new object[] { earnedId }), Is.True); // 실제 장비 목록의 개별 부품 복원
+                SceneManager.LoadSceneAsync("FlightSortieResult"); // 실제 배포 결과 화면
+                yield return WaitForActiveScene("Assets/Scenes/FlightSortieResult.unity"); // 결과 씬과 실제 UI 준비
+                Component result = GameObject.Find("SortieResult").GetComponent("FlightSortieResult"); // 결과 화면의 실제 표시 컴포넌트
+                result.GetType().GetMethod("ShowBroomRewards", hidden).Invoke(result, new object[] { earned }); // 저장된 실제 영수증의 획득 버튼
+                Button open = GameObject.Find("BroomRewards").GetComponent<Button>(); // 실제 획득 부품 버튼
+                Assert.That(open.GetComponentInChildren<Text>().text, Does.Contain("2개")); // 결과 화면의 실제 획득 수
+                open.onClick.Invoke(); // 실제 획득 목록 열기
+                Text rewardList = GameObject.Find("BroomRewardList").GetComponent<Text>(); // 실제 목록의 한국어 문구
+                Assert.That(rewardList.text, Does.Contain((string)earned.GetValue(0).GetType().GetField("Name").GetValue(earned.GetValue(0)))); // 저장된 이름 표시
+                GameObject.Find("CloseBroomRewards").GetComponent<Button>().onClick.Invoke(); // 실제 목록 닫기
+                Assert.That(rewardList.gameObject.activeInHierarchy, Is.False); // 닫은 뒤 결과 화면 복원
             }
             finally // 이 자동 시험의 메모리 프로필만 정리
             {
@@ -4928,6 +4947,106 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 PlayerPrefs.DeleteKey(key); // 독립 편성 키 삭제
                 PlayerPrefs.Save(); // 삭제 반영
                 System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", previous); // 기존 저장 환경 복원
+            }
+        }
+
+        [UnityTest] // 적 유형과 난이도별 확정 희귀도 확률
+        public IEnumerator BroomRewardRarityUsesEveryConfirmedProbability() // 각 확률 구간의 합계와 경계
+        {
+            System.Type table = System.Type.GetType("ProjectG.FlightBroomRewardTable, Assembly-CSharp", true); // 실제 부품 보상표
+            System.Type kind = table.GetNestedType("EnemyKind", System.Reflection.BindingFlags.NonPublic); // 네 가지 보상 적 유형
+            var select = table.GetMethod("GradeForRoll", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 실제 백분위 추첨
+            int[,] expected = // 기획서 14.6.1의 난이도·적 유형별 다섯 등급 확률
+            {
+                { 80, 18, 2, 0, 0 }, { 58, 32, 9, 1, 0 }, { 35, 40, 22, 3, 0 }, { 10, 35, 40, 14, 1 }, // 기본 난이도의 네 종류
+                { 70, 24, 6, 0, 0 }, { 45, 36, 16, 3, 0 }, { 24, 39, 29, 7, 1 }, { 5, 25, 43, 23, 4 } // 상위 난이도의 네 종류
+            };
+            string[] kinds = { "Normal", "Elite", "MidBoss", "FinalBoss" }; // 실제 보상 구분
+            for (int row = 0; row < 8; row++) // 두 난이도의 네 적 유형
+            {
+                object enemy = System.Enum.Parse(kind, kinds[row % 4]); // 현재 적의 기획 유형
+                int[] actual = new int[5]; // 백 개 구간에서 뽑힌 실제 등급 수
+                for (int roll = 0; roll < 100; roll++) // 가능한 모든 정수 백분위
+                {
+                    int grade = (int)select.Invoke(null, new[] { enemy, (object)(row >= 4), roll }); // 실제 확률표의 선택 등급
+                    Assert.That(grade, Is.InRange(1, 5)); // 존재하는 다섯 등급만 선택
+                    actual[grade - 1]++; // 해당 등급의 구간 수
+                }
+                for (int grade = 0; grade < 5; grade++) // 각 희귀도의 정확한 구간 길이
+                {
+                    Assert.That(actual[grade], Is.EqualTo(expected[row, grade])); // 기획 확률과 각 경계 일치
+                }
+                Assert.That(select.Invoke(null, new[] { enemy, (object)(row >= 4), -1 }), Is.EqualTo(0)); // 음수 추첨 거절
+                Assert.That(select.Invoke(null, new[] { enemy, (object)(row >= 4), 100 }), Is.EqualTo(0)); // 범위 밖 추첨 거절
+            }
+            yield return null; // Unity 재생 시험 종료
+        }
+
+        [UnityTest] // 정상 정산의 부품 지급과 재실행 복원
+        public IEnumerator BroomRewardsSettleOnceAndRestoreIndividualItems() // 처치 경계·중복 지급·중단 복구
+        {
+            yield return LoadOuterIslands(); // 실제 80개 세트 부품 카탈로그
+            Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 실제 카탈로그 참조
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 정산과 보유 자료
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 기획 데이터
+            System.Type storeType = equipment.GetType().Assembly.GetType("ProjectG.FlightProgressStore"); // 기존 원자 정산 저장소
+            System.Type pilotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 정산할 실제 조종사
+            object aria = System.Enum.Parse(pilotType, "Aria"); // 같은 조종사의 연속 출격
+            string path = System.IO.Path.Combine(Application.temporaryCachePath, "projectg-broom-" + System.Guid.NewGuid().ToString("N") + ".json"); // 사용자 진행 파일과 분리한 고유 시험 경로
+            System.IDisposable storage = null; // 중단 시에도 해제할 저장 소유권
+            try // 실제 파일의 정산과 재실행
+            {
+                storage = (System.IDisposable)System.Activator.CreateInstance(storeType, new object[] { path }); // 격리된 실제 저장 파일
+                var begin = storeType.GetMethod("Begin"); // 정상 출격의 참여 기록
+                var complete = storeType.GetMethod("CompleteWithBroomRewards", hidden); // 부품과 기존 보상의 원자 정산
+                var inventory = storeType.GetMethod("RewardBrooms", hidden); // 저장된 개별 보유 부품
+                int[] kills = { 19, 20, 39, 40, 40 }; // 일반 적 보상의 실제 경계
+                int[] expected = { 0, 1, 1, 2, 5 }; // 다른 지정 처치까지 합한 지급 수
+                string finalRun = null; // 반복 정산을 시험할 마지막 출격
+                for (int i = 0; i < kills.Length; i++) // 각 경계의 실제 출격
+                {
+                    string id = (string)begin.Invoke(storage, new[] { aria }); // 디스크에 기록한 출격 ID
+                    bool allBosses = i == kills.Length - 1; // 정예·중간·최종 처치를 합한 사례
+                    object receipt = complete.Invoke(storage, new[] { (object)id, allBosses, false, kills[i], allBosses ? 1 : 0, allBosses, allBosses, false, catalog, "test.stage" }); // 실제 정상 클리어 또는 실패 정산
+                    Assert.That(receipt, Is.Not.Null); // 영수증과 지급의 원자 저장 성공
+                    var awards = (System.Array)receipt.GetType().GetField("BroomRewards").GetValue(receipt); // 실제 영수증의 개별 부품
+                    Assert.That(awards.Length, Is.EqualTo(expected[i])); // 처치 경계와 최대 지급 수
+                    finalRun = id; // 마지막 정상 출격의 고정 ID
+                }
+                var beforeRepeat = (System.Array)inventory.Invoke(storage, null); // 이미 지급한 실제 부품 목록
+                Assert.That(beforeRepeat.Length, Is.EqualTo(9)); // 다섯 출격의 개별 영구 보유 합계
+                object repeat = complete.Invoke(storage, new[] { (object)finalRun, true, false, 40, 1, true, true, false, catalog, "test.stage" }); // 같은 출격의 중복 정산
+                Assert.That(repeat, Is.Not.Null); // 이미 확정한 영수증 반환
+                Assert.That(((System.Array)inventory.Invoke(storage, null)).Length, Is.EqualTo(9)); // 같은 출격의 중복 부품 지급 금지
+                string interrupted = (string)begin.Invoke(storage, new[] { aria }); // 정상 정산 전 종료할 출격
+                Assert.That(interrupted, Is.Not.Null); // 실제 참여 상태 저장
+                object recovered = storeType.GetMethod("Recover").Invoke(storage, null); // 강제 종료 뒤 참여 보상 복구
+                Assert.That(((System.Array)recovered.GetType().GetField("BroomRewards").GetValue(recovered)).Length, Is.Zero); // 중단 복구에서 미확정 부품 지급 금지
+                Assert.That(((System.Array)inventory.Invoke(storage, null)).Length, Is.EqualTo(9)); // 기존 보유 부품 보존
+                storage.Dispose(); // 첫 프로세스의 저장 잠금 반환
+                storage = (System.IDisposable)System.Activator.CreateInstance(storeType, new object[] { path }); // 실제 저장 파일 재실행
+                var restored = (System.Array)inventory.Invoke(storage, null); // 다시 읽은 개별 부품
+                Assert.That(restored.Length, Is.EqualTo(9)); // 보상과 인벤토리가 함께 영구 복원
+                var ids = new System.Collections.Generic.HashSet<string>(); // 같은 종류도 구분하는 개별 보유 ID
+                foreach (object item in restored) // 실제로 복원된 모든 개별 부품
+                {
+                    System.Type itemType = item.GetType(); // 저장한 부품의 실제 자료형
+                    Assert.That(ids.Add((string)itemType.GetField("Id").GetValue(item)), Is.True); // 개별 보유 ID 중복 금지
+                    Assert.That((int)itemType.GetField("Grade").GetValue(item), Is.InRange(1, 5)); // 유효한 획득 희귀도 보존
+                    Assert.That((string)itemType.GetField("DefinitionId").GetValue(item), Is.Not.Empty); // 실제 카탈로그의 부품 종류 보존
+                }
+            }
+            finally // 이번 시험 파일만 삭제
+            {
+                storage?.Dispose(); // 실제 저장 잠금 해제
+                foreach (string suffix in new[] { string.Empty, ".bak", ".tmp", ".lock" }) // 이 시험이 만들 수 있는 파일
+                {
+                    string file = path + suffix; // 무작위 고유 경로의 개별 파일
+                    if (System.IO.File.Exists(file)) // 시험에서 실제 생성한 경우
+                    {
+                        System.IO.File.Delete(file); // 사용자 파일과 무관한 검증 파일 정리
+                    }
+                }
             }
         }
 

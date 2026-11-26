@@ -18,6 +18,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int Gold; // 이번 출격의 골드 지급량
         public int Marks; // 이번 출격의 조종사 조율의 증표 증가
         public bool FirstTask; // 이번 정상 결과에서 최초 과제 지급
+        public FlightBroomReward[] BroomRewards = Array.Empty<FlightBroomReward>(); // 같은 출격에서 확정한 개별 부품
     }
 
     public sealed class FlightProgressStore : IDisposable // 출격당 원자 정산과 재실행 복구
@@ -40,6 +41,10 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public string id; // 같은 종류에서도 고정된 개별 ID
             public bool purchased; // 상점에서 구입한 보유 권한
             public int upgrade; // 실제 공방에서 강화한 단계
+            public string definitionId; // 세트 부품 종류의 안정적인 카탈로그 ID
+            public int grade; // 실제 획득한 부품의 개별 희귀도
+            public string name; // 정산 당시의 기획 부품 이름
+            public string source; // 지정 처치의 실제 지급 유형
         }
 
         [Serializable] // 출격 또는 스테이지 최초 격파의 영구 선택권
@@ -119,6 +124,19 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         internal bool GetCommonFan(FlightBroomPilot pilot) => state.pilots[(int)pilot].commonFan; // 캐릭터별 현재 공용 스킬
         internal bool OwnsBroomPart(string id) => FindBroom(state, id)?.purchased == true; // 상점에서 산 실제 개별 보유
         internal int BroomUpgrade(string id, int initial) => FindBroom(state, id)?.upgrade ?? initial; // 시작 부품과 강화한 부품의 실제 단계
+
+        internal FlightBroomReward[] RewardBrooms() // 정산으로 획득한 공용 인벤토리
+        {
+            var result = new List<FlightBroomReward>(); // 기존 상점·시작 부품과 구분할 신규 보유
+            foreach (BroomProgress item in state.brooms) // 하나의 영구 파일에 있는 개별 부품
+            {
+                if (item.purchased && !string.IsNullOrEmpty(item.definitionId)) // 실제 세트 부품 지급 기록
+                {
+                    result.Add(new FlightBroomReward { Id = item.id, DefinitionId = item.definitionId, Name = item.name, Grade = item.grade, Source = item.source }); // 종류와 희귀도를 유지한 독립 사본
+                }
+            }
+            return result.ToArray(); // 장착 화면이 안전하게 읽을 보유 목록
+        }
         internal bool HasCompletedFirstTask(FlightBroomPilot pilot) => state.pilots[(int)pilot].completedFirstTask; // 각 조종사 최초 과제 정산
 
         internal bool HasResearchTask(FlightBroomPilot pilot, int tier) // 조종사별 정상 정산 연구 과제
@@ -419,12 +437,22 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             return Settle(id, cleared, false, taskEligible, true, normalKills, midBoss, true, eliteKills, stageId); // 연구 과제와 보상 건을 같은 저장에 확정
         }
 
+        internal FlightProgressReceipt CompleteWithBroomRewards(string id, bool cleared, bool taskEligible, int normalKills, int eliteKills, bool midBoss, bool finalBoss, bool high, FlightBroomCatalog catalog, string stageId) // 실제 지정 처치와 개별 부품의 정상 정산
+        {
+            if (catalog == null) // 보상 후보가 없는 손상된 출격
+            {
+                Error = "부품 보상 데이터를 확인할 수 없습니다."; // 저장 전 오류 안내
+                return null; // 보상 없는 부분 정산 방지
+            }
+            return Settle(id, cleared, false, taskEligible, true, normalKills, midBoss, true, eliteKills, stageId, catalog, finalBoss, high); // 기존 연구·재화와 부품을 하나의 저장으로 확정
+        }
+
         public FlightProgressReceipt Recover() // 다음 실행에서만 중단 출격의 참여 보상 지급
         {
             return Settle(state.pendingId, false, true, false, false, 0, false, false, 0, null); // 중단 출격은 기본 참여분만 지급
         }
 
-        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss, bool rewardsRecorded, int eliteKills, string stageId) // 보상과 기록을 같은 저장에 추가
+        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss, bool rewardsRecorded, int eliteKills, string stageId, FlightBroomCatalog catalog = null, bool finalBoss = false, bool high = false) // 보상과 기록을 같은 저장에 추가
         {
             if (string.IsNullOrEmpty(id)) // 아직 전투 참여 전 또는 이미 복구됨
             {
@@ -452,6 +480,26 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 Gold = cleared ? 600 : 150, // 기획서의 기본 난이도 클리어·참여 골드
                 FirstTask = taskEligible && !progress.completedFirstTask // 같은 조종사의 첫 정상 종료에서 한 번
             };
+            if (catalog != null && !recovered) // 정상 출격의 실제 부품 보상표
+            {
+                FlightBroomReward[] parts = FlightBroomRewardTable.Draw(catalog, id, normalKills, eliteKills, midBoss, finalBoss, high); // 지정 처치에서 나온 독립 부품
+                if (parts == null) // 부품 후보 또는 처치 데이터가 유효하지 않은 경우
+                {
+                    Error = "부품 보상 데이터를 확인할 수 없습니다."; // 원본을 보존하고 정산 실패 안내
+                    return null; // 재화와 출격 기록도 부분 지급하지 않음
+                }
+                receipt.BroomRewards = parts; // 실제 결과에서 보여 줄 확정 내역
+                foreach (FlightBroomReward reward in parts) // 지급할 각 개별 부품
+                {
+                    BroomProgress item = EnsureBroom(next, reward.Id); // 출격과 지급 순서의 유일한 보유 ID
+                    item.purchased = true; // 인벤토리에서 사용할 실제 보유
+                    item.definitionId = reward.DefinitionId; // 카탈로그의 부품 종류
+                    item.grade = reward.Grade; // 추첨한 개별 희귀도
+                    item.name = reward.Name; // 정산에 표시할 실제 이름
+                    item.source = reward.Source; // 실제 보상 적 유형
+                    item.upgrade = 0; // 새로 획득한 부품의 무강화 상태
+                }
+            }
             progress.mastery += receipt.Mastery; // 이번 출격의 캐릭터별 참여 숙련도
             receipt.Marks = progress.mastery / MarkInterval - oldSteps + (receipt.FirstTask ? 1 : 0); // 숙련 경계와 최초 과제 보상 별도 합산
             progress.completedFirstTask |= receipt.FirstTask; // 이후 출격에서도 같은 과제 중복 차단
@@ -543,6 +591,10 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 if (Array.Exists(saved.brooms, part => part == null || string.IsNullOrEmpty(part.id) || part.upgrade < 0 || part.upgrade > 5)) // 개별 저장의 허용 강화 범위
                 {
                     return null; // 잘못된 부품 정보를 덮어쓰지 않고 이전 저장 검색
+                }
+                if (Array.Exists(saved.brooms, part => !string.IsNullOrEmpty(part.definitionId) && (!part.purchased || part.grade < 1 || part.grade > 5))) // 세트 부품 보유의 실제 등급과 소유권
+                {
+                    return null; // 손상된 신규 부품 기록의 원본 보존
                 }
                 return saved; // 읽을 수 있는 기존 확정본
             }

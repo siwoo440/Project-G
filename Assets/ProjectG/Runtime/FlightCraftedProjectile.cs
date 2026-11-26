@@ -21,8 +21,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool explodes; // 폭발 선택 여부
         private HashSet<Component> sharedHits; // 같은 시전의 공유 적중 기록
         private bool knocksBack; // 선택한 넉백 효과
+        private int pierceLimit; // 시전 시 확정한 최대 관통 대상
 
-        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null) // 장착 마법을 실제 탄환에 적용
+        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null, int maxPierce = 3) // 장착 마법을 실제 탄환에 적용
         {
             recipe = cast; // 발사 중 편집에 영향 없는 원본
             profile = stats; // 한 발의 실제 이동과 피해
@@ -30,6 +31,7 @@ namespace ProjectG // 프로젝트 게임 영역
             remaining = stats.Range; // 수명 대신 사용하는 최대 이동 거리
             practice = isPractice; // 연습에서만 일시정지와 독립
             sharedHits = castHits; // 같은 시전의 파동 적중 기록
+            pierceLimit = maxPierce; // 이 탄의 관통 상한 고정
             knocksBack = cast.FirstEffect == "knockback" || cast.SecondEffect == "knockback"; // 넉백 선택 여부
             pierces = cast.FirstEffect == "pierce" || cast.SecondEffect == "pierce"; // 관통 효과의 한 발당 처리
             explodes = cast.FirstEffect == "explode" || cast.SecondEffect == "explode"; // 명중점 폭발
@@ -99,7 +101,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     Splash(contact.point); // 범위 피해는 별도 1회
                 }
-                if (!pierces || hits.Count >= 3) // 한 발의 문서 초기 관통 한도
+                if (!pierces || hits.Count >= pierceLimit) // 한 발의 강화된 관통 한도
                 {
                     Destroy(gameObject); // 한 발 또는 세 번째 대상에서 종료
                     return; // 처리한 접촉 이후 이동 없음
@@ -138,13 +140,13 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Splash(Vector3 point) // 폭발 반경에 들어온 대상별 피해
         {
             splashHits.Clear(); // 직격과 별개로 세는 한 번의 폭발
-            int count = Physics.OverlapSphereNonAlloc(point, 2.5f, nearby, layers, QueryTriggerInteraction.Ignore); // 파이어 볼트의 범위 시험값
+            int count = Physics.OverlapSphereNonAlloc(point, 2.5f * profile.RadiusScale, nearby, layers, QueryTriggerInteraction.Ignore); // 파이어 볼트의 범위 시험값
             for (int i = 0; i < count; i++) // 같은 폭발 안의 실제 표적
             {
                 Component target = Resolve(nearby[i]); // 같은 루트의 충돌체 통합
                 if (target != null && splashHits.Add(target)) // 한 대상에게 폭발 피해 한 번
                 {
-                    Damage(target, 25); // 문서의 파이어 볼트 폭발 피해량
+                    Damage(target, 25f * profile.DamageScale); // 강화 시점의 파이어 볼트 폭발 피해량
                 }
             }
         }
@@ -162,7 +164,7 @@ namespace ProjectG // 프로젝트 게임 영역
             return shape.GetComponent<FlightCraftedTarget>(); // 제작 연습 중에만 존재하는 표적
         }
 
-        private void Damage(Component target, int raw) // 실제 피해량과 속성 배율 전달
+        private void Damage(Component target, float raw) // 실제 피해량과 속성 배율 전달
         {
             if (target is FlightEnemy enemy) // 실제 전투의 마물
             {

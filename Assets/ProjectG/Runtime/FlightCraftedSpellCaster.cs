@@ -7,15 +7,17 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         internal readonly struct Profile // 발사체의 실제 판정과 자원
         {
-            public readonly int Mana; // 보석 숫자와 같은 마력 비용
-            public readonly int Damage; // 직격 피해
+            public readonly float Mana; // 소수점까지 반영하는 실제 마력 비용
+            public readonly float Damage; // 적중 시 배율을 적용할 직격 피해
             public readonly float Cooldown; // 사용 후 기다릴 시간
             public readonly float Speed; // 월드 단위 탄속
             public readonly float Range; // 최대 비행 거리
             public readonly float Radius; // 표적과 충돌하는 반경
             public readonly float Spread; // 초기 배열의 전체 각도
+            public readonly float DamageScale; // 폭발 등 별도 피해의 강화 배율
+            public readonly float RadiusScale; // 범위 효과의 강화 배율
 
-            public Profile(int mana, int damage, float cooldown, float speed, float range, float radius, float spread) // 문서의 시험값 연결
+            public Profile(float mana, float damage, float cooldown, float speed, float range, float radius, float spread, float damageScale = 1f, float radiusScale = 1f) // 문서의 시험값 연결
             {
                 Mana = mana; // 마력 소비
                 Damage = damage; // 명중 피해
@@ -24,6 +26,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 Range = range; // 최대 이동 거리
                 Radius = radius; // 판정 반경
                 Spread = spread; // 배열각
+                DamageScale = damageScale; // 피해 계산의 강화 배율
+                RadiusScale = radiusScale; // 범위 계산의 강화 배율
             }
         }
 
@@ -31,6 +35,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             public Vector3 center; // 결계가 생성된 월드 위치
             public float expires; // 결계가 종료되는 시각
+            public float radius; // 시전 당시 확정한 결계 반경
             public int cleared; // 이 결계가 상쇄한 적탄 수
             public GameObject view; // 월드에 고정된 결계 외형
             public Material material; // 외형에서만 사용하는 색상 재질
@@ -42,6 +47,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField] private bool practice; // 일시정지 속에서 독립적인 연습 시간
         [SerializeField] private FirstFlightCamera aimCamera; // 실전 화면의 조준 기준
         private FlightWeapon weapon; // 전투에서 처음 시전한 조종사의 근거리 판정
+        private FlightCraftedSpellBook growth; // 구성 ID별 출격 중 수치 강화
         private readonly Queue<float> emissions = new(); // 최근 1초의 생성 시간
         private readonly List<FlightCraftedProjectile> active = new(); // 살아 있는 발사체
         private readonly Dictionary<string, float> readyAt = new(); // 같은 조합 두 장이 공유하는 대기시간
@@ -118,6 +124,26 @@ namespace ProjectG // 프로젝트 게임 영역
             return new Profile(15, 35, 4f, 22f, 26f, 0.2f, 60f); // 구체탄 시험 기준
         }
 
+        internal void BindGrowth(FlightCraftedSpellBook book) // 실전 발사기의 출격 강화 연결
+        {
+            growth = book; // 같은 구성의 강화 상태 공유
+        }
+
+        private int Steps(CraftedSpellRecipe recipe, FlightCraftedSpellBook.Upgrade kind) // 해당 시전의 강화 수치
+        {
+            return !practice && growth != null ? growth.UpgradeSteps(recipe, kind) : 0; // 제작 연습은 기본 성능 유지
+        }
+
+        internal Profile EffectiveStats(CraftedSpellRecipe recipe) // 다음 시전에 적용할 강화 수치
+        {
+            Profile basis = Stats(recipe); // 기획서의 강화 전 기준
+            float damage = 1f + 0.1f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Damage); // 피해 증가 배율
+            float width = 1f + 0.05f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Width); // 범위와 각도의 증가 배율
+            float mana = 1f - 0.05f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Mana); // 소수점 마력 감소 배율
+            float cooldown = 1f - 0.1f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Cooldown); // 다음 쿨타임 감소 배율
+            return new Profile(basis.Mana * mana, basis.Damage * damage, basis.Cooldown * cooldown, basis.Speed, basis.Range, basis.Radius * width, basis.Spread * width, damage, width); // 현재 강화의 시전 스냅샷
+        }
+
         internal float CooldownRemaining(CraftedSpellRecipe recipe) // 슬롯과 연습 UI의 재사용 시간
         {
             return recipe != null && readyAt.TryGetValue(recipe.Id, out float until) ? Mathf.Max(0f, until - Clock) : 0f; // 동일 구성 ID의 대기시간
@@ -129,19 +155,21 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return false; // 자원이나 발사체를 소모하지 않음
             }
+            Profile profile = EffectiveStats(recipe); // 이 시전의 강화된 수치 고정
             if (IsPurification(recipe)) // 정화 결계의 고정 설치
             {
-                if (practice && practiceMana < 30f) // 독립 연습의 실제 마력 부족
+                if (practice && practiceMana < profile.Mana) // 독립 연습의 실제 마력 부족
                 {
                     return false; // 마력이 없으면 설치하지 않음
                 }
                 float started = Clock; // 결계 시작 시각
-                Barrier barrier = CreateBarrier(practice ? muzzle.position : transform.position, started + 4f); // 시전 위치의 고정 결계
+                float duration = Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f); // 여섯 초 상한의 결계 유지시간
+                Barrier barrier = CreateBarrier(practice ? muzzle.position : transform.position, started + duration, profile.Radius); // 시전 위치와 강화 반경의 고정 결계
                 barriers.Add(barrier); // 수명과 상쇄 한도 관리
-                readyAt[recipe.Id] = started + 4f + 12f; // 결계 종료 후 십이 초 대기
+                readyAt[recipe.Id] = started + duration + profile.Cooldown; // 실제 유지 종료 후 재사용 대기
                 if (practice) // 연습 마력만 독립 차감
                 {
-                    practiceMana -= 30f; // 연습의 실제 소비
+                    practiceMana -= profile.Mana; // 연습의 실제 소비
                 }
                 CastCount++; // 유효한 결계 시전 기록
                 return true; // 결계 설치 성공
@@ -152,12 +180,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 emissions.Dequeue(); // 끝난 시간 창 정리
             }
             active.RemoveAll(shot => shot == null); // 회수한 발사체는 상한에서 제외
-            if (!CraftedSpellRules.CanEmit(recipe.InitialShots, 0, emissions.Count, active.Count)) // 탄수와 활성 상한
+            int count = recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 다중 발사의 강화된 탄 수
+            if (!CraftedSpellRules.CanEmit(count, 0, emissions.Count, active.Count)) // 탄수와 활성 상한
             {
                 return false; // 일부만 발사되는 상황 방지
             }
 
-            Profile profile = Stats(recipe); // 사거리·회전·마력의 공통 프로필
             if (practice && practiceMana < profile.Mana) // 연습의 실제 소모 마력 검사
             {
                 return false; // 연습 마력이 부족하면 발사체 생성 차단
@@ -165,11 +193,12 @@ namespace ProjectG // 프로젝트 게임 영역
             Quaternion aim = AimRotation(profile.Range); // 카드 조준과 실제 투사체 방향 일치
             bool pressure = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id; // 수압 파동의 시전별 중복 제한
             HashSet<Component> sharedHits = pressure ? new HashSet<Component>() : null; // 같은 파동의 공유 적중 기록
-            for (int i = 0; i < recipe.InitialShots; i++) // 검증된 수만큼 새 탄환 생성
+            int pierce = Mathf.Min(5, 3 + Steps(recipe, FlightCraftedSpellBook.Upgrade.Pierce)); // 관통 효과의 최대 대상 수
+            for (int i = 0; i < count; i++) // 검증된 수만큼 새 탄환 생성
             {
-                Vector3 direction = CraftedSpellVectors.Direction(recipe, aim, i, profile.Spread); // 재현 가능한 3D 배열
+                Vector3 direction = CraftedSpellVectors.DirectionForCount(recipe, aim, i, profile.Spread, count); // 재현 가능한 3D 배열
                 FlightCraftedProjectile shot = Instantiate(projectile, muzzle.position, Quaternion.LookRotation(direction, aim * Vector3.up), practice ? transform : null); // 월드 비행을 유지하는 공용 발사 프리팹
-                shot.Begin(recipe, profile, hitLayers, practice, sharedHits); // 같은 탄속·피해·접촉 처리
+                shot.Begin(recipe, profile, hitLayers, practice, sharedHits, pierce); // 같은 탄속·피해·접촉 처리
                 if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라가 실전에서 발사한 직접 마법
                 {
                     shot.SetMeleeSource(weapon.Sword); // 실제 적과의 거리로 제작 마법 피해 조정
@@ -190,9 +219,9 @@ namespace ProjectG // 프로젝트 게임 영역
             return true; // 소비 가능한 시전
         }
 
-        private Barrier CreateBarrier(Vector3 center, float expires) // 월드에 고정된 결계 표시
+        private Barrier CreateBarrier(Vector3 center, float expires, float radius) // 월드에 고정된 결계 표시
         {
-            var barrier = new Barrier { center = center, expires = expires }; // 결계의 위치와 수명
+            var barrier = new Barrier { center = center, expires = expires, radius = radius }; // 결계의 위치와 수명
             barrier.view = new GameObject("Purification Barrier"); // 시전 위치의 독립 외형
             barrier.view.transform.position = center; // 움직이는 조종체와 분리된 좌표
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"); // 지원하는 단색 표시 셰이더
@@ -215,8 +244,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 for (int i = 0; i < line.positionCount; i++) // 구의 세 원주 좌표
                 {
                     float angle = i * 2f * Mathf.PI / line.positionCount; // 원주에서의 각도
-                    float a = Mathf.Cos(angle) * 3.5f; // 원주의 첫 축
-                    float b = Mathf.Sin(angle) * 3.5f; // 원주의 둘째 축
+                    float a = Mathf.Cos(angle) * radius; // 원주의 첫 축
+                    float b = Mathf.Sin(angle) * radius; // 원주의 둘째 축
                     line.SetPosition(i, axis == 0 ? new Vector3(a, b, 0f) : axis == 1 ? new Vector3(a, 0f, b) : new Vector3(0f, a, b)); // 선택한 평면의 점
                 }
             }
@@ -240,7 +269,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 if (!practice && threatPool != null && barrier.cleared < 16) // 실전에서만 남은 상쇄 한도 확인
                 {
-                    barrier.cleared += threatPool.CancelWithin(barrier.center, 3.5f, 16 - barrier.cleared); // 허용 적탄만 남은 수까지 상쇄
+                    barrier.cleared += threatPool.CancelWithin(barrier.center, barrier.radius, 16 - barrier.cleared); // 허용 적탄만 남은 수까지 상쇄
                 }
             }
         }

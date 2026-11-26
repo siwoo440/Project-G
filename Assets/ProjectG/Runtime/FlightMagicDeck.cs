@@ -31,10 +31,15 @@ namespace ProjectG // 프로젝트 게임 영역
             private float arriveAt; // 다음 카드 등장 연출 종료
             private bool available; // 색 변경용 이전 자원 상태
             private bool initialized; // 표시가 초기화되었는지 여부
+            private Text status; // 전투 입력과 제작 마법 제약 표시
+            private string inputLabel; // 원래 좌우 마우스 입력 이름
 
             public void Initialize() // 기존 카드 배치 기억
             {
                 resting = root.anchoredPosition; // 카드 본래 위치
+                Transform label = root.Find("Mouse"); // 씬에서 편집한 입력 표시
+                status = label != null ? label.GetComponent<Text>() : null; // 기존 카드의 입력 글자
+                inputLabel = status != null ? status.text : ""; // 좌우 입력 문구 보관
             }
 
             public void Set(Card card) // 현재 또는 다음 카드의 개별 레이어 교체
@@ -51,12 +56,23 @@ namespace ProjectG // 프로젝트 게임 영역
                 arriveAt = Time.time + 0.18f; // 이동 종료 시점
             }
 
-            public void SetCrafted(string name, int mana, Texture2D element, Card source) // 조립한 마법의 레이어
+            public void SetCrafted(string name, float mana, Texture2D element, Card source) // 조립한 마법의 레이어
             {
                 Set(source); // 같은 속성의 기존 일러스트와 카드 틀
                 symbol.texture = element; // 실제 제작 마법의 속성
                 title.text = name; // 제작한 마법 이름
-                cost.text = mana.ToString(); // 실제 소비하는 마력
+                cost.text = mana.ToString("0.##"); // 소수점까지 반영한 실제 소비 마력
+            }
+
+            public void UpdateCrafted(string name, int rank, float mana, int composition, float cooldown, bool affordable, bool withinBudget) // 현재 강화와 자원 조건 표시
+            {
+                title.text = $"{name} +{rank}"; // 구성 ID의 공유 강화 단계
+                cost.text = mana.ToString("0.##"); // 실제 소비하는 소수점 마력
+                if (status != null) // 기존 입력 표시가 있는 카드
+                {
+                    status.fontSize = 17; // 짧은 제약 문구를 읽는 글자 크기
+                    status.text = !withinBudget ? $"{inputLabel} 한도 초과" : cooldown > 0f ? $"{inputLabel} {cooldown:0.0}초" : affordable ? $"{inputLabel} 비용{composition}" : $"{inputLabel} 마력 부족"; // 편성 한도·대기·마력 구분
+                }
             }
 
             public void Render(bool usable, bool preview) // 레이어의 색과 카드 전환 위치
@@ -121,9 +137,10 @@ namespace ProjectG // 프로젝트 게임 영역
                         craftedId = recipe.Id; // 변경 시 한 번만 이미지 적용
                         Texture2D symbol = book.Symbol(recipe); // 실제 저장한 속성 이미지
                         Card art = FindArt(symbol) ?? opposite.FindArt(symbol) ?? cards[Index]; // 같은 원소의 기존 그림 우선
-                        active.SetCrafted(FlightCraftedSpellBook.NameOf(recipe), FlightCraftedSpellCaster.Stats(recipe).Mana, symbol, art); // 저장 조합의 그림·마력·이름
+                        active.SetCrafted(FlightCraftedSpellBook.NameOf(recipe), book.CurrentStats(recipe).Mana, symbol, art); // 저장 조합의 그림·마력·이름
                         next.root.gameObject.SetActive(false); // 고정 장착 제작 마법은 순환 없이 유지
                     }
+                    active.UpdateCrafted(FlightCraftedSpellBook.NameOf(recipe), book.UpgradeRank(slot), book.CurrentStats(recipe).Mana, recipe.Cost, book.Cooldown(recipe), book.HasMana(recipe), book.WithinBudget()); // 공유 강화와 실제 제약 갱신
                     active.Render(book.CanCast(slot), false); // 마력과 재사용 시간의 어둡기
                     return; // 고정 장착과 이전 시험 덱을 같이 표시하지 않음
                 }

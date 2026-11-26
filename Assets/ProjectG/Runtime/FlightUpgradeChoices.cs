@@ -10,7 +10,9 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         private enum Reward // 기본 후보와 서로 다른 대체 보상
         {
-            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread, SeraApproach, SeraWidth, NoxPrecision, NoxPierce, VeraDuration, VeraCadence, IrisRange, IrisFocus // 단계와 보조 슬롯 구분
+            Damage, Cadence, Pierce, Focus, Cycle, Fan, Magnet, Lens, Heal, SlowDecay, Wide, Weak, SniperPierce, SmallHeal, Energy, HpOne, HpTwo, HpThree, Drone, Blade, ProtectionDevice, ChaseSecond, SpreadSecond, WeakSecond, LumiTracking, LumiSpread, SeraApproach, SeraWidth, NoxPrecision, NoxPierce, VeraDuration, VeraCadence, IrisRange, IrisFocus, // 단계와 보조 슬롯 구분
+            CraftLeftDamage, CraftLeftCooldown, CraftLeftMana, CraftLeftCount, CraftLeftPierce, CraftLeftWidth, CraftLeftDuration, // 첫 마법의 일곱 강화
+            CraftRightDamage, CraftRightCooldown, CraftRightMana, CraftRightCount, CraftRightPierce, CraftRightWidth, CraftRightDuration // 둘째 마법의 일곱 강화
         }
 
         private readonly struct Card // 시험 후보의 적용 규칙
@@ -98,6 +100,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool priorCursor; // 모달 전의 마우스 표시
         private bool paused; // 이 화면이 현재 정지를 관리하는 상태
         private int firstLevel; // 화면 제목에 표시하는 레벨 번호
+        private FlightCraftedSpellBook crafted; // 실제 출격의 제작 마법 강화
+        private FlightCraftedSpellBook CraftBook => crafted != null ? crafted : (crafted = FindFirstObjectByType<FlightCraftedSpellBook>()); // 시험 씬과 실전의 선택적 연결
 
         public float CadenceScale => 1f - Total(FlightEnhancementKind.Cadence, FlightEnhancements.CadenceLimit); // 카드·아이템 공통 연사
         public float CooldownScale => 1f - Total(FlightEnhancementKind.Cycle, FlightEnhancements.CooldownLimit); // 카드·아이템 공통 재사용
@@ -155,9 +159,17 @@ namespace ProjectG // 프로젝트 게임 영역
             return focused ? 1f - Rank(Reward.Lens) * 0.10f : 1f + (weapon.IsRian ? 0f : Rank(Reward.Wide) * 0.20f); // 렌즈 또는 아리아 확산
         }
 
+        private static bool DecodeCraft(Reward reward, out int slot, out FlightCraftedSpellBook.Upgrade kind) // 제작 마법 강화 후보 해석
+        {
+            int index = (int)reward - (int)Reward.CraftLeftDamage; // 제작 강화의 연속 번호
+            slot = index / 7; // 현재 출격의 카드 칸
+            kind = (FlightCraftedSpellBook.Upgrade)(index % 7); // 칸별 실제 강화 수치
+            return index >= 0 && index < 14; // 두 칸의 등록된 강화 여부
+        }
+
         private int Rank(Reward reward) // 동일한 효과의 현재 단계
         {
-            return ranks[(int)reward]; // 현재 출격에서 선택한 값
+            return DecodeCraft(reward, out int slot, out _) && CraftBook != null ? CraftBook.UpgradeRank(slot) : ranks[(int)reward]; // 제작 마법은 구성 ID 기준 단계
         }
 
         private void Awake() // 저장된 카드 버튼의 실제 클릭 연결
@@ -230,7 +242,34 @@ namespace ProjectG // 프로젝트 게임 영역
                     candidates.Add(card); // 현재 추첨에 포함
                 }
             }
+            AddCraftCandidates(); // 현재 장착 마법의 유효 강화 추가
+        }
 
+        private void AddCraftCandidates() // 제작 마법별 효과가 있는 선택지 구성
+        {
+            FlightCraftedSpellBook book = CraftBook; // 실제 출격에 연결된 마법 도감
+            if (book == null) // 독립 비행 시험에는 제작 마법이 없음
+            {
+                return; // 기존 시험 카드만 사용
+            }
+            string[] labels = { "피해 +10%p", "대기시간 -10%p", "마력 -5%p", "발사체 +1", "관통 +1명", "범위 +5%p", "지속 +0.5초" }; // 기획서의 일곱 수치
+            for (int slot = 0; slot < 2; slot++) // 현재 좌우 전투 칸
+            {
+                CraftedSpellRecipe recipe = book.ActiveSlot(slot); // 출격에 고정된 마법
+                if (recipe == null || (slot == 1 && book.ActiveSlot(0)?.Id == recipe.Id)) // 빈 칸과 같은 구성의 중복 후보
+                {
+                    continue; // 같은 마법의 강화는 한 번만 제시
+                }
+                for (int index = 0; index < labels.Length; index++) // 각 수치의 실제 적용 조건
+                {
+                    var kind = (FlightCraftedSpellBook.Upgrade)index; // 해당하는 강화 종류
+                    if (book.CanUpgrade(slot, kind)) // 유효한 수치와 세 단계 상한
+                    {
+                        Reward reward = (Reward)((int)Reward.CraftLeftDamage + slot * labels.Length + index); // 실제 선택의 칸과 수치
+                        candidates.Add(new Card(reward, FlightCraftedSpellBook.NameOf(recipe), labels[index], 3, 0, 1, 0)); // 하나를 고를 강화 카드
+                    }
+                }
+            }
         }
 
         private void Present() // 현재 조종사의 후보에서 실제 세 카드 추첨
@@ -344,6 +383,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Apply(Reward reward) // 이번 출격에 선택 효과 적용
         {
+            if (DecodeCraft(reward, out int slot, out FlightCraftedSpellBook.Upgrade kind)) // 제작 마법 전용 수치
+            {
+                CraftBook?.TryUpgrade(slot, kind); // 동일 구성 ID의 실제 강화 단계
+                return; // 일반 공격과 스킬의 강화에 섞지 않음
+            }
             switch (reward) // 즉시 효과와 누적 효과 구분
             {
                 case Reward.Heal: // 응급 회복

@@ -4,9 +4,13 @@ namespace ProjectG // 프로젝트 게임 영역
 {
     public static class CraftedSpellVectors // 편집기와 전투가 공유하는 기본 발사 방향
     {
-        public static Vector3 Direction(CraftedSpellRecipe recipe, Quaternion aim, int index, float spreadDegrees) // 초기 배열의 개별 발사 방향
+        public static Vector3 Direction(CraftedSpellRecipe recipe, Quaternion aim, int index, float spreadDegrees) // 기본 조합의 개별 발사 방향
         {
-            int count = recipe.InitialShots; // 검증된 최초 생성 수
+            return DirectionForCount(recipe, aim, index, spreadDegrees, recipe.InitialShots); // 기본 탄 수의 배열 계산
+        }
+
+        internal static Vector3 DirectionForCount(CraftedSpellRecipe recipe, Quaternion aim, int index, float spreadDegrees, int count) // 강화 탄 수를 포함한 발사 방향
+        {
             if (index < 0 || index >= count) // 존재하지 않는 발사 순번
             {
                 return Vector3.zero; // 새 발사체의 방향 생성 없음

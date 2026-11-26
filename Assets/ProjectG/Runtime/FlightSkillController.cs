@@ -217,7 +217,12 @@ namespace ProjectG // 프로젝트 게임 영역
             return Time.timeScale > 0f && pilot.CanFly && pilot.IsAimView; // 메뉴와 둘러보기에서 실전 제작 마법 차단
         }
 
-        internal void SpendCraftedMana(int cost) // 성공한 제작 마법의 실제 소비
+        internal bool HasCraftedMana(float cost) // 소수점 마력을 포함한 시전 가능 여부
+        {
+            return mana >= cost; // 실제 보유량과 비용 비교
+        }
+
+        internal void SpendCraftedMana(float cost) // 성공한 제작 마법의 실제 소비
         {
             FlightAudio.Play(FlightSfx.MagicCard); // 제작 조합을 실제로 발사한 소리
             mana -= cost; // 보석과 같은 마력 비용 반영

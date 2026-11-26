@@ -2599,6 +2599,255 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 같은 구성의 강화 공유와 임시 성장 초기화
+        public IEnumerator CraftedSpellUpgradesShareThreeRanksAndResetOnNewSortie() // 중복 슬롯의 강화 한도
+        {
+            string key = "ProjectG.Crafted.Growth." + System.Guid.NewGuid().ToString("N"); // 독립적인 제작 마법 저장
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 기존 환경 보관
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 다른 저장과 격리
+            try // 시험 저장만 정리
+            {
+                yield return LoadOuterIslands(); // 실제 출격과 마법 도감
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 두 전투 칸의 마법
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 성장 API 조회
+                var slot = book.GetType().GetMethod("Slot", hidden); // 출격 준비 슬롯 조회
+                object fire = slot.Invoke(book, new object[] { 0 }); // 기본 파이어 볼트
+                var equip = book.GetType().GetMethod("Equip", hidden); // 다음 출격의 마법 편성
+                Assert.That(equip.Invoke(book, new[] { (object)1, fire }), Is.True); // 두 칸에 같은 구성 편성
+                var reset = book.GetType().GetMethod("ResetRun", hidden); // 실제 재출격 초기화
+                reset.Invoke(book, null); // 중복 편성의 새로운 출격
+                System.Type kind = book.GetType().GetNestedType("Upgrade", System.Reflection.BindingFlags.NonPublic); // 제작 마법 전용 강화 종류
+                Assert.That(kind, Is.Not.Null); // 강화 종류가 실제 코드에 존재
+                object damage = System.Enum.Parse(kind, "Damage"); // 마법 피해 강화
+                object mana = System.Enum.Parse(kind, "Mana"); // 마력 소모 강화
+                object cooldown = System.Enum.Parse(kind, "Cooldown"); // 재사용 대기 강화
+                var upgrade = book.GetType().GetMethod("TryUpgrade", hidden); // 전투 중 실제 강화 적용
+                var rank = book.GetType().GetMethod("UpgradeRank", hidden); // 구성 ID의 누적 단계
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실제 전투 발사기
+                var cast = caster.GetType().GetMethod("Cast", hidden); // 실제 마법 발사
+                var cooldownRemaining = caster.GetType().GetMethod("CooldownRemaining", hidden); // 시전 후 남은 대기시간
+                Assert.That(cast.Invoke(caster, new[] { fire }), Is.True); // 강화 전 파이어 볼트 발사
+                var projectiles = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 현재 비행 중인 제작 탄환
+                Component projectile = (Component)projectiles[0]; // 강화 전에 발사한 실제 탄환
+                Assert.That(upgrade.Invoke(book, new[] { (object)0, damage }), Is.True); // 첫 슬롯의 피해 강화
+                Assert.That(rank.Invoke(book, new object[] { 1 }), Is.EqualTo(1)); // 같은 ID의 다른 슬롯에도 공유
+                Assert.That(upgrade.Invoke(book, new[] { (object)1, mana }), Is.True); // 같은 구성의 마력 강화
+                Assert.That(upgrade.Invoke(book, new[] { (object)0, cooldown }), Is.True); // 세 번째 강화 적용
+                Assert.That(rank.Invoke(book, new object[] { 0 }), Is.EqualTo(3)); // 구성별 총 세 단계
+                Assert.That(rank.Invoke(book, new object[] { 1 }), Is.EqualTo(3)); // 중복 슬롯의 동일 단계
+                Assert.That(upgrade.Invoke(book, new[] { (object)1, damage }), Is.False); // 네 번째 강화 거절
+                object originalProfile = projectile.GetType().GetField("profile", hidden).GetValue(projectile); // 발사 당시 고정한 탄환 수치
+                Assert.That(originalProfile.GetType().GetField("Damage").GetValue(originalProfile), Is.EqualTo(35)); // 이미 발사한 탄환의 피해 유지
+                Assert.That((float)cooldownRemaining.Invoke(caster, new[] { fire }), Is.GreaterThan(3.9f)); // 이미 시작한 대기시간은 소급하지 않음
+                var stats = caster.GetType().GetMethod("EffectiveStats", hidden); // 강화가 반영된 시전 수치
+                object profile = stats.Invoke(caster, new[] { fire }); // 동일 구성의 실제 수치
+                Assert.That((float)profile.GetType().GetField("Mana").GetValue(profile), Is.EqualTo(14.25f).Within(0.001f)); // 시작 마력 오 퍼센트 감소
+                Assert.That((float)profile.GetType().GetField("Cooldown").GetValue(profile), Is.EqualTo(3.6f).Within(0.001f)); // 재사용 시간 십 퍼센트 감소
+                float upgradedDamage = (float)profile.GetType().GetField("Damage").GetValue(profile); // 반올림 전 강화 직격 피해
+                Assert.That(upgradedDamage, Is.EqualTo(38.5f).Within(0.001f)); // 기준 피해에 십 퍼센트 적용
+                Transform enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy"); // 실제 방어 속성이 있는 일반 마물
+                Component life = enemy.GetComponent("FlightEnemy"); // 실제 마물의 체력 처리
+                life.GetType().GetField("maxHealth", hidden).SetValue(life, 300); // 한 번의 유효 피해를 확인할 체력
+                life.GetType().GetField("defenseElement", hidden).SetValue(life, "grass"); // 화염에 유리한 풀 속성
+                enemy.gameObject.SetActive(true); // 지정한 체력으로 실제 마물 활성화
+                projectile.GetType().GetMethod("Damage", hidden).Invoke(projectile, new object[] { life, upgradedDamage }); // 실제 속성 배율을 거치는 명중
+                Assert.That(Metric(life, "Health"), Is.EqualTo(242)); // 강화 피해와 상성을 곱한 뒤 한 번 반올림
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 강화 기록을 유지한 채 발사와 대기 초기화
+                Component skills = FindPilot().GetComponent("FlightSkillController"); // 실제 공용 마력
+                var manaField = skills.GetType().GetField("mana", hidden); // 소수점 마력의 원본
+                var use = book.GetType().GetMethod("Use", hidden); // 카드가 호출하는 실제 시전
+                manaField.SetValue(skills, 14.2f); // 강화된 비용보다 적은 마력
+                use.Invoke(book, new object[] { 0 }); // 마력이 부족한 시도
+                Assert.That(Metric(caster, "CastCount"), Is.Zero); // 비용보다 적으면 시전 거절
+                manaField.SetValue(skills, 14.25f); // 소수점까지 정확히 일치한 마력
+                use.Invoke(book, new object[] { 0 }); // 비용 경계의 시전
+                Assert.That(Metric(caster, "CastCount"), Is.EqualTo(1)); // 정확한 소수점 비용으로 시전 성공
+                Assert.That((float)manaField.GetValue(skills), Is.EqualTo(0f).Within(0.001f)); // 실제 마력 소모량 일치
+                reset.Invoke(book, null); // 일반 스테이지 재출격
+                Assert.That(rank.Invoke(book, new object[] { 0 }), Is.Zero); // 임시 강화는 새 출격에서 초기화
+                Assert.That(rank.Invoke(book, new object[] { 1 }), Is.Zero); // 중복 슬롯도 함께 초기화
+            }
+            finally // 격리한 저장만 삭제
+            {
+                PlayerPrefs.DeleteKey(key); // 시험 전용 저장 키 정리
+                PlayerPrefs.Save(); // 시험 키 삭제 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 원래 환경 복원
+            }
+        }
+
+        [UnityTest] // 실제 레벨업 선택에서 제작 마법 강화 반영
+        public IEnumerator CraftedUpgradeAppearsInLevelUpAndUpdatesBothCards() // 중복 후보와 전투 HUD 확인
+        {
+            string key = "ProjectG.Crafted.Growth." + System.Guid.NewGuid().ToString("N"); // 독립적인 제작 마법 저장
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 환경 값 보관
+            var randomState = Random.state; // 이전 난수 상태 보관
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 시험 저장 격리
+            try // 시험한 데이터만 정리
+            {
+                yield return LoadOuterIslands(); // 실제 레벨업과 두 마법 카드
+                Transform hud = LocateCombatHud().transform; // 실제 전투 HUD
+                Component book = hud.GetComponent("FlightCraftedSpellBook"); // 구성 ID별 강화 도감
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 레벨업 후보 관찰
+                object fire = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 기본 파이어 볼트
+                Assert.That(book.GetType().GetMethod("Equip", hidden).Invoke(book, new[] { (object)1, fire }), Is.True); // 같은 마법을 두 칸에 편성
+                book.GetType().GetMethod("ResetRun", hidden).Invoke(book, null); // 동일 편성으로 새 출격
+                Component choices = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightUpgradeChoices, Assembly-CSharp")) as Component; // 실제 강화 선택기
+                Assert.That(choices, Is.Not.Null); // 씬의 강화 선택기 연결
+                var collect = choices.GetType().GetMethod("CollectCandidates", hidden); // 유효한 실제 선택지 수집
+                collect.Invoke(choices, null); // 중복 장착 상태의 후보 생성
+                var candidates = (System.Collections.IList)choices.GetType().GetField("candidates", hidden).GetValue(choices); // 생성한 후보 목록
+                bool hasDamage = false; // 피해 강화 후보 확인
+                foreach (object card in candidates) // 현재 실제 선택 가능 후보
+                {
+                    string reward = card.GetType().GetField("reward").GetValue(card).ToString(); // 후보의 내부 효과 이름
+                    hasDamage |= reward == "CraftLeftDamage"; // 동일 마법의 화력 강화 존재
+                    Assert.That(reward.StartsWith("CraftRight"), Is.False); // 같은 구성은 둘째 칸에서 중복 제시하지 않음
+                }
+                Assert.That(hasDamage, Is.True); // 피해가 있는 마법의 강화 후보
+                choices.GetType().GetMethod("QueueChoices", hidden).Invoke(choices, new object[] { 1, 2 }); // 실제 레벨업 선택 모달 열기
+                var offered = (System.Array)choices.GetType().GetField("offered", hidden).GetValue(choices); // 화면에 표시된 세 후보
+                var present = choices.GetType().GetMethod("Present", hidden); // 실제 후보 재추첨
+                int selected = -1; // 제작 마법 후보의 실제 화면 위치
+                Random.InitState(8462); // 재현 가능한 후보 추첨
+                for (int attempt = 0; attempt < 120 && selected < 0; attempt++) // 제작 강화가 나올 때까지 실제 추첨
+                {
+                    present.Invoke(choices, null); // 레벨업 화면의 후보 갱신
+                    for (int i = 0; i < offered.Length; i++) // 화면의 각 선택지
+                    {
+                        string reward = offered.GetValue(i).GetType().GetField("reward").GetValue(offered.GetValue(i)).ToString(); // 실제 선택 효과
+                        if (reward == "CraftLeftDamage") // 피해 강화 카드 발견
+                        {
+                            selected = i; // 실제 버튼 번호 기록
+                            break; // 해당 카드 선택 준비
+                        }
+                    }
+                }
+                Assert.That(selected, Is.GreaterThanOrEqualTo(0)); // 실제 추첨에 제작 강화 등장
+                choices.GetType().GetMethod("RequestChoice", hidden).Invoke(choices, new object[] { selected }); // 해당 레벨업 버튼의 동일 입력
+                yield return WaitFrames(3); // 선택 적용과 전투 복귀
+                var rank = book.GetType().GetMethod("UpgradeRank", hidden); // 구성별 공유 강화 단계
+                Assert.That(rank.Invoke(book, new object[] { 0 }), Is.EqualTo(1)); // 선택한 마법의 실제 강화
+                Assert.That(rank.Invoke(book, new object[] { 1 }), Is.EqualTo(1)); // 같은 구성의 반대쪽 슬롯 공유
+                Transform cards = hud.Find("MagicCards"); // 실제 카드 이름과 상태 표시
+                Assert.That(HudText(cards.Find("LeftActive/Title")), Does.Contain("+1")); // 왼쪽 카드의 강화 단계
+                Assert.That(HudText(cards.Find("RightActive/Title")), Does.Contain("+1")); // 오른쪽 카드의 공유 단계
+                Assert.That(HudText(cards.Find("LeftActive/Mouse")), Does.Contain("비용20")); // 현재 조합 비용 표시
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 전투 발사와 대기시간
+                book.GetType().GetMethod("Use", hidden).Invoke(book, new object[] { 0 }); // 실제 첫 슬롯 시전
+                yield return WaitFrames(2); // 두 카드의 대기 표기 갱신
+                Assert.That(HudText(cards.Find("LeftActive/Mouse")), Does.Contain("초")); // 첫 카드의 남은 대기시간
+                Assert.That(HudText(cards.Find("RightActive/Mouse")), Does.Contain("초")); // 같은 구성의 대기시간 공유
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 대기시간만 제거
+                Component skills = FindPilot().GetComponent("FlightSkillController"); // 실제 공용 마력
+                skills.GetType().GetField("mana", hidden).SetValue(skills, 0f); // 마력 부족 상태
+                yield return WaitFrames(2); // 자원 경고 표기 갱신
+                Assert.That(HudText(cards.Find("LeftActive/Mouse")), Does.Contain("마력 부족")); // 시전 실패 사유 표시
+                System.Type kind = book.GetType().GetNestedType("Upgrade", System.Reflection.BindingFlags.NonPublic); // 제작 마법의 강화 종류
+                object damage = System.Enum.Parse(kind, "Damage"); // 같은 구성의 피해 강화
+                var upgrade = book.GetType().GetMethod("TryUpgrade", hidden); // 실제 수치 강화 적용
+                Assert.That(upgrade.Invoke(book, new[] { (object)0, damage }), Is.True); // 두 번째 강화 단계
+                Assert.That(upgrade.Invoke(book, new[] { (object)0, damage }), Is.True); // 세 번째 강화 단계
+                collect.Invoke(choices, null); // 상한 적용 후 유효 후보 재생성
+                foreach (object card in candidates) // 상한 적용 후 실제 후보
+                {
+                    string reward = card.GetType().GetField("reward").GetValue(card).ToString(); // 후보 효과 번호
+                    Assert.That(reward.StartsWith("CraftLeft") || reward.StartsWith("CraftRight"), Is.False); // 최대 강화 마법의 후보 제외
+                }
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 마법 공격력의 실제 장비 보정
+                float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비 효과 배열
+                System.Type stat = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 장비의 능력치 종류
+                int magicPower = (int)System.Enum.Parse(stat, "MagicPower"); // 마법 편성 한도 보정 위치
+                float originalBonus = bonuses[magicPower]; // 기존 장비 효과 보관
+                bonuses[magicPower] = -99f; // 편성 비용보다 낮은 시험 한도
+                yield return WaitFrames(2); // 실제 카드 제약 표시 갱신
+                Assert.That(HudText(cards.Find("LeftActive/Mouse")), Does.Contain("한도 초과")); // 편성 비용 초과의 원인 표시
+                bonuses[magicPower] = originalBonus; // 시험한 장비 효과 복원
+            }
+            finally // 시험 저장만 제거
+            {
+                PlayerPrefs.DeleteKey(key); // 격리된 시험 키 삭제
+                PlayerPrefs.Save(); // 저장 삭제 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 이전 환경 복원
+                Random.state = randomState; // 다른 시험의 난수 상태 복원
+            }
+        }
+
+        [UnityTest] // 마법 종류에 따른 유효 강화와 시전별 수치 확인
+        public IEnumerator CraftedUpgradeFiltersInvalidEffectsAndSnapshotsCountAndBarrier() // 발사체 수와 결계 범위·지속
+        {
+            string key = "ProjectG.Crafted.Growth." + System.Guid.NewGuid().ToString("N"); // 독립된 임시 저장
+            string prior = System.Environment.GetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY"); // 이전 환경 보관
+            System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", key); // 사용자 저장 격리
+            try // 시험 키만 삭제
+            {
+                yield return LoadOuterIslands(); // 제작 마법과 실제 발사기
+                Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 출격의 마법 강화
+                Component caster = FindPilot().GetComponent("FlightCraftedSpellCaster"); // 실제 탄환과 결계
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 시험 경로
+                var slot = book.GetType().GetMethod("Slot", hidden); // 준비된 실제 마법
+                var equip = book.GetType().GetMethod("Equip", hidden); // 다음 출격 편성
+                var reset = book.GetType().GetMethod("ResetRun", hidden); // 새 출격
+                var can = book.GetType().GetMethod("CanUpgrade", hidden); // 실제 강화 후보 검사
+                var upgrade = book.GetType().GetMethod("TryUpgrade", hidden); // 실제 강화 선택
+                System.Type kind = book.GetType().GetNestedType("Upgrade", System.Reflection.BindingFlags.NonPublic); // 기획의 강화 종류
+                object count = System.Enum.Parse(kind, "Count"); // 다중 발사체 수 강화
+                object pierce = System.Enum.Parse(kind, "Pierce"); // 기존 관통 대상 강화
+                object damage = System.Enum.Parse(kind, "Damage"); // 피해 강화
+                object width = System.Enum.Parse(kind, "Width"); // 범위 강화
+                object duration = System.Enum.Parse(kind, "Duration"); // 유지 시간 강화
+                object thorn = slot.Invoke(book, new object[] { 1 }); // 초기 가시 산탄
+                Assert.That(equip.Invoke(book, new[] { (object)0, thorn }), Is.True); // 가시 산탄 중복 장착
+                reset.Invoke(book, null); // 실제 전투 슬롯 배정
+                Assert.That(can.Invoke(book, new[] { (object)0, count }), Is.True); // 여러 발인 마법의 탄 수 후보
+                Assert.That(can.Invoke(book, new[] { (object)0, pierce }), Is.False); // 관통 효과가 없는 마법 제외
+                Assert.That(upgrade.Invoke(book, new[] { (object)0, count }), Is.True); // 추가 발사체 한 단계
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { thorn }), Is.True); // 실제 강화 산탄 발사
+                var shots = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 생성한 제작 발사체
+                Assert.That(shots.Count, Is.EqualTo(9)); // 기본 여덟 발에 한 발 추가
+                book.GetType().GetMethod("ClearSlot", hidden).Invoke(book, new object[] { 1 }); // 둘째 준비 칸 비우기
+                System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 문서의 기본 마법 목록
+                var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 읽기 전용 프리셋
+                object arrows = all[9].GetType().GetProperty("Recipe").GetValue(all[9]); // 기존 관통 효과가 있는 시험 마법
+                Assert.That(equip.Invoke(book, new[] { (object)0, arrows }), Is.True); // 관통 마법 한 장 편성
+                reset.Invoke(book, null); // 새 편성의 출격
+                var active = book.GetType().GetMethod("ActiveSlot", hidden); // 무작위 배정된 실제 칸
+                int arrowLane = active.Invoke(book, new object[] { 0 }) != null ? 0 : 1; // 관통 마법이 배정된 슬롯
+                Assert.That(upgrade.Invoke(book, new[] { (object)arrowLane, pierce }), Is.True); // 관통 대상 한 명 추가
+                Assert.That(upgrade.Invoke(book, new[] { (object)arrowLane, pierce }), Is.True); // 최대 다섯 명까지 추가
+                Assert.That(can.Invoke(book, new[] { (object)arrowLane, pierce }), Is.False); // 다섯 명을 넘는 후보 제외
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { arrows }), Is.True); // 강화 관통 마법 시전
+                Component arrow = (Component)shots[0]; // 실제 발사된 관통 화살
+                Assert.That(arrow.GetType().GetField("pierceLimit", hidden).GetValue(arrow), Is.EqualTo(5)); // 탄환의 최대 관통 대상 고정
+                object barrier = all[11].GetType().GetProperty("Recipe").GetValue(all[11]); // 정화 결계 구성
+                Assert.That(equip.Invoke(book, new[] { (object)0, barrier }), Is.True); // 빈 칸과 정화 결계 편성
+                reset.Invoke(book, null); // 결계의 새 출격
+                int lane = active.Invoke(book, new object[] { 0 }) != null ? 0 : 1; // 결계가 배정된 슬롯
+                Assert.That(can.Invoke(book, new[] { (object)lane, damage }), Is.False); // 피해 없는 결계의 화력 강화 제외
+                Assert.That(can.Invoke(book, new[] { (object)lane, count }), Is.False); // 단일 결계의 추가 발사 제외
+                Assert.That(can.Invoke(book, new[] { (object)lane, duration }), Is.True); // 지속형의 유지시간 강화 허용
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { barrier }), Is.True); // 강화 전 고정 결계 생성
+                var barriers = (System.Collections.IList)caster.GetType().GetField("barriers", hidden).GetValue(caster); // 현재 결계 목록
+                object existing = barriers[0]; // 강화 전에 만든 결계
+                float oldExpiry = (float)existing.GetType().GetField("expires").GetValue(existing); // 이전 결계 종료 시각
+                Assert.That(upgrade.Invoke(book, new[] { (object)lane, width }), Is.True); // 결계 범위 강화
+                Assert.That(upgrade.Invoke(book, new[] { (object)lane, duration }), Is.True); // 결계 유지시간 강화
+                Assert.That((float)existing.GetType().GetField("radius").GetValue(existing), Is.EqualTo(3.5f).Within(0.001f)); // 이미 설치한 반경 유지
+                Assert.That((float)existing.GetType().GetField("expires").GetValue(existing), Is.EqualTo(oldExpiry).Within(0.001f)); // 이미 설치한 유지시간 유지
+                caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 임시 강화는 유지하고 결계와 쿨타임만 제거
+                float started = Time.time; // 새 결계의 시전 시각
+                Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { barrier }), Is.True); // 강화된 다음 결계 시전
+                object next = barriers[0]; // 새로 생성한 실제 결계
+                Assert.That((float)next.GetType().GetField("radius").GetValue(next), Is.EqualTo(3.675f).Within(0.001f)); // 기준 반경의 오 퍼센트 증가
+                Assert.That((float)next.GetType().GetField("expires").GetValue(next) - started, Is.EqualTo(4.5f).Within(0.001f)); // 기준 유지시간에 영 점 오 초 추가
+            }
+            finally // 시험 저장만 정리
+            {
+                PlayerPrefs.DeleteKey(key); // 고유 시험 키 삭제
+                PlayerPrefs.Save(); // 삭제 확정
+                System.Environment.SetEnvironmentVariable("PROJECTG_CRAFTED_TEST_KEY", prior); // 원래 환경 복원
+            }
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {

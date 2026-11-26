@@ -11,5 +11,11 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightEnemy Enemy => enemy; // 약점의 실제 피해 대상
         internal float MinimumDamageBonus => minimumDamageBonus; // 약점의 공통 추가 피해
+
+        internal void Configure(FlightEnemy owner, float bonus)
+        {
+            enemy = owner;
+            minimumDamageBonus = Mathf.Max(0f, bonus);
+        }
     }
 }

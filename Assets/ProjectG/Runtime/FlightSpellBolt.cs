@@ -61,7 +61,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return; // 실제 충돌이 일어나지 않는 프레임
             }
-            if (guidedTarget != null && guidedTarget.isActiveAndEnabled && guidedTarget.Health > 0) // 사라진 표적은 마지막 방향으로 통과
+            if (guidedTarget != null && guidedTarget.IsCombatTarget) // 살아서 후퇴한 표적은 추적하지 않음
             {
                 Vector3 route = guidedTarget.transform.position - transform.position; // 높이를 포함한 실제 충돌 지점 방향
                 if (route.sqrMagnitude > 0.001f) // 같은 위치에서 회전을 정할 수 없는 경우 제외

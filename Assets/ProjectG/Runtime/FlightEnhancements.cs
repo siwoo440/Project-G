@@ -131,6 +131,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnDefeated(FlightEnemy enemy) // 등급을 고르고 실제 드롭 생성
         {
+            if (storyNoRewards.Contains(enemy)) return;
             if (pilot.IsDefeated || enemy.LootTier == FlightLootTier.FinalBoss || (enemy.LootTier == FlightLootTier.Normal && Random.value >= normalChance)) // 일반 확률과 보스 차이
             {
                 return; // 최종 보스·실패·미당첨에서 드롭하지 않음
@@ -171,6 +172,26 @@ namespace ProjectG // 프로젝트 게임 영역
                     return; // 처치당 한 개만 지급
                 }
             }
+        }
+
+        private readonly System.Collections.Generic.HashSet<FlightEnemy> storyNoRewards = new System.Collections.Generic.HashSet<FlightEnemy>();
+
+        internal void RegisterStorySource(FlightEnemy enemy) => RegisterStoryTarget(enemy, true);
+
+        internal void RegisterStoryTarget(FlightEnemy enemy, bool allowReward)
+        {
+            if (enemy == null || System.Array.IndexOf(sources, enemy) >= 0) return;
+            System.Array.Resize(ref sources, sources.Length + 1);
+            sources[sources.Length - 1] = enemy;
+            if (!allowReward) storyNoRewards.Add(enemy);
+            else if (isActiveAndEnabled) enemy.Defeated += OnDefeated;
+        }
+
+        internal void UnregisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy != null) enemy.Defeated -= OnDefeated;
+            storyNoRewards.Remove(enemy);
+            sources = System.Array.FindAll(sources, value => value != null && value != enemy);
         }
 
         private void SpawnGrade(Vector3 position, int grade, int candidate) // 선택한 등급 안의 실제 유효한 종류
@@ -344,6 +365,7 @@ namespace ProjectG // 프로젝트 게임 영역
             FlightEnemy target = null; // 가시 적이 있는 경우만 발사
             foreach (FlightEnemy enemy in sources) // 현재 전투의 시험 적 목록
             {
+                if (enemy == null || !enemy.IsCombatTarget) continue;
                 float square = (enemy.transform.position - drone.position).sqrMagnitude; // 드론에서 실제 거리
                 if (enemy.isActiveAndEnabled && square < distance && ClearPath(drone.position, enemy.transform.position)) // 활성과 지형 가림 검증
                 {
@@ -361,6 +383,7 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             foreach (FlightEnemy enemy in sources) // 주변의 현재 활성 적
             {
+                if (enemy == null || !enemy.IsCombatTarget) continue;
                 Vector3 offset = enemy.transform.position - pilot.transform.position; // 기체의 실제 몸통 거리
                 if (enemy.isActiveAndEnabled && offset.sqrMagnitude <= 9f && ClearPath(pilot.transform.position, enemy.transform.position)) // 반경 3의 접촉과 가림
                 {

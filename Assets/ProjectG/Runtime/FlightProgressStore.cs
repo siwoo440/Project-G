@@ -19,6 +19,8 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int Marks; // 이번 출격의 조종사 조율의 증표 증가
         public bool FirstTask; // 이번 정상 결과에서 최초 과제 지급
         public FlightBroomReward[] BroomRewards = Array.Empty<FlightBroomReward>(); // 같은 출격에서 확정한 개별 부품
+        public string SourceStageId; // 스토리 출격의 참여 시점에 고정한 구간
+        public string Termination; // 스토리 출격의 Succeeded·Failed·Recovered 종료 출처
     }
 
     public sealed class FlightProgressStore : IDisposable // 출격당 원자 정산과 재실행 복구
@@ -79,6 +81,9 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             public BroomProgress[] brooms = Array.Empty<BroomProgress>(); // 시작 부품 이후 추가한 개별 보유와 강화 내역
             public BroomRecipe[] broomRecipes = Array.Empty<BroomRecipe>(); // 종류별 영구 제작법 해금
             public ResearchReward[] researchRewards = Array.Empty<ResearchReward>(); // 출격·스테이지별 무료 선택권
+            public string pendingStoryStageId; // 실제 전투 시작과 함께 저장하는 스토리 구간
+            public FlightStoryProgressData storyProgress = new FlightStoryProgressData(); // 보상과 같은 파일에 확정하는 서사 경계
+            public FlightProgressReceipt[] storyReceipts = Array.Empty<FlightProgressReceipt>(); // 이후 출격 중에도 재조회할 스토리 정산 이력
         }
 
         private const int MarkInterval = 60; // 전용 재료의 시험 숙련도 간격
@@ -93,6 +98,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
         public int SharedCrystals => state.crystals; // 프로필의 공통 재료
         public int Gold => state.gold; // 공방과 장비 상점에 쓰는 실제 골드
         public string PendingId => state.pendingId; // 아직 보상 지급이 없는 출격
+        internal FlightStoryProgressData StoryProgress => FlightStoryProgressRules.Copy(state.storyProgress); // 호출자가 영구 권한을 바꾸지 못하는 사본
 
         public FlightProgressStore(string filePath) // 보존할 파일 또는 격리 메모리 모드
         {
@@ -555,7 +561,52 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             Save next = Copy(); // 기존 영구 재화의 임시 복사본
             next.pendingId = Guid.NewGuid().ToString("N"); // 같은 캐릭터도 출격마다 별도 ID
             next.pendingPilot = pilot; // 시작 후 바뀌지 않는 보상 대상
+            next.pendingStoryStageId = null; // 기존 출격 경로에는 스토리 정산 권한 없음
             return Write(next) ? next.pendingId : null; // 디스크 저장 성공 후 참여로 인정
+        }
+
+        internal string BeginStory(string preparedRunId, FlightBroomPilot pilot, string stageId)
+        {
+            if (!Guid.TryParseExact(preparedRunId, "N", out Guid parsed) || parsed == Guid.Empty
+                || !ValidPilot(pilot) || !FlightStoryProgressRules.IsCombatStage(stageId)) return null;
+            if (!string.IsNullOrEmpty(state.pendingId))
+            {
+                return state.pendingId == preparedRunId && state.pendingPilot == pilot && state.pendingStoryStageId == stageId
+                    ? preparedRunId : null;
+            }
+            if (FindStoryReceipt(state, preparedRunId) != null || state.recent?.RunId == preparedRunId) return null;
+            Save next = Copy();
+            next.pendingId = preparedRunId;
+            next.pendingPilot = pilot;
+            next.pendingStoryStageId = stageId;
+            return Write(next) ? preparedRunId : null;
+        }
+
+        internal bool SaveStoryCheckpoint(FlightStoryCheckpoint patch)
+        {
+            if (!FlightStoryProgressRules.TryCheckpoint(state.storyProgress, patch, !string.IsNullOrEmpty(state.pendingId), out FlightStoryProgressData progress))
+            {
+                Error = "안전한 스토리 저장 경계를 확인할 수 없습니다.";
+                return false;
+            }
+            Save next = Copy();
+            next.storyProgress = progress;
+            return Write(next);
+        }
+
+        internal FlightProgressReceipt CompleteStory(string runId, bool cleared, bool taskEligible, int normalKills, int eliteKills,
+            bool midBoss, bool finalBoss, FlightBroomCatalog catalog, FlightStoryCheckpoint patch)
+        {
+            FlightProgressReceipt settled = FindStoryReceipt(state, runId);
+            if (settled != null) return CopyReceipt(settled);
+            if (state.pendingId != runId || string.IsNullOrEmpty(state.pendingStoryStageId)) return null;
+            if (catalog == null)
+            {
+                Error = "부품 보상 데이터를 확인할 수 없습니다.";
+                return null;
+            }
+            return Settle(runId, cleared, false, taskEligible, true, normalKills, midBoss, true, eliteKills,
+                state.pendingStoryStageId, catalog, finalBoss, false, true, patch);
         }
 
         public FlightProgressReceipt Complete(string id, bool cleared) // 정상 클리어·실패·포기·다시하기 정산
@@ -590,15 +641,19 @@ namespace ProjectG // 프로젝트 영구 성장 영역
 
         public FlightProgressReceipt Recover() // 다음 실행에서만 중단 출격의 참여 보상 지급
         {
-            return Settle(state.pendingId, false, true, false, false, 0, false, false, 0, null); // 중단 출격은 기본 참여분만 지급
+            bool story = !string.IsNullOrEmpty(state.pendingStoryStageId);
+            return Settle(state.pendingId, false, true, false, false, 0, false, false, 0, state.pendingStoryStageId,
+                null, false, false, story); // 중단 출격은 기본 참여분과 기존 숙련 경계만 지급
         }
 
-        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss, bool rewardsRecorded, int eliteKills, string stageId, FlightBroomCatalog catalog = null, bool finalBoss = false, bool high = false) // 보상과 기록을 같은 저장에 추가
+        private FlightProgressReceipt Settle(string id, bool cleared, bool recovered, bool taskEligible, bool researchRecorded, int normalKills, bool midBoss, bool rewardsRecorded, int eliteKills, string stageId, FlightBroomCatalog catalog = null, bool finalBoss = false, bool high = false, bool storyContext = false, FlightStoryCheckpoint storyPatch = null) // 보상과 기록을 같은 저장에 추가
         {
             if (string.IsNullOrEmpty(id)) // 아직 전투 참여 전 또는 이미 복구됨
             {
                 return null; // 정산할 출격 없음
             }
+            FlightProgressReceipt historical = FindStoryReceipt(state, id);
+            if (historical != null) return CopyReceipt(historical);
             if (state.recent?.RunId == id) // 같은 ID의 반복 진입
             {
                 return state.recent; // 이전의 확정 보상만 반환
@@ -607,7 +662,20 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             {
                 return null; // 알려지지 않은 참여를 재정산하지 않음
             }
+            if (storyContext != !string.IsNullOrEmpty(state.pendingStoryStageId)) return null;
+            FlightStoryProgressData storyProgress = null;
+            if (storyContext)
+            {
+                stageId = state.pendingStoryStageId;
+                if (!FlightStoryProgressRules.TrySettlement(state.storyProgress, storyPatch, stageId, cleared, recovered, out storyProgress))
+                {
+                    Error = "스토리 정산과 완료 경계를 확인할 수 없습니다.";
+                    return null;
+                }
+            }
             Save next = Copy(); // 저장 실패에도 이전 자료 보존
+            if (storyContext) next.storyProgress = storyProgress;
+            bool finalClear = storyContext ? FlightStoryProgressRules.QualifiesFinalClear(cleared, finalBoss) : cleared;
             PilotProgress progress = next.pilots[(int)next.pendingPilot]; // 참여한 캐릭터의 실제 누적값
             int oldSteps = progress.mastery / MarkInterval; // 직전 지급까지의 숙련도 경계
             var receipt = new FlightProgressReceipt // 실제 출격당 보상
@@ -619,7 +687,9 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                 Mastery = cleared ? 20 : 10, // 참여 10과 성공 시 추가 10
                 Crystals = cleared ? 6 : 3, // 성공 6 또는 기본 참여 3
                 Gold = cleared ? 600 : 150, // 기획서의 기본 난이도 클리어·참여 골드
-                FirstTask = taskEligible && !progress.completedFirstTask // 같은 조종사의 첫 정상 종료에서 한 번
+                FirstTask = taskEligible && !progress.completedFirstTask, // 같은 조종사의 첫 정상 종료에서 한 번
+                SourceStageId = storyContext ? stageId : null,
+                Termination = storyContext ? (recovered ? "Recovered" : cleared ? "Succeeded" : "Failed") : null
             };
             if (catalog != null && !recovered) // 정상 출격의 실제 부품 보상표
             {
@@ -649,7 +719,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             {
                 progress.researchNormal |= normalKills >= 10; // 한 출격의 지정 일반 적 열 마리
                 progress.researchAdvanced |= midBoss; // 실제 중간 보스 격파
-                progress.researchSpecial |= cleared; // 실제 최종 보스 클리어
+                progress.researchSpecial |= finalClear; // 스토리는 FINAL 근거와 정상 성공을 함께 요구
             }
             if (rewardsRecorded && !recovered) // 정상 클리어 또는 실패의 지정 격파 보상
             {
@@ -668,7 +738,7 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                     {
                         QueueResearchReward(next, stage + ":mid", 2); // 스테이지별 최초 심화 보상
                     }
-                    if (cleared) // 해당 스테이지의 정상 최종 보스 클리어
+                    if (finalClear) // 해당 스테이지의 정상 최종 보스 클리어
                     {
                         QueueResearchReward(next, stage + ":final", 3); // 스테이지별 최초 특수 보상
                     }
@@ -677,10 +747,35 @@ namespace ProjectG // 프로젝트 영구 성장 영역
             progress.marks += receipt.Marks; // 캐릭터 전용 증표 누적
             next.crystals += receipt.Crystals; // 모든 캐릭터에서 공용 재료 증가
             next.gold += receipt.Gold; // 출격 ID당 한 번만 골드 지급
-            next.clearedStory |= cleared; // 이후 실패·복구가 기존 완료를 지우지 않음
+            next.clearedStory |= storyContext ? next.storyProgress.OperationClear : cleared; // 기존 완료를 보존하고 스토리는 최종 작전만 인정
             next.recent = receipt; // 중복 정산 확인용 최근 영수증
+            if (storyContext)
+            {
+                Array.Resize(ref next.storyReceipts, next.storyReceipts.Length + 1);
+                next.storyReceipts[next.storyReceipts.Length - 1] = receipt;
+            }
             next.pendingId = null; // 기록과 보상을 한 번에 확정
-            return Write(next) ? receipt : null; // 성공한 파일 교체에만 영수증 제공
+            next.pendingStoryStageId = null;
+            return Write(next) ? (storyContext ? CopyReceipt(receipt) : receipt) : null; // 성공한 파일 교체에만 영수증 제공
+        }
+
+        private static FlightProgressReceipt FindStoryReceipt(Save profile, string id)
+        {
+            return string.IsNullOrEmpty(id) ? null : Array.Find(profile.storyReceipts ?? Array.Empty<FlightProgressReceipt>(), receipt => receipt?.RunId == id);
+        }
+
+        private static FlightProgressReceipt CopyReceipt(FlightProgressReceipt receipt)
+        {
+            return JsonUtility.FromJson<FlightProgressReceipt>(JsonUtility.ToJson(receipt));
+        }
+
+        private static bool ValidStoryReceipt(FlightProgressReceipt receipt)
+        {
+            return receipt != null && Guid.TryParseExact(receipt.RunId, "N", out Guid parsed) && parsed != Guid.Empty
+                && ValidPilot(receipt.Pilot) && FlightStoryProgressRules.IsCombatStage(receipt.SourceStageId)
+                && receipt.Mastery >= 0 && receipt.Crystals >= 0 && receipt.Gold >= 0 && receipt.Marks >= 0
+                && (receipt.Termination == "Succeeded" || receipt.Termination == "Failed" || receipt.Termination == "Recovered")
+                && receipt.Cleared == (receipt.Termination == "Succeeded") && receipt.Recovered == (receipt.Termination == "Recovered");
         }
 
         private static Save Empty() // 유효한 첫 실행 형식
@@ -719,7 +814,28 @@ namespace ProjectG // 프로젝트 영구 성장 영역
                         return null; // 복구 사본 확인을 요청
                     }
                 }
-                saved.clearedStory |= saved.recent?.Cleared == true; // 기존 형식의 마지막 확정 클리어 복원
+                saved.storyProgress ??= new FlightStoryProgressData();
+                if (!FlightStoryProgressRules.IsValid(saved.storyProgress)
+                    || (!string.IsNullOrEmpty(saved.pendingStoryStageId) && (string.IsNullOrEmpty(saved.pendingId) || !FlightStoryProgressRules.IsCombatStage(saved.pendingStoryStageId)))) return null;
+                saved.storyProgress = FlightStoryProgressRules.Copy(saved.storyProgress);
+                saved.storyReceipts ??= Array.Empty<FlightProgressReceipt>();
+                var storyIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (FlightProgressReceipt receipt in saved.storyReceipts)
+                {
+                    if (!ValidStoryReceipt(receipt) || !storyIds.Add(receipt.RunId) || receipt.RunId == saved.pendingId) return null;
+                    receipt.BroomRewards ??= Array.Empty<FlightBroomReward>();
+                }
+                if (!string.IsNullOrEmpty(saved.recent?.SourceStageId))
+                {
+                    if (!ValidStoryReceipt(saved.recent) || saved.recent.RunId == saved.pendingId) return null;
+                    if (storyIds.Add(saved.recent.RunId))
+                    {
+                        Array.Resize(ref saved.storyReceipts, saved.storyReceipts.Length + 1);
+                        saved.storyReceipts[saved.storyReceipts.Length - 1] = saved.recent;
+                    }
+                }
+                if (saved.storyProgress.OperationClear && !Array.Exists(saved.storyReceipts, receipt => receipt.SourceStageId == "ST-8-OP" && receipt.Cleared)) return null;
+                saved.clearedStory |= saved.storyProgress.OperationClear || (saved.recent?.Cleared == true && string.IsNullOrEmpty(saved.recent.SourceStageId)); // 기존 형식의 클리어와 최종 작전만 복원
                 saved.brooms ??= Array.Empty<BroomProgress>(); // 26~29일차의 골드 없는 기존 프로필을 보존
                 saved.broomRecipes ??= Array.Empty<BroomRecipe>(); // 이전 저장의 제작법 항목 기본값
                 var recipeIds = new HashSet<string>(); // 제작법별 중복 및 범위 확인

@@ -59,6 +59,20 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal void RegisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy == null || System.Array.IndexOf(rewardSources, enemy) >= 0) return;
+            System.Array.Resize(ref rewardSources, rewardSources.Length + 1);
+            rewardSources[rewardSources.Length - 1] = enemy;
+            if (isActiveAndEnabled) enemy.Defeated += OnDefeated;
+        }
+
+        internal void UnregisterStorySource(FlightEnemy enemy)
+        {
+            if (enemy != null) enemy.Defeated -= OnDefeated;
+            rewardSources = System.Array.FindAll(rewardSources, value => value != null && value != enemy);
+        }
+
         internal void ResetRun() // 출격을 다시 시작할 때 점수 초기화
         {
             Total = 0; // 새 출격의 합계

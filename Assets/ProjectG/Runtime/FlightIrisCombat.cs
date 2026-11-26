@@ -59,7 +59,7 @@ namespace ProjectG // 프로젝트 게임 영역
             foreach (FlightEnemy enemy in enemies) // 원뿔에 들어온 지형 앞 마물
             {
                 Vector3 offset = enemy.transform.position - waveCenter; // 고도를 포함한 피해 위치
-                if (enemy.Health <= 0 || !InsideWave(offset, forward, cone) || !Visible(waveCenter, enemy.transform.position)) // 실제 앞쪽 위치와 지형 확인
+                if (!enemy.IsCombatTarget || !InsideWave(offset, forward, cone) || !Visible(waveCenter, enemy.transform.position)) // 실제 앞쪽 위치와 지형 확인
                 {
                     continue; // 원뿔 바깥이나 장애물 뒤 공격 제외
                 }
@@ -100,7 +100,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 foreach (FlightEnemy enemy in enemies) // 이미 적중한 대상은 이 시전에서 제외
                 {
                     float distance = (enemy.transform.position - fork).sqrMagnitude; // 현재 전파점부터 다른 적까지의 거리
-                    if (enemy.Health > 0 && !affected.Contains(enemy) && distance <= limit && Visible(fork, enemy.transform.position)) // 같은 탄의 중복과 벽 차단
+                    if (enemy.IsCombatTarget && !affected.Contains(enemy) && distance <= limit && Visible(fork, enemy.transform.position)) // 같은 탄의 중복과 벽 차단
                     {
                         limit = distance; // 현재 새 후보의 실제 거리
                         next = enemy; // 이전에 맞히지 않은 가까운 적

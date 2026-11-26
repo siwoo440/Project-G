@@ -56,7 +56,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public FlightBroomPilot ActivePilot { get; private set; } // 출격에서 실제 조작하는 캐릭터
         public bool IsRian => ActivePilot == FlightBroomPilot.Rian; // 저격형 프로필 확인
         private bool IsAria => ActivePilot == FlightBroomPilot.Aria; // 속사형 프로필 확인
-        internal int LumiTrackingBonus => lumiTarget != null && lumiTarget.isActiveAndEnabled && lumiTarget.Health > 0 ? Mathf.Clamp(Mathf.FloorToInt(Time.time - trackingSince), 0, 3) * 15 : 0; // 동일 표적 1초마다 15%, 최대 45%
+        internal int LumiTrackingBonus => lumiTarget != null && lumiTarget.IsCombatTarget ? Mathf.Clamp(Mathf.FloorToInt(Time.time - trackingSince), 0, 3) * 15 : 0; // 동일 표적 1초마다 15%, 최대 45%
         internal bool FirstTaskReady => measureTask && (IsAria ? taskHits >= 50 : IsRian && taskHits >= 10); // 두 조종사의 확정 첫 출격 과제
 
         internal void StartFirstTask() // 실제 첫 웨이브 시작의 과제 초기값
@@ -229,7 +229,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 Vector3 offset = enemy.transform.position - origin; // 세 축의 상대 위치
                 float distance = offset.magnitude; // 실제 입체 거리
-                if (enemy.isActiveAndEnabled && enemy.Health > 0 && distance <= aimRange && Vector3.Dot(forward, offset) > distance * 0.3f) // 사거리와 조준 방향 확인
+                if (enemy.IsCombatTarget && distance <= aimRange && Vector3.Dot(forward, offset) > distance * 0.3f) // 사거리와 조준 방향 확인
                 {
                     lumiTargets.Add(enemy); // 다중 유도에서 재사용할 후보
                 }
@@ -443,7 +443,7 @@ namespace ProjectG // 프로젝트 게임 영역
             foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 이번 프레임의 마물만 확인
             {
                 float distance = (enemy.transform.position - muzzle.position).sqrMagnitude; // 현재 총구에서의 실제 거리
-                if (enemy.Health > 0 && distance < best) // 아직 피해를 줄 수 있는 가장 가까운 적
+                if (enemy.IsCombatTarget && distance < best) // 아직 피해를 줄 수 있는 가장 가까운 적
                 {
                     nearest = enemy; // 현재 가장 가까운 후속탄 표적
                     best = distance; // 더 가까운 적이 있으면 교체

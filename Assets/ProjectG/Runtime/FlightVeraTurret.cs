@@ -110,7 +110,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Transform selected = null; // 마물 없는 위치의 정상 상태
             foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 현재 살아 있는 실전 표적
             {
-                if (enemy.Health > 0) // 퇴장한 적은 제외
+                if (enemy.IsCombatTarget) // 퇴장한 적은 제외
                 {
                     Consider(enemy.transform); // 현재의 최단 거리 후보
                 }

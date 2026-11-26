@@ -231,7 +231,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 LeaveExpedition(); // 종료 상태의 기존 지도에서 다음 지점 선택
                 return; // 완료한 전투의 재시작 대신 지도
             }
-            run.RestartRun(); // 체력·레벨·드롭·연습 재설정
+            if (encounter.Story != null)
+            {
+                encounter.Story.Conclude(false, FlightStoryFailureOrigin.Retry);
+                if (encounter.StoryNeedsReceipt) return;
+            }
+            run.RestartRun(); // 이전 정산이 확정된 뒤 체력·레벨·드롭 초기화
             encounter.RestartTrial(); // 첫 웨이브와 타이머
             skills.ResetRun(); // 마력·필살기·쿨타임
             deck.ResetRun(); // 마법 카드 원래 순서
@@ -331,6 +336,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 return; // 본편의 중단 정산은 따로 유지
             }
             encounter.Conclude(false); // 첫 전투에 참가한 출격의 참여 보상 확정
+            if (encounter.StoryNeedsReceipt)
+            {
+                confirmLabel.text = "정산 기록을 저장하지 못했습니다. 다시 확인해 주세요.";
+                return;
+            }
             encounter.StopStage(); // 실전 포기 시 두 시간의 최종값 고정
             abandon = true; // 복귀 차단
             continueButton.interactable = false; // 기존 출격 계속하기 비활성

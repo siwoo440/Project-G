@@ -80,7 +80,7 @@ namespace ProjectG // 프로젝트 게임 영역
             int damage = ultimate ? 40 : 70; // 천공 연참 한 번과 돌파 검기의 시험 피해
             foreach (FlightEnemy enemy in FindObjectsByType<FlightEnemy>(FindObjectsSortMode.None)) // 현재 화면과 3차원 전장의 실제 마물
             {
-                if (enemy.Health > 0 && CanStrike(enemy.transform.position, origin, inverse, reach, halfWidth, halfHeight)) // 정면 범위와 벽 검사
+                if (enemy.IsCombatTarget && CanStrike(enemy.transform.position, origin, inverse, reach, halfWidth, halfHeight)) // 정면 범위와 벽 검사
                 {
                     enemy.ReceiveHit(Mathf.RoundToInt(damage * DamageMultiplier(enemy.transform.position))); // 같은 참격 한 번만 피해 적용
                 }

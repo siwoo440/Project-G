@@ -911,6 +911,10 @@ MonoBehaviour:
     scale: {x: 1, y: 1, z: 1}
   - id: trial.storm-body
     displayName: "\uC9C8\uD48D\uC758 \uBAB8\uCCB4"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc77c\ubc18 \ube44\ud589 \uc18d\ub3c4 +0.5 m/s"
+    specialLegendary: "V \ucd94\uac00: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    visualDescription: "\uccad\ub85d\uc0c9 \uacbd\ub7c9 \ubaa9\uc7ac\uc640 \ubc14\ub78c \ub8ec"
     slot: 0
     stat: 0
     baseValue: 0.3
@@ -927,6 +931,10 @@ MonoBehaviour:
     scale: {x: 2.2, y: 1.35, z: 2.2}
   - id: trial.storm-drive
     displayName: "\uC9C8\uD48D\uC758 \uCD94\uC9C4\uBD80"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \uc9c0\uc18d \uc2dc\uac04 +0.05\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \uc885\ub8cc \uc2dc \ubc14\ub78c\ud0c4 1\ubc1c(\ud53c\ud574 5, 4\ucd08\u00b725\ud68c)"
+    visualDescription: "\ubc14\ub78c\uc744 \ubfdc\ub294 \uc138 \uac08\ub798 \uccad\ub85d \ucd94\uc9c4 \uae43"
     slot: 4
     stat: 1
     baseValue: 1.5
@@ -992,3 +1000,1614 @@ MonoBehaviour:
     upgrade: 0
     material: {fileID: 2100000, guid: 4487137e6430540418896b81807dc2ed, type: 2}
     scale: {x: 2.02, y: 1.12, z: 1.43}
+  - id: set.storm.grip
+    displayName: "\ubc14\ub78c\uc758 \uc190\uc7a1\uc774"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +20\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uc740\uc0c9 \ub098\uc120 \uae08\uc18d\uacfc \uccad\ub85d \uac00\uc8fd \uc190\uc7a1\uc774"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.storm.manastone
+    displayName: "\ud3ed\ud48d\uc758 \ub9c8\ub825\uc11d"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd5c\ub300 \ub9c8\ub825 +5"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 \ub9c8\ub825 3 \ud68c\ubcf5(5\ucd08\u00b720\ud68c)"
+    visualDescription: "\uc18c\uc6a9\ub3cc\uc774 \ube5b\uc774 \ud750\ub974\ub294 \uccad\ub85d \uc218\uc815"
+    slot: 2
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.storm.coupling
+    displayName: "\ud558\ub298\uae38\uc758 \uacb0\ud569\ubd80"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \uc0c1\uc2b9 \uc18d\ub3c4 +0.5 m/s"
+    visualDescription: "\ub0a0\uac1c \ubb38\uc591\uc774 \uc0c8\uaca8\uc9c4 \uc740\ube5b \uc5f0\uacb0 \ub9c1"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.storm.ornament
+    displayName: "\ub3cc\ud48d\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \ucfe8\ud0c0\uc784 -0.2\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 1\ucd08\uac04 \ube44\ud589 \uc18d\ub3c4 +0.5 m/s(5\ucd08\u00b725\ud68c)"
+    visualDescription: "\uc791\uc740 \uace0\ub9ac\uac00 \ub5a0 \uc788\ub294 \uc740\ube5b \ubc29\uc6b8"
+    slot: 5
+    stat: 8
+    baseValue: 0.5
+    gradeStep: 0.25
+    upgradeStep: 0.1
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.storm.tip
+    displayName: "\ubc14\ub78c\uc758 \uc120\ub2e8\ubd80"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud0c4\ud658 \uc18d\ub3c4 +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ub098\uce68\ubc18 \ubc14\ub298\uacfc \ud68c\uc804\ud558\ub294 \uccad\ub85d \uc218\uc815 \uc120\ub2e8"
+    slot: 6
+    stat: 10
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.storm.stabilizer
+    displayName: "\ucc9c\ud48d\uc758 \uc548\uc815\uae30"
+    setId: "storm"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc81c\ub3d9\ub825 +3 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +15\u00b0/\ucd08"
+    visualDescription: "\uc88c\uc6b0\ub85c \ud3bc\uccd0\uc9c0\ub294 \uc587\uc740 \uccad\ub85d \uae43\ub0a0\uac1c"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.body
+    displayName: "\uc218\ud638\uc790\uc758 \ubab8\uccb4"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucda9\uaca9 \uc800\ud56d +3%p"
+    specialLegendary: "V \ucd94\uac00: \ud53c\uaca9 \ud6c4 \ubcf4\ud638\ub9c9 4(10\ucd08\u00b715\ud68c)"
+    visualDescription: "\uc544\uc774\ubcf4\ub9ac \uae08\uc18d \uc7a5\uac11\uc744 \ub450\ub978 \ubab8\uccb4"
+    slot: 0
+    stat: 12
+    baseValue: 1.5
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.grip
+    displayName: "\ub9f9\uc138\uc758 \uc190\uc7a1\uc774"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\ubc29\ud328 \ubb38\uc591\uacfc \ud770 \uac00\uc8fd\uc758 \uae08\uc7a5 \uc190\uc7a1\uc774"
+    slot: 1
+    stat: 2
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.manastone
+    displayName: "\uc131\ubcbd\uc758 \ub9c8\ub825\uc11d"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd5c\ub300 \ub9c8\ub825 +8"
+    specialLegendary: "V \ucd94\uac00: \ud53c\uaca9 \ud6c4 \ub9c8\ub825 3 \ud68c\ubcf5(8\ucd08\u00b715\ud68c)"
+    visualDescription: "\ud770\ube5b\uc774 \ub3c4\ub294 \ubc29\ud328 \ubaa8\uc591 \uc218\uc815"
+    slot: 2
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.coupling
+    displayName: "\ubd88\uad74\uc758 \uacb0\ud569\ubd80"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucda9\uaca9 \uc800\ud56d +2%p"
+    specialLegendary: "V \ucd94\uac00: \ube44\ud589 \uc548\uc815\uc131 +4(\ucd08\uae30 \uc2dc\ud5d8\uac12)"
+    visualDescription: "\ud669\ub3d9 \uc7a5\uac11\uacfc \ubcfc\ud2b8\uac00 \uc788\ub294 \uacb0\ud569\ubd80"
+    slot: 3
+    stat: 13
+    baseValue: 2.0
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.propulsion
+    displayName: "\uc218\ud638\uc758 \ucd94\uc9c4\ubd80"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc81c\ub3d9\ub825 +3 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ud558\uac15 \uc18d\ub3c4 +0.5 m/s"
+    visualDescription: "\ud770 \ucd94\uc9c4 \uae43\uacfc \ub465\uadfc \uae08\uc18d \ubcf4\ud638 \ub36e\uac1c"
+    slot: 4
+    stat: 2
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.ornament
+    displayName: "\uc11c\uc57d\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud53c\uaca9 \ud6c4 \ubcf4\ud638\ub9c9 3(10\ucd08\u00b715\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ubcf4\ud638\ub9c9 \ud30c\uad34 \uc2dc \uc801\ud0c4 \ucd5c\ub300 1\ubc1c \uc18c\uac70(12\ucd08\u00b710\ud68c)"
+    visualDescription: "\ubc29\ud328 \ubaa8\uc591\uc758 \ud669\uae08\ube5b \ud39c\ub358\ud2b8"
+    slot: 5
+    stat: 12
+    baseValue: 2.5
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: -0.3
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.tip
+    displayName: "\uc0c8\ubcbd\uc758 \uc120\ub2e8\ubd80"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \uc911 \ucda9\uaca9 \uc800\ud56d +2%p"
+    visualDescription: "\ubc29\ud328\ud615 \uae08\uc18d \uc120\ub2e8\uacfc \ubc31\uc0c9 \uc218\uc815"
+    slot: 6
+    stat: 11
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.guard.stabilizer
+    displayName: "\uc218\ud638\uc758 \uc548\uc815\uae30"
+    setId: "guard"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +10"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \uc911 \uc548\uc815\uc131 +6"
+    visualDescription: "\ubc31\uae08\uc0c9 \uc774\uc911 \ub0a0\uac1c\uc640 \ubc29\uc5b4 \ub8ec"
+    slot: 7
+    stat: 13
+    baseValue: 2.0
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.body
+    displayName: "\uc21c\ud658\uc758 \ubab8\uccb4"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd5c\ub300 \ub9c8\ub825 +5"
+    specialLegendary: "V \ucd94\uac00: \ucd08\ub2f9 \ub9c8\ub825 \ud68c\ubcf5 +1"
+    visualDescription: "\uccad\uc0c9 \ub9c8\ub825\uad00\uc774 \ud750\ub974\ub294 \ubc1d\uc740 \ubaa9\uc7ac"
+    slot: 0
+    stat: 0
+    baseValue: 0.3
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.grip
+    displayName: "\uace0\uc694\ud55c \uc190\uc7a1\uc774"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ub825 30 \uc774\ud558\uc5d0\uc11c \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\ud478\ub978 \ub9c8\ub825\uad00\uacfc \ud770\uc0c9 \uc190\uc7a1\uc774"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.manastone
+    displayName: "\uc0d8\uc19f\ub294 \ub9c8\ub825\uc11d"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd5c\ub300 \ub9c8\ub825 +8"
+    specialLegendary: "V \ucd94\uac00: \ucd08\ub2f9 \ub9c8\ub825 \ud68c\ubcf5 +1"
+    visualDescription: "\ubb3c\ubc29\uc6b8\ud615 \uccad\uc0c9 \uc218\uc815\uacfc \uc21c\ud658 \uace0\ub9ac"
+    slot: 2
+    stat: 8
+    baseValue: 0.75
+    gradeStep: 0.25
+    upgradeStep: 0.1
+    penaltyStat: 7
+    penalty: -5.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.coupling
+    displayName: "\ud750\ub984\uc758 \uacb0\ud569\ubd80"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd08\ub2f9 \ub9c8\ub825 \ud68c\ubcf5 +1"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +4"
+    visualDescription: "\ud478\ub978 \uc5d0\ub108\uc9c0 \ud1b5\ub85c\uc758 \uad6c\ub9ac \ub9c1"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.propulsion
+    displayName: "\uc218\ub9e5\uc758 \ucd94\uc9c4\ubd80"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc0c1\uc2b9 \uc18d\ub3c4 +0.5 m/s"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 \ub9c8\ub825 3 \ud68c\ubcf5(6\ucd08\u00b720\ud68c)"
+    visualDescription: "\ubb3c\uacb0\ud615 \ubd84\uc0ac\uad6c\uc640 \ud22c\uba85 \ub9c8\ub825\uad00"
+    slot: 4
+    stat: 5
+    baseValue: 0.3
+    gradeStep: 0.15
+    upgradeStep: 0.05
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.ornament
+    displayName: "\uc21c\ud658\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ub825 30 \uc774\ud558 \uc9c4\uc785 \uc2dc \ub9c8\ub825 5 \ud68c\ubcf5(15\ucd08\u00b710\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ubb3c\ubc29\uc6b8 \ud39c\ub358\ud2b8\uc640 \ubb3c\uacb0 \ub8ec"
+    slot: 5
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.tip
+    displayName: "\uc6d0\ucc9c\uc758 \uc120\ub2e8\ubd80"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \uc81c\uc791 \ub9c8\ubc95 \uccab \uba85\uc911 \uc2dc \ub9c8\ub825 2 \ud68c\ubcf5(6\ucd08\u00b720\ud68c)"
+    visualDescription: "\uccad\uc0c9 \uc218\uc815 \uc548\ud14c\ub098\uc640 \ub8ec \ub9c1"
+    slot: 6
+    stat: 11
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flow.stabilizer
+    displayName: "\uc720\uc218\uc758 \uc548\uc815\uae30"
+    setId: "flow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \ucd08\ub2f9 \ub9c8\ub825 \ud68c\ubcf5 +0.5"
+    visualDescription: "\ubb3c\uacb0\ucc98\ub7fc \ud718\uc5b4\uc9c4 \ud22c\uba85 \uccad\uc0c9 \uc548\uc815\ud310"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.body
+    displayName: "\ubcc4\uc790\ub9ac\uc758 \ubab8\uccb4"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +3"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +3%p"
+    visualDescription: "\ub0a8\uc0c9 \ubab8\uccb4\uc640 \uae08\ube5b \ubcc4\uc790\ub9ac \uc120"
+    slot: 0
+    stat: 12
+    baseValue: 1.5
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.grip
+    displayName: "\ubcc4\ube5b\uc758 \uc190\uc7a1\uc774"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \uc911 \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\ubcc4 \ubb38\uc591 \ub0a8\uc0c9 \uac00\uc8fd\uacfc \uae08\uc7a5"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.manastone
+    displayName: "\ubd81\uadf9\uc131\uc758 \ub9c8\ub825\uc11d"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +4"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ubcc4 \ubaa8\uc591 \uc911\uc2ec\ud575\uc744 \ud488\uc740 \ub0a8\ubcf4\ub77c \uc218\uc815"
+    slot: 2
+    stat: 9
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 8
+    penalty: -0.5
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.coupling
+    displayName: "\ucc9c\uccb4\uc758 \uacb0\ud569\ubd80"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uc791\uc740 \ud589\uc131 \ub9c1\uc774 \ub2ec\ub9b0 \uae08\ube5b \uacb0\ud569\ubd80"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.propulsion
+    displayName: "\uc720\uc131\uc758 \ucd94\uc9c4\ubd80"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \uc18d\ub3c4 +10%p"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 \ubcc4\ube5b\ud0c4 1\ubc1c(\ud53c\ud574 5, 6\ucd08\u00b720\ud68c)"
+    visualDescription: "\ubcc4\uaf2c\ub9ac \ud615\ud0dc\uc758 \ub0a8\uc0c9\u00b7\uae08\uc0c9 \ucd94\uc9c4\ubd80"
+    slot: 4
+    stat: 1
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.ornament
+    displayName: "\ubcc4\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc81c\uc791 \ub9c8\ubc95 \uccab \uba85\uc911 \ucd94\uac00 \ud53c\ud574 3(5\ucd08\u00b730\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\uae08\ube5b \ucd08\uc2b9\ub2ec \uc548\uc5d0 \ub72c \ubcc4 \uc7a5\uc2dd"
+    slot: 5
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.tip
+    displayName: "\ucc9c\uccb4\uc758 \uc120\ub2e8\ubd80"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud0c4\ud658 \uc18d\ub3c4 +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\ubcc4\ube5b\uc744 \ubaa8\uc73c\ub294 \uc6d0\ud615 \ub8ec \ub80c\uc988"
+    slot: 6
+    stat: 10
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.starlight.stabilizer
+    displayName: "\ubcc4\uada4\ub3c4\uc758 \uc548\uc815\uae30"
+    setId: "starlight"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ubcc4\uc790\ub9ac \ud615\ud0dc\uc758 \uc587\uc740 \ubc18\uc6d0 \uc548\uc815\ud310"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.body
+    displayName: "\ub9e4\uc758 \ubab8\uccb4"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \uc77c\ubc18 \ube44\ud589 \uc18d\ub3c4 +0.5 m/s"
+    visualDescription: "\uc740\uc0c9 \ub0a0\uac1c \ubb38\uc591\uc758 \uac00\ub298\uace0 \uae34 \ubab8\uccb4"
+    slot: 0
+    stat: 0
+    baseValue: 0.3
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.grip
+    displayName: "\uc0ac\ub0e5\uafbc\uc758 \uc190\uc7a1\uc774"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc120\ud68c \uc18d\ub3c4 +15\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uc815\ubc00 \ub208\uae08\uacfc \uc9d9\uc740 \uac08\uc0c9 \uac00\uc8fd"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.manastone
+    displayName: "\ub9e4\uc548\uc758 \ub9c8\ub825\uc11d"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud0c4\ud658 \uc18d\ub3c4 +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ud669\uae08\ube5b \uc911\uc2ec\uc774 \uc788\ub294 \ub9e4\uc758 \ub208 \uc218\uc815"
+    slot: 2
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.coupling
+    displayName: "\uc815\ubc00 \uacb0\ud569\ubd80"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    visualDescription: "\uc870\uc900 \ub208\uae08\uc774 \uc0c8\uaca8\uc9c4 \uc740\uc0c9 \uc5f0\uacb0\ubd80"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.propulsion
+    displayName: "\uae09\uac15\ud558 \ucd94\uc9c4\ubd80"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud558\uac15 \uc18d\ub3c4 +0.5 m/s"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ucfe8\ud0c0\uc784 -0.2\ucd08"
+    visualDescription: "\ub9e4\uc758 \uaf2c\ub9ac \uae43\uc744 \ub2ee\uc740 \uac80\uc740 \ucd94\uc9c4\ubd80"
+    slot: 4
+    stat: 6
+    baseValue: 0.3
+    gradeStep: 0.15
+    upgradeStep: 0.05
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.ornament
+    displayName: "\uc0ac\ub0e5\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: 20m \uc774\uc0c1 \uccab \uba85\uc911 \ucd94\uac00 \ud53c\ud574 4(6\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +3%p"
+    visualDescription: "\ub9e4 \ubc1c\ud1b1\uacfc \ud669\uae08 \ud45c\uc801 \uc7a5\uc2dd"
+    slot: 5
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.tip
+    displayName: "\ub9e4\uc758 \uc120\ub2e8\ubd80"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud0c4\ud658 \uc18d\ub3c4 +7%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ud669\uae08 \ub80c\uc988\uc640 \ub9e4 \ubd80\ub9ac \ud615\ud0dc \uc120\ub2e8"
+    slot: 6
+    stat: 11
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 10
+    penalty: -3.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.hawk.stabilizer
+    displayName: "\uc815\ubc00 \uc548\uc815\uae30"
+    setId: "hawk"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc81c\ub3d9\ub825 +3 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ube44\ud589 \uc548\uc815\uc131 +6"
+    visualDescription: "\uc740\ube5b \uae43\ud138\uacfc \uc870\uc900 \ub208\uae08 \uc548\uc815\ud310"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.body
+    displayName: "\ubc24\uc758 \ubab8\uccb4"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc77c\ubc18 \ube44\ud589 \uc18d\ub3c4 +0.5 m/s"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    visualDescription: "\uac80\ubcf4\ub77c \ubaa9\uc7ac\uc640 \uc740\ube5b \ucd08\uc2b9\ub2ec \ub8ec"
+    slot: 0
+    stat: 0
+    baseValue: 0.3
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.grip
+    displayName: "\uadf8\ub9bc\uc790\uc758 \uc190\uc7a1\uc774"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +20\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \ube44\ud589 \uc911 \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uac80\uc740 \uac00\uc8fd\uacfc \ubcf4\ub78f\ube5b \ub9c8\ub825\uc2e4"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.manastone
+    displayName: "\uc6d4\uc2dd\uc758 \ub9c8\ub825\uc11d"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uadf8\ub808\uc774\uc988 \uc2dc \ub9c8\ub825 1 \ud68c\ubcf5(1\ucd08\u00b760\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ucd08\uc2b9\ub2ec \ube5b\uc744 \ud488\uc740 \uc5b4\ub450\uc6b4 \uc218\uc815"
+    slot: 2
+    stat: 8
+    baseValue: 0.5
+    gradeStep: 0.25
+    upgradeStep: 0.1
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.coupling
+    displayName: "\uacbd\uacc4\uc758 \uacb0\ud569\ubd80"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +6"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\ub450 \uac80\uc740 \ubc18\ub2ec\uc774 \ub9de\ubb3c\ub9b0 \uc5f0\uacb0 \ub9c1"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.propulsion
+    displayName: "\uc57c\ud589\uc758 \ucd94\uc9c4\ubd80"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \ucfe8\ud0c0\uc784 -0.2\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 \uc794\uc0c1\ud0c4 1\ubc1c(\ud53c\ud574 5, 5\ucd08\u00b725\ud68c)"
+    visualDescription: "\ubcf4\ub77c \uc794\uc0c1\uc744 \ub0a8\uae30\ub294 \ucd08\uc2b9\ub2ec \ucd94\uc9c4\ubd80"
+    slot: 4
+    stat: 1
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.ornament
+    displayName: "\uadf8\ub9bc\uc790\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uadf8\ub808\uc774\uc988 3\ud68c \uc2dc \ub9c8\ub825 3 \ud68c\ubcf5(5\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \uadf8\ub808\uc774\uc988 \uc2dc \uae30\ubcf8 \ud53c\ud574 4 \ubc18\uaca9\ud0c4 1\ubc1c(4\ucd08\u00b725\ud68c)"
+    visualDescription: "\uc740\ube5b \ub2ec\uacfc \uac80\uc740 \uae43\ud138 \ud39c\ub358\ud2b8"
+    slot: 5
+    stat: 8
+    baseValue: 0.5
+    gradeStep: 0.25
+    upgradeStep: 0.1
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.tip
+    displayName: "\uc6d4\uad11\uc758 \uc120\ub2e8\ubd80"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud0c4\ud658 \uc18d\ub3c4 +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\uac80\uc740 \ubd80\ub9ac \ud615\ud0dc\uc758 \uc740\ube5b \uc6d4\uad11 \uc120\ub2e8"
+    slot: 6
+    stat: 10
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.shadow.stabilizer
+    displayName: "\ubc24\uc548\uac1c\uc758 \uc548\uc815\uae30"
+    setId: "shadow"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \uc911 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +15\u00b0/\ucd08"
+    visualDescription: "\ubc18\ud22c\uba85 \uac80\ubcf4\ub77c \ubc15\uc950\ud615 \uc548\uc815\ud310"
+    slot: 7
+    stat: 3
+    baseValue: 15.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 4
+    penalty: -4.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.body
+    displayName: "\uc7bf\ubd88\uc758 \ubab8\uccb4"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud654\uc5fc \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \uc77c\ubc18 \ube44\ud589 \uc18d\ub3c4 +0.5 m/s"
+    visualDescription: "\ubd89\uc740 \ub0b4\uc5f4 \ubaa9\uc7ac\uc640 \uc6a9\uc554 \ubb38\uc591"
+    slot: 0
+    stat: 0
+    baseValue: 0.3
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.grip
+    displayName: "\ud654\uc2b9\uc758 \uc190\uc7a1\uc774"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ud654\uc5fc \ub9c8\ubc95 \ud0c4\uc18d +5%p"
+    visualDescription: "\uc801\uac08\uc0c9 \uac00\uc8fd\uacfc \ubd88\uaf43 \uae08\uc18d \uc7a5\uc2dd"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.manastone
+    displayName: "\ubd88\uc528\uc758 \ub9c8\ub825\uc11d"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +3"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ud669\uc801\uc0c9 \ubd88\uaf43\uc774 \uc18c\uc6a9\ub3cc\uc774\uce58\ub294 \uc218\uc815"
+    slot: 2
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.coupling
+    displayName: "\ud654\ub85c\uc758 \uacb0\ud569\ubd80"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ucda9\uaca9 \uc800\ud56d +2%p"
+    visualDescription: "\ud669\ub3d9 \ub0b4\uc5f4 \ub9c1\uacfc \uc791\uc740 \ubd89\uc740 \ubc30\uae30\uad6c"
+    slot: 3
+    stat: 13
+    baseValue: 2.0
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.propulsion
+    displayName: "\ud64d\uc5fc\uc758 \ucd94\uc9c4\ubd80"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \uc885\ub8cc \uc2dc \ud654\uc5fc\ud0c4 1\ubc1c(\ud53c\ud574 5, 5\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    visualDescription: "\ubd88\uaf43 \ud615\ud0dc\uc758 \ubd89\uc740 \ucd94\uc9c4 \uae43"
+    slot: 4
+    stat: 1
+    baseValue: 1.5
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 2
+    penalty: -1.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.ornament
+    displayName: "\ubd88\uc0ac\uc870\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud654\uc5fc \ub9c8\ubc95 \uccab \uba85\uc911 \ucd94\uac00 \ud53c\ud574 4(6\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ud654\uc5fc \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\uae08\uc0c9 \ubd88\uc0ac\uc870\uc640 \ubd89\uc740 \ubcf4\uc11d \uc7a5\uc2dd"
+    slot: 5
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.tip
+    displayName: "\uc6a9\ud654\uc758 \uc120\ub2e8\ubd80"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ud654\uc5fc \ud0c4\uc18d +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\uc6a9\uc758 \uc774\ube68\ucc98\ub7fc \uac08\ub77c\uc9c4 \ubd88\uaf43 \uc120\ub2e8"
+    slot: 6
+    stat: 10
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.flame.stabilizer
+    displayName: "\uc5f4\ud48d\uc758 \uc548\uc815\uae30"
+    setId: "flame"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +6"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \uc9c0\uc18d +0.03\ucd08"
+    visualDescription: "\ubd89\uc740 \uc5f4\ucc28\ud3d0 \ub0a0\uac1c\uc640 \uae08\uc7a5 \ud14c\ub450\ub9ac"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.body
+    displayName: "\uc11c\ub9ac\uc758 \ubab8\uccb4"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub0c9\uae30 \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \ucda9\uaca9 \uc800\ud56d +2%p"
+    visualDescription: "\uc11c\ub9ac\ub85c \ub36e\uc778 \ud770\uc0c9 \uc218\uc815 \ubab8\uccb4"
+    slot: 0
+    stat: 12
+    baseValue: 1.5
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.grip
+    displayName: "\ud55c\uae30\uc758 \uc190\uc7a1\uc774"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc9d1\uc911 \ube44\ud589 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    visualDescription: "\ud558\ub298\uc0c9 \ucc9c\uacfc \uc11c\ub9ac \ub8ec \uc190\uc7a1\uc774"
+    slot: 1
+    stat: 2
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.manastone
+    displayName: "\ube59\ubcbd\uc758 \ub9c8\ub825\uc11d"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucd5c\ub300 \ub9c8\ub825 +5"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\uc721\uac01\ud615 \ub208\uaf43 \ubaa8\uc591\uc758 \uccad\ubc31 \uc218\uc815"
+    slot: 2
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.coupling
+    displayName: "\ub3d9\uacb0 \uacb0\ud569\ubd80"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ucda9\uaca9 \uc800\ud56d +2%p"
+    visualDescription: "\uc5bc\uc74c \uacb0\uc815\uc744 \ub07c\uc6b4 \ubc31\uc740 \uc5f0\uacb0 \ub9c1"
+    slot: 3
+    stat: 13
+    baseValue: 2.0
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.propulsion
+    displayName: "\uc124\ud48d\uc758 \ucd94\uc9c4\ubd80"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc81c\ub3d9\ub825 +3 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ud6c4 \ub0c9\uae30\ud0c4 1\ubc1c(\ud53c\ud574 5, 5\ucd08\u00b725\ud68c)"
+    visualDescription: "\uc11c\ub9ac \uae43\ud138\uacfc \uccad\uc0c9 \ubd84\uc0ac\uad6c"
+    slot: 4
+    stat: 2
+    baseValue: 1.5
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: -0.3
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.ornament
+    displayName: "\uc124\uc6d0\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub0c9\uae30 \ucd5c\ucd08 \uba85\uc911 \uc2dc 2\ucd08\uac04 \uc774\ub3d9\uc18d\ub3c4 -5%p(5\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ub208\uaf43\uacfc \uc791\uc740 \uc5bc\uc74c \ubc29\uc6b8 \uc7a5\uc2dd"
+    slot: 5
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.tip
+    displayName: "\ube59\uc815\uc758 \uc120\ub2e8\ubd80"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub0c9\uae30 \ud0c4\uc18d +5%p"
+    specialLegendary: "V \ucd94\uac00: \ub0c9\uae30 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ubfb0\uc871\ud55c \ud22c\uba85 \uc5bc\uc74c \uc120\ub2e8"
+    slot: 6
+    stat: 11
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.frost.stabilizer
+    displayName: "\ub3d9\ud1a0\uc758 \uc548\uc815\uae30"
+    setId: "frost"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \uc911 \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uc5bc\uc74c \ud310 \ub450 \uc7a5\uacfc \ud770\uc0c9 \uae43\ud138"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.body
+    displayName: "\ub1cc\uad11\uc758 \ubab8\uccb4"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ubc88\uac1c \ub9c8\ubc95 \ud0c4\uc18d +5%p"
+    specialLegendary: "V \ucd94\uac00: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    visualDescription: "\uac80\uc740 \uae08\uc18d\uacfc \ub178\ub780 \uc804\ub3c4 \ud68c\ub85c"
+    slot: 0
+    stat: 0
+    baseValue: 0.3
+    gradeStep: 0.1
+    upgradeStep: 0.04
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.grip
+    displayName: "\ubc88\uac1c\uc758 \uc190\uc7a1\uc774"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc120\ud68c \uc18d\ub3c4 +15\u00b0/\ucd08"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \ucfe8\ud0c0\uc784 -0.15\ucd08"
+    visualDescription: "\uc808\uc5f0 \uac00\uc8fd\uacfc \uae08\ube5b \ubc88\uac1c \ubb38\uc591"
+    slot: 1
+    stat: 3
+    baseValue: 10.0
+    gradeStep: 5.0
+    upgradeStep: 2.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.manastone
+    displayName: "\ucc9c\ub8b0\uc758 \ub9c8\ub825\uc11d"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +3"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\ubc88\uac1c\uac00 \ud750\ub974\ub294 \ub178\ub780 \ubcf4\ub78f\ube5b \uc218\uc815"
+    slot: 2
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.coupling
+    displayName: "\uc804\ub958\uc758 \uacb0\ud569\ubd80"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \uac00\uc18d\ub825 +2 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \ubc88\uac1c \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ucf54\uc77c\uacfc \uae08\uc18d \ub2e8\uc790\uac00 \uc788\ub294 \uc5f0\uacb0 \ub9c1"
+    slot: 3
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.propulsion
+    displayName: "\ub1cc\uc804\uc758 \ucd94\uc9c4\ubd80"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub300\uc2dc \ud6c4 \ubc88\uac1c\ud0c4 1\ubc1c(\ud53c\ud574 5, 5\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ub300\uc2dc \uc9c0\uc18d +0.03\ucd08"
+    visualDescription: "\ubc88\uac1c \ubaa8\uc591\uc758 \ub178\ub780 \ucd94\uc9c4 \uae43"
+    slot: 4
+    stat: 1
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.ornament
+    displayName: "\uc5f0\uc1c4\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ubc88\uac1c \uccab \uba85\uc911 \uc2dc \uc778\uc811 \uc801 \ucd94\uac00 \ud53c\ud574 4(6\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\uc11c\ub85c \uc774\uc5b4\uc9c4 \ub450 \uc804\uae30 \uad6c\uc2ac \uc7a5\uc2dd"
+    slot: 5
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.tip
+    displayName: "\ub099\ub8b0\uc758 \uc120\ub2e8\ubd80"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ubc88\uac1c \ud0c4\uc18d +7%p"
+    specialLegendary: "V \ucd94\uac00: \ubc88\uac1c \uc0ac\uac70\ub9ac +5%p"
+    visualDescription: "\ud53c\ub8b0\uce68 \ud615\ud0dc\uc758 \uae08\uc18d \uc120\ub2e8"
+    slot: 6
+    stat: 10
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 11
+    penalty: -3.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.thunder.stabilizer
+    displayName: "\ucc9c\ub465\uc758 \uc548\uc815\uae30"
+    setId: "thunder"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +6"
+    specialLegendary: "V \ucd94\uac00: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    visualDescription: "\uac08\ub77c\uc9c4 \ubc88\uac1c \ud615\ud0dc\uc758 \uac80\ud669\uc0c9 \uc548\uc815\ud310"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.body
+    displayName: "\uacf5\ud5c8\uc758 \ubab8\uccb4"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc911\ub825 \ub9c8\ubc95 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \ube44\ud589 \uc548\uc815\uc131 +6"
+    visualDescription: "\uc9d9\uc740 \ubcf4\ub77c \ud569\uae08\uacfc \uc6d0\ud615 \uacf5\uac04 \ub8ec"
+    slot: 0
+    stat: 12
+    baseValue: 1.5
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.grip
+    displayName: "\uc9c8\ub7c9\uc758 \uc190\uc7a1\uc774"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc81c\ub3d9\ub825 +2 m/s\u00b2"
+    specialLegendary: "V \ucd94\uac00: \uc120\ud68c \uc18d\ub3c4 +10\u00b0/\ucd08"
+    visualDescription: "\ubb35\uc9c1\ud55c \uc6d0\ud615 \uae08\uc18d\uacfc \uac80\uc740 \uac00\uc8fd"
+    slot: 1
+    stat: 2
+    baseValue: 1.0
+    gradeStep: 0.5
+    upgradeStep: 0.2
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.manastone
+    displayName: "\uc911\ub825\uc758 \ub9c8\ub825\uc11d"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \ub9c8\ubc95 \uacf5\uaca9\ub825 +3"
+    specialLegendary: "V \ucd94\uac00: \ucd5c\ub300 \ub9c8\ub825 +5"
+    visualDescription: "\uac80\uc740 \uad6c\uccb4 \uc8fc\uc704\ub97c \ub3c4\ub294 \ubcf4\ub77c \uc218\uc815"
+    slot: 2
+    stat: 9
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.coupling
+    displayName: "\uada4\ub3c4\uc758 \uacb0\ud569\ubd80"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \ucda9\uaca9 \uc800\ud56d +2%p"
+    specialLegendary: "V \ucd94\uac00: \ube44\ud589 \uc548\uc815\uc131 +4(\ucd08\uae30 \uc2dc\ud5d8\uac12)"
+    visualDescription: "\ubd80\uc720\ud558\ub294 \uc774\uc911 \uada4\ub3c4 \ub9c1 \uacb0\ud569\ubd80"
+    slot: 3
+    stat: 13
+    baseValue: 2.0
+    gradeStep: 1.0
+    upgradeStep: 0.5
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.propulsion
+    displayName: "\ubc18\uc911\ub825 \ucd94\uc9c4\ubd80"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc0c1\uc2b9 \uc18d\ub3c4 +0.5 m/s"
+    specialLegendary: "V \ucd94\uac00: \ud558\uac15 \uc18d\ub3c4 +0.5 m/s"
+    visualDescription: "\ubcf4\ub77c \uc911\ub825\uc7a5\uc774 \ud615\uc131\ub41c \uc6d0\ud615 \ucd94\uc9c4\ubd80"
+    slot: 4
+    stat: 5
+    baseValue: 0.45
+    gradeStep: 0.15
+    upgradeStep: 0.05
+    penaltyStat: 0
+    penalty: -0.3
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.ornament
+    displayName: "\ud2b9\uc774\uc810\uc758 \ub9c8\ubc95 \uc7a5\uc2dd"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc911\ub825 \uccab \uba85\uc911 \uc2dc \uc77c\ubc18 \uc801 0.5m \ub2f9\uae40(6\ucd08\u00b725\ud68c)"
+    specialLegendary: "V \ucd94\uac00: \ub9c8\ubc95 \uacf5\uaca9\ub825 +2"
+    visualDescription: "\uc791\uc740 \ube14\ub799\ud640\uc744 \ub2f4\uc740 \uc740\uc0c9 \ud39c\ub358\ud2b8"
+    slot: 5
+    stat: 7
+    baseValue: 5.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.tip
+    displayName: "\uacf5\uac04\uc758 \uc120\ub2e8\ubd80"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \uc911\ub825 \uc0ac\uac70\ub9ac +5%p"
+    specialLegendary: "V \ucd94\uac00: \ud0c4\ud658 \uc18d\ub3c4 +5%p"
+    visualDescription: "\ud718\uc5b4\uc9c4 \uacf5\uac04 \ub80c\uc988\uc640 \uc6d0\ud615 \uc120\ub2e8"
+    slot: 6
+    stat: 11
+    baseValue: 3.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  - id: set.gravity.stabilizer
+    displayName: "\uada4\ub3c4\uc758 \uc548\uc815\uae30"
+    setId: "gravity"
+    specialPrimary: "III\u00b7IV\u00b7V: \ube44\ud589 \uc548\uc815\uc131 +8"
+    specialLegendary: "V \ucd94\uac00: \uc9d1\uc911 \uc911 \uc81c\ub3d9\ub825 +3 m/s\u00b2"
+    visualDescription: "\ub5a0 \uc788\ub294 \ubcf4\ub77c\uc0c9 \uace0\ub9ac \ub450 \uac1c"
+    slot: 7
+    stat: 4
+    baseValue: 4.0
+    gradeStep: 2.0
+    upgradeStep: 1.0
+    penaltyStat: 0
+    penalty: 0.0
+    starter: 0
+    ownedCopies: 0
+    stocked: 0
+    grade: 1
+    upgrade: 0
+    material: {fileID: 0}
+    scale: {x: 1, y: 1, z: 1}
+  sets:
+  - id: storm
+    displayName: "\ud3ed\ud48d\uc758 \uc9c8\uc8fc \uc138\ud2b8"
+    effectTwo: "\ucd5c\ub300 \uc77c\ubc18 \ube44\ud589 \uc18d\ub3c4 +1 m/s."
+    effectFour: "\uac00\uc18d\ub825 \ubc0f \uc81c\ub3d9\ub825 \uac01\uac01 +4 m/s\u00b2."
+    effectEight: "\ub300\uc2dc \uc885\ub8cc \uc2dc \uc804\ubc29\uc73c\ub85c \ubc14\ub78c \ud0c4\ud658 3\ubc1c\uc744 \ubc1c\uc0ac\ud569\ub2c8\ub2e4.\n\uac01 \uae30\ubcf8 \ud53c\ud574 8, \ub0b4\ubd80 \ucfe8\ud0c0\uc784 3\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 30\ud68c."
+  - id: guard
+    displayName: "\ucc9c\uacf5\uc758 \uc218\ud638 \uc138\ud2b8"
+    effectTwo: "\ucda9\uaca9 \uc800\ud56d +5%p."
+    effectFour: "\ud53c\uaca9 \ud6c4 5\ucd08 \ub3d9\uc548 \ubcf4\ud638\ub9c9 10\uc744 \uc0dd\uc131\ud569\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 8\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 20\ud68c."
+    effectEight: "\ubcf4\ud638\ub9c9\uc774 \ud53c\ud574\ub85c \ud30c\uad34\ub418\uba74 \ubc18\uacbd 2m \ub0b4 \uc18c\uac70 \uac00\ub2a5\ud55c \uc801\ud0c4\uc744 \ucd5c\ub300 5\ubc1c \uc81c\uac70\ud569\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 10\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 12\ud68c."
+  - id: flow
+    displayName: "\ub9c8\ub825\uc758 \uc21c\ud658 \uc138\ud2b8"
+    effectTwo: "\ucd5c\ub300 \ub9c8\ub825 +10."
+    effectFour: "\ucd08\ub2f9 \ub9c8\ub825 \ud68c\ubcf5\ub7c9 +2."
+    effectEight: "\ub9c8\ub825\uc774 30 \uc774\ud558\uac00 \ub418\ub294 \uacbd\uc6b0 \ub9c8\ub825 20\uc744 \ud68c\ubcf5\ud569\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 20\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 8\ud68c."
+  - id: starlight
+    displayName: "\ubcc4\ube5b\uc758 \uc870\uc728 \uc138\ud2b8"
+    effectTwo: "\ub9c8\ubc95 \uacf5\uaca9\ub825 +8."
+    effectFour: "\ub9c8\ubc95 \uacf5\uaca9\ub825 +12 \ucd94\uac00."
+    effectEight: "\uc81c\uc791 \ub9c8\ubc95 \ucd5c\ucd08 \uba85\uc911 \uc2dc \ubcc4\ube5b \ud0c4\ud658 2\ubc1c\uc744 \ucd94\uac00 \ubc1c\uc0ac\ud569\ub2c8\ub2e4.\n\uac01 \uae30\ubcf8 \ud53c\ud574 8, \ub0b4\ubd80 \ucfe8\ud0c0\uc784 6\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 30\ud68c."
+  - id: hawk
+    displayName: "\ub9e4\uc758 \uc2dc\uc120 \uc138\ud2b8"
+    effectTwo: "\ub9c8\ubc95 \uc0ac\uac70\ub9ac +10%p."
+    effectFour: "\ud0c4\ud658 \uc18d\ub3c4 +15%p."
+    effectEight: "20m \uc774\uc0c1 \ub5a8\uc5b4\uc9c4 \ub300\uc0c1\uc5d0 \ucd5c\ucd08 \uba85\uc911\ud558\uba74 \ucd94\uac00 \uae30\ubcf8 \ud53c\ud574 12\ub97c \uc90d\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 4\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 45\ud68c."
+  - id: shadow
+    displayName: "\uadf8\ub9bc\uc790\uc758 \ube44\ud589 \uc138\ud2b8"
+    effectTwo: "\uc120\ud68c \uc18d\ub3c4 +30\u00b0/\ucd08."
+    effectFour: "\uadf8\ub808\uc774\uc988 \uc131\uacf5 \uc2dc \ub9c8\ub825 2 \ud68c\ubcf5.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 1\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 60\ud68c."
+    effectEight: "\uadf8\ub808\uc774\uc988 5\ud68c \ub2ec\uc131 \uc2dc \ubc18\uaca9\ud0c4 2\ubc1c \ubc1c\uc0ac.\n\uac01 \uae30\ubcf8 \ud53c\ud574 8, \ub0b4\ubd80 \ucfe8\ud0c0\uc784 4\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 30\ud68c.\n\ubc1c\ub3d9 \uc2dc \ud69f\uc218 \ucd08\uae30\ud654."
+  - id: flame
+    displayName: "\ud654\uc5fc\uc758 \uada4\uc801 \uc138\ud2b8"
+    effectTwo: "\ud654\uc5fc \ub9c8\ubc95 \ud0c4\ud658 \uc18d\ub3c4 +5%p."
+    effectFour: "\ub300\uc2dc \ud6c4 2\ucd08\uac04 \ud654\uc5fc \uada4\uc801\uc744 \uc0dd\uc131\ud569\ub2c8\ub2e4.\n\uc801\ub2f9 \uae30\ubcf8 \ud53c\ud574 6\uc744 1\ud68c \uc801\uc6a9\ud558\uba70 \ub0b4\ubd80 \ucfe8\ud0c0\uc784 5\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 25\ud68c."
+    effectEight: "\ud654\uc5fc \ub9c8\ubc95 \ucd5c\ucd08 \uba85\uc911 \uc9c0\uc810 \ubc18\uacbd 2.5m\uc5d0 \uae30\ubcf8 \ud53c\ud574 18\uc758 \ud3ed\ubc1c\uc744 \uc0dd\uc131\ud569\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 8\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 20\ud68c."
+  - id: frost
+    displayName: "\uc11c\ub9ac\uc758 \uc7a5\ubcbd \uc138\ud2b8"
+    effectTwo: "\ub0c9\uae30 \ub9c8\ubc95 \uc0ac\uac70\ub9ac +10%p."
+    effectFour: "\ub0c9\uae30 \ub9c8\ubc95 \ucd5c\ucd08 \uba85\uc911 \ub300\uc0c1\uc758 \uc774\ub3d9 \uc18d\ub3c4\ub97c 2\ucd08 \ub3d9\uc548 10%p \uac10\uc18c\uc2dc\ud0b5\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 4\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 30\ud68c."
+    effectEight: "\ud53c\uaca9 \uc2dc \ubc18\uacbd 3m \ub0b4 \uc18c\uac70 \uac00\ub2a5\ud55c \uc801\ud0c4\uc744 \ucd5c\ub300 5\ubc1c \uc81c\uac70\ud569\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 12\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 10\ud68c."
+  - id: thunder
+    displayName: "\ubc88\uac1c\uc758 \uacf5\uba85 \uc138\ud2b8"
+    effectTwo: "\ubc88\uac1c \ub9c8\ubc95 \ud0c4\ud658 \uc18d\ub3c4 +10%p."
+    effectFour: "\ubc88\uac1c \ub9c8\ubc95 \ucd5c\ucd08 \uba85\uc911 \uc2dc \uc778\uc811 \uc801\uc5d0\uac8c \uae30\ubcf8 \ud53c\ud574 8\uc758 \uc5f0\uc1c4 \uacf5\uaca9 1\ud68c.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 3\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 40\ud68c."
+    effectEight: "\ubc88\uac1c \ub9c8\ubc95 3\ud68c \uc0ac\uc6a9 \uc2dc \ucd5c\ub300 3\uba85\uc758 \ub2e4\ub978 \uc801\uc5d0\uac8c \uac01\uac01 \uae30\ubcf8 \ud53c\ud574 12\uc758 \uc5f0\uc1c4 \uacf5\uaca9.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 8\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 20\ud68c."
+  - id: gravity
+    displayName: "\uc911\ub825\uc758 \uc9c0\ubc30 \uc138\ud2b8"
+    effectTwo: "\uc911\ub825 \ub9c8\ubc95 \uc0ac\uac70\ub9ac +10%p."
+    effectFour: "\uc911\ub825 \ub9c8\ubc95 \ucd5c\ucd08 \uba85\uc911 \uc9c0\uc810 \uadfc\ucc98\uc758 \uc77c\ubc18 \uc801\uc744 \ucd5c\ub300 1.5m \ub04c\uc5b4\ub2f9\uae41\ub2c8\ub2e4.\n\ub0b4\ubd80 \ucfe8\ud0c0\uc784 6\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 25\ud68c."
+    effectEight: "\uc911\ub825 \ub9c8\ubc95 \uc0ac\uc6a9 \uc2dc \ubc18\uacbd 3m\uc758 \uc911\ub825\uc7a5\uc744 3\ucd08\uac04 \uc0dd\uc131\ud569\ub2c8\ub2e4.\n\uc77c\ubc18 \uc801\uc744 \uc911\uc2ec\uc73c\ub85c \ub04c\uc5b4\ub2f9\uae30\uba70 \ucd08\ub2f9 \uae30\ubcf8 \ud53c\ud574 6, \ub0b4\ubd80 \ucfe8\ud0c0\uc784 10\ucd08, \ucd9c\uaca9\ub2f9 \ucd5c\ub300 15\ud68c."

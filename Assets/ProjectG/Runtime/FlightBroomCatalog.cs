@@ -49,6 +49,10 @@ namespace ProjectG // 프로젝트 게임 영역
     {
         public string id; // 부품 종류의 고유 ID
         public string displayName; // 한글 부품 이름
+        public string setId; // 기획 세트에 속하는 안정적인 공용 ID
+        public string specialPrimary; // III·IV·V 등급의 기획 특수 효과 설명
+        public string specialLegendary; // V 등급에서 추가되는 기획 효과 설명
+        public string visualDescription; // 정식 부품 이미지 제작을 위한 기획 설명
         public FlightBroomSlot slot; // 장착 가능 부위
         public FlightBroomStat stat; // 주 효과 항목
         public float baseValue; // I등급의 기본 효과
@@ -69,11 +73,49 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             return baseValue + gradeStep * (itemGrade - 1) + upgradeStep * itemUpgrade; // 기본값과 단계별 증가량
         }
+
+        public int PlannedSpecialCount(int itemGrade) // 등급별로 기획된 개별 특수 효과 수
+        {
+            if (itemGrade < 1 || itemGrade > 5) // 존재하지 않는 희귀도
+            {
+                return -1; // 잘못된 등급과 효과 없음을 구분
+            }
+            if (string.IsNullOrEmpty(setId) || itemGrade <= 2) // 기본 부품 또는 일반·고급
+            {
+                return 0; // 기획된 개별 특수 효과 없음
+            }
+            return itemGrade == 5 ? 2 : 1; // 희귀·영웅 한 개와 전설 두 개
+        }
+    }
+
+    [Serializable] // 세트별 장착 수와 기획 효과
+    internal sealed class FlightBroomSet
+    {
+        public string id; // 저장과 도감에서 공유할 세트 ID
+        public string displayName; // 기획서의 세트 이름
+        public string effectTwo; // 두 부품 장착의 기획 효과
+        public string effectFour; // 네 부품 장착의 기획 효과
+        public string effectEight; // 여덟 부품 장착의 기획 효과
     }
 
     public sealed class FlightBroomCatalog : ScriptableObject // 편집 가능한 빗자루 부품 목록
     {
         [SerializeField] private FlightBroomPart[] parts = Array.Empty<FlightBroomPart>(); // 기본 부품과 시험 부품
+        [SerializeField] private FlightBroomSet[] sets = Array.Empty<FlightBroomSet>(); // 열 세트의 이름과 단계별 기획
         internal ReadOnlySpan<FlightBroomPart> Parts => parts; // 장착 구성에서 읽는 부품 목록
+        internal ReadOnlySpan<FlightBroomSet> Sets => sets; // 후속 도감과 세트 효과가 공유할 기획
+
+        internal static string GradeName(int grade) // 실제 희귀도 순서의 한국어 이름
+        {
+            return grade switch // 기획서의 일반부터 전설까지 다섯 단계
+            {
+                1 => "일반", // I 등급 이름
+                2 => "고급", // II 등급 이름
+                3 => "희귀", // III 등급 이름
+                4 => "영웅", // IV 등급 이름
+                5 => "전설", // V 등급 이름
+                _ => null // 존재하지 않는 등급
+            };
+        }
     }
 }

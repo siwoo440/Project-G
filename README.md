@@ -129,6 +129,8 @@ Unity **6000.3.21f1**에서 `Assets/Scenes/OuterIslandsStage.unity`를 열면 �
 
 `Esc → 빗자루 조립`에서는 현재 캐릭터의 8개 부위를 확인합니다. 후보를 고르면 3D 외형과 현재 조합에서 바뀌는 능력치가 표시되고, 장착 확정으로 저장한 조합은 재실행 후에도 복원됩니다. [조립 화면](docs/screenshots/3d-day-20-workshop.png) · [1024×576 재실행 화면](docs/screenshots/3d-day-20-reload-1024.png) · [20일차 기록](docs/development/3d-day-20.md)
 
+빗자루 카탈로그에는 기존 시작 부품 56종과 10개 세트의 부품 80종, 일반부터 전설까지의 5등급 기준 수치를 등록했습니다. 기존에 보유할 수 있던 질풍 시험 부품은 ID와 보유 수량을 유지합니다. 새 부품의 획득·제작·세트 및 특수 효과 적용과 정식 모델은 후속 작업입니다. [57일차 기록](docs/development/3d-day-57.md)
+
 제작 마법의 구성 ID와 고정 비용, 호환성·탄수 제한, 직선·확산·유도 방향은 편집기와 전투에서 공유합니다. [21일차 제작 마법 규칙](docs/development/3d-day-21.md)
 
 질풍의 몸체를 장착하면 아리아의 수평 최고 속도가 12.3 m/s에서 12.7 m/s로 바뀝니다. Unity의 `AriaPilot/TrainingBroom/PartMounts`에서 부품 위치를 편집합니다. [기본 몸체](docs/screenshots/3d-day-19-default.png) · [질풍의 몸체](docs/screenshots/3d-day-19-flight.png) · [19일차 기록](docs/development/3d-day-19.md)

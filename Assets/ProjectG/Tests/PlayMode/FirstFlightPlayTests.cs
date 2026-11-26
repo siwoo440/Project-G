@@ -4931,6 +4931,219 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             }
         }
 
+        [UnityTest] // 10개 세트와 56개 시작 부품의 실제 카탈로그
+        public IEnumerator BroomCatalogContainsEightySetPartsAndPreservesStarterIds() // 기획 명칭·부위·등급 수치와 기존 저장
+        {
+            yield return LoadOuterIslands(); // 실제 빗자루 카탈로그가 연결된 전투 씬
+            Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 기존 소유와 장착을 복원하는 장비
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 카탈로그 필드
+            Object catalog = (Object)equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 씬이 사용하는 실제 에셋
+            System.Array parts = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 직렬화된 전체 부품
+            var gradeName = catalog.GetType().GetMethod("GradeName", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 실제 다섯 희귀도 이름
+            string[] gradeNames = { "일반", "고급", "희귀", "영웅", "전설" }; // 기획서의 I부터 V까지 이름
+            for (int grade = 1; grade <= 5; grade++) // 모든 유효 희귀도
+            {
+                Assert.That(gradeName.Invoke(null, new object[] { grade }), Is.EqualTo(gradeNames[grade - 1])); // 등급과 실제 한국어 이름
+            }
+            Assert.That(gradeName.Invoke(null, new object[] { 0 }), Is.Null); // 기획에 없는 등급 이름 차단
+            string[] names =
+            {
+                "질풍의 몸체", "바람의 손잡이", "폭풍의 마력석", "하늘길의 결합부", "질풍의 추진부", "돌풍의 마법 장식", "바람의 선단부", "천풍의 안정기", // 한 세트의 기획 부품 이름
+                "수호자의 몸체", "맹세의 손잡이", "성벽의 마력석", "불굴의 결합부", "수호의 추진부", "서약의 마법 장식", "새벽의 선단부", "수호의 안정기", // 한 세트의 기획 부품 이름
+                "순환의 몸체", "고요한 손잡이", "샘솟는 마력석", "흐름의 결합부", "수맥의 추진부", "순환의 마법 장식", "원천의 선단부", "유수의 안정기", // 한 세트의 기획 부품 이름
+                "별자리의 몸체", "별빛의 손잡이", "북극성의 마력석", "천체의 결합부", "유성의 추진부", "별의 마법 장식", "천체의 선단부", "별궤도의 안정기", // 한 세트의 기획 부품 이름
+                "매의 몸체", "사냥꾼의 손잡이", "매안의 마력석", "정밀 결합부", "급강하 추진부", "사냥의 마법 장식", "매의 선단부", "정밀 안정기", // 한 세트의 기획 부품 이름
+                "밤의 몸체", "그림자의 손잡이", "월식의 마력석", "경계의 결합부", "야행의 추진부", "그림자의 마법 장식", "월광의 선단부", "밤안개의 안정기", // 한 세트의 기획 부품 이름
+                "잿불의 몸체", "화승의 손잡이", "불씨의 마력석", "화로의 결합부", "홍염의 추진부", "불사조의 마법 장식", "용화의 선단부", "열풍의 안정기", // 한 세트의 기획 부품 이름
+                "서리의 몸체", "한기의 손잡이", "빙벽의 마력석", "동결 결합부", "설풍의 추진부", "설원의 마법 장식", "빙정의 선단부", "동토의 안정기", // 한 세트의 기획 부품 이름
+                "뇌광의 몸체", "번개의 손잡이", "천뢰의 마력석", "전류의 결합부", "뇌전의 추진부", "연쇄의 마법 장식", "낙뢰의 선단부", "천둥의 안정기", // 한 세트의 기획 부품 이름
+                "공허의 몸체", "질량의 손잡이", "중력의 마력석", "궤도의 결합부", "반중력 추진부", "특이점의 마법 장식", "공간의 선단부", "궤도의 안정기", // 한 세트의 기획 부품 이름
+            }; // 기획서 14.10과 같은 80개 명칭
+            string[] setIds = { "storm", "guard", "flow", "starlight", "hawk", "shadow", "flame", "frost", "thunder", "gravity" }; // 세트별 안정적인 내부 ID
+            string[] starterNames =
+            {
+                "청록 정찰 몸체", "돌풍 손잡이", "청록 마력석", "경량 결합부", "순풍 질주 추진부", "정찰 문양 마법 장식", "속사 선단부", "쌍날개 안정기", // 한 조종사의 여덟 시작 부품
+                "은빛 정밀 몸체", "조준 손잡이", "은광 마력석", "정밀 조율 결합부", "감속 추진부", "조준 문양 마법 장식", "망원 선단부", "은빛 깃털 안정기", // 한 조종사의 여덟 시작 부품
+                "별빛 탐색 몸체", "별자리 손잡이", "별모양 마력석", "별무리 결합부", "별꼬리 추진부", "별가루 마법 장식", "별자리 탐색 선단부", "별빛 회전 안정기", // 한 조종사의 여덟 시작 부품
+                "붉은 장갑 몸체", "돌진 손잡이", "적열 마력석", "철갑 결합부", "폭발 가속 추진부", "붉은 방호 마법 장식", "쐐기 선단부", "충격 완충 안정기", // 한 조종사의 여덟 시작 부품
+                "월영 몸체", "회피 손잡이", "달그림자 마력석", "반격 결합부", "초승달 추진부", "월광 문양 마법 장식", "어스름 선단부", "월식 완충 안정기", // 한 조종사의 여덟 시작 부품
+                "설치 지원 몸체", "정지 제어 손잡이", "저장형 마력석", "모듈 결합부", "제어 하강 추진부", "교체식 마력통 마법 장식", "관측 선단부", "고정 날개 안정기", // 한 조종사의 여덟 시작 부품
+                "공명 파동 몸체", "진동 제어 손잡이", "파동 마력석", "공명 고리 결합부", "위상 상승 추진부", "마력 공명 마법 장식", "파면 선단부", "공명 균형 안정기", // 한 조종사의 여덟 시작 부품
+            }; // 14.11의 실제 시작 부품 표
+            int[] starterStats =
+            {
+                0, 3, 7, 4, 1, 8, 10, 4, // 한 조종사의 여덟 시작 부품
+                0, 2, 9, 4, 2, 9, 11, 4, // 한 조종사의 여덟 시작 부품
+                0, 3, 7, 4, 5, 8, 11, 4, // 한 조종사의 여덟 시작 부품
+                12, 3, 9, 13, 1, 12, 10, 13, // 한 조종사의 여덟 시작 부품
+                0, 3, 9, 13, 2, 8, 10, 13, // 한 조종사의 여덟 시작 부품
+                12, 2, 7, 4, 6, 8, 11, 4, // 한 조종사의 여덟 시작 부품
+                0, 3, 9, 4, 5, 7, 11, 4, // 한 조종사의 여덟 시작 부품
+            }; // 14.11의 실제 시작 부품 표
+            float[] starterBases =
+            {
+                0.3f, 10f, 5f, 4f, 1f, 0.5f, 3f, 4f, // 한 조종사의 여덟 시작 부품
+                0.3f, 1f, 3f, 4f, 1f, 3f, 3f, 4f, // 한 조종사의 여덟 시작 부품
+                0.3f, 10f, 5f, 4f, 0.3f, 0.5f, 3f, 4f, // 한 조종사의 여덟 시작 부품
+                1.5f, 10f, 3f, 2f, 1f, 1.5f, 3f, 2f, // 한 조종사의 여덟 시작 부품
+                0.3f, 10f, 3f, 2f, 1f, 0.5f, 3f, 2f, // 한 조종사의 여덟 시작 부품
+                1.5f, 1f, 5f, 4f, 0.3f, 0.5f, 3f, 4f, // 한 조종사의 여덟 시작 부품
+                0.3f, 10f, 3f, 4f, 0.3f, 5f, 3f, 4f, // 한 조종사의 여덟 시작 부품
+            }; // 14.11의 실제 시작 부품 표
+            int[] expectedStats =
+            {
+                0, 3, 7, 4, 1, 8, 10, 4, // 기획서의 한 세트 여덟 부품
+                12, 2, 7, 13, 2, 12, 11, 13, // 기획서의 한 세트 여덟 부품
+                0, 3, 8, 4, 5, 7, 11, 4, // 기획서의 한 세트 여덟 부품
+                12, 3, 9, 4, 1, 9, 10, 4, // 기획서의 한 세트 여덟 부품
+                0, 3, 9, 4, 6, 7, 11, 4, // 기획서의 한 세트 여덟 부품
+                0, 3, 8, 4, 1, 8, 10, 3, // 기획서의 한 세트 여덟 부품
+                0, 3, 9, 13, 1, 9, 10, 4, // 기획서의 한 세트 여덟 부품
+                12, 2, 7, 13, 2, 7, 11, 4, // 기획서의 한 세트 여덟 부품
+                0, 3, 9, 4, 1, 9, 10, 4, // 기획서의 한 세트 여덟 부품
+                12, 2, 9, 13, 5, 7, 11, 4, // 기획서의 한 세트 여덟 부품
+            }; // 14.11 부품 능력치 표의 확정 값
+            float[] expectedBases =
+            {
+                0.3f, 10f, 5f, 4f, 1.5f, 0.5f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+                1.5f, 1f, 5f, 2f, 1f, 2.5f, 3f, 2f, // 기획서의 한 세트 여덟 부품
+                0.3f, 10f, 0.75f, 4f, 0.3f, 5f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+                1.5f, 10f, 5f, 4f, 1f, 3f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+                0.3f, 10f, 3f, 4f, 0.3f, 5f, 5f, 4f, // 기획서의 한 세트 여덟 부품
+                0.3f, 10f, 0.5f, 4f, 1f, 0.5f, 3f, 15f, // 기획서의 한 세트 여덟 부품
+                0.3f, 10f, 3f, 2f, 1.5f, 3f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+                1.5f, 1f, 5f, 2f, 1.5f, 5f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+                0.3f, 10f, 3f, 4f, 1f, 3f, 5f, 4f, // 기획서의 한 세트 여덟 부품
+                1.5f, 1f, 3f, 2f, 0.45f, 5f, 3f, 4f, // 기획서의 한 세트 여덟 부품
+            }; // 14.11 부품 능력치 표의 확정 값
+            int[] expectedPenaltyStats =
+            {
+                0, 0, 0, 0, 2, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 7, 0, 0, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 8, 0, 0, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 10, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 0, 4, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 2, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 11, 0, // 기획서의 한 세트 여덟 부품
+                0, 0, 0, 0, 0, 0, 0, 0, // 기획서의 한 세트 여덟 부품
+            }; // 14.11 부품 능력치 표의 확정 값
+            float[] expectedPenalties =
+            {
+                0f, 0f, 0f, 0f, -1f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, 0f, -0.3f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, -5f, 0f, 0f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, -0.5f, 0f, 0f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, 0f, 0f, -3f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, 0f, 0f, 0f, -4f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, -1f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, -0.3f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, 0f, 0f, -3f, 0f, // 기획서의 한 세트 여덟 부품
+                0f, 0f, 0f, 0f, -0.3f, 0f, 0f, 0f, // 기획서의 한 세트 여덟 부품
+            }; // 14.11 부품 능력치 표의 확정 값
+            string[] setNames = { "폭풍의 질주 세트", "천공의 수호 세트", "마력의 순환 세트", "별빛의 조율 세트", "매의 시선 세트", "그림자의 비행 세트", "화염의 궤적 세트", "서리의 장벽 세트", "번개의 공명 세트", "중력의 지배 세트" }; // 14.10의 열 세트 이름
+            System.Array sets = (System.Array)catalog.GetType().GetField("sets", hidden).GetValue(catalog); // 실제 기획 세트 정의
+            Assert.That(sets.Length, Is.EqualTo(10)); // 중복 없이 열 세트 등록
+            for (int i = 0; i < sets.Length; i++) // 세트별 고정 ID와 효과 설명
+            {
+                object setData = sets.GetValue(i); // 저장된 실제 세트 정의
+                System.Type setType = setData.GetType(); // 기획 효과의 자료형
+                Assert.That(setType.GetField("id").GetValue(setData), Is.EqualTo(setIds[i])); // 부품과 연결할 동일 ID
+                Assert.That(setType.GetField("displayName").GetValue(setData), Is.EqualTo(setNames[i])); // 실제 기획 세트 이름
+                Assert.That((string)setType.GetField("effectTwo").GetValue(setData), Is.Not.Empty); // 두 부품 효과의 기획 기록
+                Assert.That((string)setType.GetField("effectFour").GetValue(setData), Is.Not.Empty); // 네 부품 효과의 기획 기록
+                Assert.That((string)setType.GetField("effectEight").GetValue(setData), Is.Not.Empty); // 여덟 부품 효과의 기획 기록
+            }
+            var ids = new System.Collections.Generic.HashSet<string>(); // 같은 종류 ID의 중복 검사
+            var seen = new System.Collections.Generic.HashSet<string>(); // 실제로 등록된 기획 명칭
+            var increments = new System.Collections.Generic.Dictionary<string, (float Grade, float Upgrade)>
+            {
+                { "Speed", (0.1f, 0.04f) }, { "Acceleration", (0.5f, 0.2f) }, { "Braking", (0.5f, 0.2f) }, // 비행 속도와 가감속
+                { "Turn", (5f, 2f) }, { "Stability", (2f, 1f) }, { "Rise", (0.15f, 0.05f) }, { "Fall", (0.15f, 0.05f) }, // 선회·안정과 수직 비행
+                { "Mana", (2f, 1f) }, { "ManaRecovery", (0.25f, 0.1f) }, { "MagicPower", (2f, 1f) }, // 마력과 공격력
+                { "BoltSpeed", (2f, 1f) }, { "Range", (2f, 1f) }, { "DamageReduction", (1f, 0.5f) }, { "ImpactResistance", (1f, 0.5f) } // 발사체와 방어 수치
+            }; // 기획서의 등급·강화 공통 가산
+            int starterCount = 0; // 이전 저장에서 계속 쓰는 기본 부품
+            int setCount = 0; // 실제 10개 세트의 부품
+            foreach (object part in parts) // 실제 카탈로그의 모든 항목
+            {
+                System.Type type = part.GetType(); // 실제 직렬화된 부품 자료형
+                string id = (string)type.GetField("id").GetValue(part); // 개별 종류의 안정 ID
+                Assert.That(ids.Add(id), Is.True, id); // 시작·기존 시험·세트 ID 중복 금지
+                bool starter = (bool)type.GetField("starter").GetValue(part); // 기존 캐릭터 시작 부품
+                starterCount += starter ? 1 : 0; // 모든 시작 부품 수
+                if (starter) // 기획서의 56개 캐릭터 시작 부품
+                {
+                    int owner = (int)type.GetField("pilot").GetValue(part); // 실제 시작 조종사 순서
+                    int location = (int)type.GetField("slot").GetValue(part); // 실제 시작 장착 부위
+                    int starterIndex = owner * 8 + location; // 기획 표의 같은 조종사와 부위
+                    Assert.That(starterIndex, Is.InRange(0, 55)); // 지원하는 일곱 조종사와 여덟 부위
+                    Assert.That(type.GetField("displayName").GetValue(part), Is.EqualTo(starterNames[starterIndex])); // 기존 시작 부품의 기획 명칭
+                    Assert.That((int)type.GetField("stat").GetValue(part), Is.EqualTo(starterStats[starterIndex])); // 기존 시작 부품의 주 능력치
+                    Assert.That((float)type.GetField("baseValue").GetValue(part), Is.EqualTo(starterBases[starterIndex]).Within(0.001f)); // 기존 시작 부품의 일반 기준값
+                    string starterStat = type.GetField("stat").GetValue(part).ToString(); // 주 능력치의 고정 이름
+                    Assert.That((float)type.GetField("gradeStep").GetValue(part), Is.EqualTo(increments[starterStat].Grade).Within(0.001f)); // 시작 부품의 등급당 증가량
+                    Assert.That((float)type.GetField("upgradeStep").GetValue(part), Is.EqualTo(increments[starterStat].Upgrade).Within(0.001f)); // 시작 부품의 강화당 증가량
+                    Assert.That(type.GetMethod("PlannedSpecialCount").Invoke(part, new object[] { 5 }), Is.EqualTo(0)); // 기본 부품은 세트 개별 효과 없음
+                }
+                string set = (string)type.GetField("setId").GetValue(part); // 소속된 기획 세트
+                if (string.IsNullOrEmpty(set)) // 세트가 없는 시작과 이전 상점 부품
+                {
+                    continue; // 기존 사용자 저장과 시험 상품은 그대로 유지
+                }
+                int group = System.Array.IndexOf(setIds, set); // 실제 기획 세트의 고정 순서
+                Assert.That(group, Is.GreaterThanOrEqualTo(0)); // 알 수 없는 세트 ID 차단
+                int slot = (int)type.GetField("slot").GetValue(part); // 여덟 실제 장착 부위
+                Assert.That(slot, Is.InRange(0, 7)); // 기획 부위 범위
+                int expectedIndex = group * 8 + slot; // 기획 표의 같은 세트와 부위
+                string name = (string)type.GetField("displayName").GetValue(part); // 실제 도감 표시 이름
+                Assert.That(name, Is.EqualTo(names[group * 8 + slot])); // 세트와 부위별 기획 명칭
+                Assert.That(seen.Add(name), Is.True); // 같은 부품의 중복 등록 금지
+                Assert.That(starter, Is.False); // 80종은 기본 56종과 구분
+                if (id != "trial.storm-body" && id != "trial.storm-drive") // 이미 보유한 두 시험 부품 외의 신규 항목
+                {
+                    Assert.That(type.GetField("ownedCopies").GetValue(part), Is.EqualTo(0)); // 새 부품의 임의 무료 지급 금지
+                    Assert.That(type.GetField("stocked").GetValue(part), Is.EqualTo(false)); // 후속 획득 구현 전 임의 판매 금지
+                }
+                Assert.That((string)type.GetField("specialPrimary").GetValue(part), Is.Not.Empty); // III·IV·V 특수 효과의 기획 기록
+                Assert.That((string)type.GetField("specialLegendary").GetValue(part), Is.Not.Empty); // V 추가 효과의 기획 기록
+                string stat = type.GetField("stat").GetValue(part).ToString(); // 실제 주 능력치 종류
+                Assert.That((int)type.GetField("stat").GetValue(part), Is.EqualTo(expectedStats[expectedIndex])); // 부품별 주 능력치 종류
+                Assert.That((float)type.GetField("baseValue").GetValue(part), Is.EqualTo(expectedBases[expectedIndex]).Within(0.001f)); // 부품별 일반 기준 수치
+                Assert.That((int)type.GetField("penaltyStat").GetValue(part), Is.EqualTo(expectedPenaltyStats[expectedIndex])); // 부품별 특화 감소 능력치
+                Assert.That((float)type.GetField("penalty").GetValue(part), Is.EqualTo(expectedPenalties[expectedIndex]).Within(0.001f)); // 부품별 특화 감소량
+                Assert.That(increments.ContainsKey(stat), Is.True); // 기획에 있는 주 능력치만 허용
+                var step = increments[stat]; // 해당 능력치의 확정 가산량
+                Assert.That((float)type.GetField("gradeStep").GetValue(part), Is.EqualTo(step.Grade).Within(0.001f)); // 등급당 기획 증가량
+                Assert.That((float)type.GetField("upgradeStep").GetValue(part), Is.EqualTo(step.Upgrade).Within(0.001f)); // 강화당 기획 증가량
+                float basis = (float)type.GetField("baseValue").GetValue(part); // 개별 부품의 일반 기준값
+                var value = type.GetMethod("GetValue"); // 실제 장비 능력치 계산
+                for (int grade = 1; grade <= 5; grade++) // 일반부터 전설까지 다섯 등급
+                {
+                    int effectCount = grade <= 2 ? 0 : grade == 5 ? 2 : 1; // 기획된 등급별 특수 효과 수
+                    Assert.That(type.GetMethod("PlannedSpecialCount").Invoke(part, new object[] { grade }), Is.EqualTo(effectCount)); // 실제 적용 전의 기획 효과 슬롯 수
+                    for (int upgrade = 0; upgrade <= 5; upgrade++) // 무강화부터 +5까지 여섯 단계
+                    {
+                        float expected = basis + step.Grade * (grade - 1) + step.Upgrade * upgrade; // 기획서의 고정 가산 계산
+                        Assert.That((float)value.Invoke(part, new object[] { grade, upgrade }), Is.EqualTo(expected).Within(0.001f)); // 실제 부품별 오 등급·강화 수치
+                    }
+                }
+                setCount++; // 검증한 세트 부품 수
+            }
+            Assert.That(starterCount, Is.EqualTo(56)); // 일곱 조종사의 시작 부품 보존
+            Assert.That(setCount, Is.EqualTo(80)); // 열 세트의 여덟 부품씩 등록
+            Assert.That(seen.Count, Is.EqualTo(80)); // 기획 명칭 누락과 중복 없음
+            Assert.That(ids, Does.Contain("trial.storm-body")); // 기존 보유한 시험 몸체 ID 유지
+            Assert.That(ids, Does.Contain("trial.storm-drive")); // 기존 보유한 시험 추진부 ID 유지
+            Assert.That(ids, Does.Contain("shop.harbor-grip")); // 기존 구매 상품 ID 유지
+            System.Type pilotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 기존 조종사 종류
+            System.Type slotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"); // 기존 부위 종류
+            object aria = System.Enum.Parse(pilotType, "Aria"); // 기본 출격 조종사
+            object body = System.Enum.Parse(slotType, "Body"); // 기존 몸체 슬롯
+            Assert.That(equipment.GetType().GetMethod("GetEquippedId").Invoke(equipment, new[] { aria, body }), Is.EqualTo("aria.body:1")); // 이전 기본 장착 ID 보존
+        }
+
         [UnityTest] // 내장 비행을 여는 도중 제작 화면 종료
         public IEnumerator MagicPreviewCancelsPendingSceneLoadWithoutFreezingMenu() // 비동기 로드와 정식 화면의 분리
         {

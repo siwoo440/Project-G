@@ -13,7 +13,7 @@ namespace ProjectG // 프로젝트 게임 영역
             CraftedSpellGroup.FireMode, CraftedSpellGroup.Origin, CraftedSpellGroup.Aim, CraftedSpellGroup.Trigger, // 생성 위치와 발동 방식
             CraftedSpellGroup.Effect, CraftedSpellGroup.Effect // 중복을 검사하는 최대 두 가지 효과
         };
-        private static readonly int[] Presets = { 0, 3, 7, 11, 9 }; // 실제 판정이 있는 기획 마법
+        private static readonly int[] Presets = { 0, 3, 7, 11, 9, 4, 1, 5 }; // 실제 판정이 있는 기획 마법
         private static readonly float[] Distances = { 10f, 14f, 20f }; // 사거리 경계와 중립 시험 표적 거리
 
         [SerializeField] private FlightCraftedSpellBook book; // 실전에서 불러올 제작 마법
@@ -233,6 +233,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private void ResetTest() // 독립 연습의 피해와 발사체 초기화
         {
             range.ResetCasts(); // 시험 발사체와 재사용 시간 초기화
+            target.GetComponent<FlightCraftedStatus>()?.Clear(); // 표적에 남은 이전 지속 피해 제거
             target.ResetDamage(); // 연습 표적의 실제 누적 피해 초기화
         }
 

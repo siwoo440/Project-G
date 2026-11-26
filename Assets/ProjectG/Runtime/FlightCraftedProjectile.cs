@@ -23,8 +23,13 @@ namespace ProjectG // 프로젝트 게임 영역
         private bool knocksBack; // 선택한 넉백 효과
         private int pierceLimit; // 시전 시 확정한 최대 관통 대상
         private FlightCraftedEmissionBudget.CastToken castToken; // 같은 시전의 누적 생성 기록
+        private HashSet<Component> returnHits; // 같은 시전의 복귀 경로 적중 기록
+        private Vector3 launchPosition; // 회류 원반의 발사 시점 위치
+        private float outboundRemaining; // 회류 원반의 남은 편도 거리
+        private bool returningRing; // 회류 고리의 왕복 이동 여부
+        private bool returning; // 현재 복귀 구간 여부
 
-        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null, int maxPierce = 3, FlightCraftedEmissionBudget.CastToken token = null) // 장착 마법을 실제 탄환에 적용
+        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null, int maxPierce = 3, FlightCraftedEmissionBudget.CastToken token = null, HashSet<Component> backHits = null) // 장착 마법을 실제 탄환에 적용
         {
             recipe = cast; // 발사 중 편집에 영향 없는 원본
             profile = stats; // 한 발의 실제 이동과 피해
@@ -34,6 +39,10 @@ namespace ProjectG // 프로젝트 게임 영역
             sharedHits = castHits; // 같은 시전의 파동 적중 기록
             pierceLimit = maxPierce; // 이 탄의 관통 상한 고정
             castToken = token; // 같은 시전의 후속 생성 기록
+            returnHits = backHits; // 왕복 마법의 공유 복귀 적중 기록
+            returningRing = cast.Id == CraftedSpellPresets.All[5].Recipe.Id; // 확정된 회류 고리 구성
+            launchPosition = transform.position; // 이동 중인 발사체의 원래 생성점
+            outboundRemaining = returningRing ? stats.Range * 0.5f : 0f; // 총 왕복 거리의 절반인 편도 거리
             knocksBack = cast.FirstEffect == "knockback" || cast.SecondEffect == "knockback"; // 넉백 선택 여부
             pierces = cast.FirstEffect == "pierce" || cast.SecondEffect == "pierce"; // 관통 효과의 한 발당 처리
             explodes = cast.FirstEffect == "explode" || cast.SecondEffect == "explode"; // 명중점 폭발
@@ -43,6 +52,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 silhouette = cast.Shape switch // 카드의 형상을 구분하는 시각 비율
             {
                 "needle" or "arrow" => new Vector3(0.78f, 0.78f, 3f), // 가늘고 긴 침탄·화살
+                "disc" => new Vector3(1f, 1f, 0.25f), // 납작한 원반 표시
                 "wave" => new Vector3(2.2f, 0.58f, 1f), // 옆으로 퍼지는 파동
                 "small" => Vector3.one * 0.75f, // 작은 구체
                 _ => Vector3.one // 실제 충돌 반경을 기준으로 한 구체
@@ -74,6 +84,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 transform.rotation = Quaternion.LookRotation(heading); // 이 프레임의 탄환 경로
             }
             float step = Mathf.Min(remaining, profile.Speed * seconds); // 마지막 프레임이 사거리를 넘지 않는 계산
+            if (returningRing && !returning) // 회류 원반의 전진 구간
+            {
+                step = Mathf.Min(step, outboundRemaining); // 반환 지점을 넘지 않도록 편도 거리 제한
+            }
             RaycastHit[] contacts = Physics.SphereCastAll(transform.position, profile.Radius, transform.forward, step, layers, QueryTriggerInteraction.Ignore); // 지나간 범위의 실제 피격 검사
             Array.Sort(contacts, (left, right) => left.distance.CompareTo(right.distance)); // 지형과 적 사이의 접촉 순서
             foreach (RaycastHit contact in contacts) // 한 스텝에서 앞쪽부터 충돌 확인
@@ -88,13 +102,27 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     continue; // 관통 중 같은 대상의 중복 피해 방지
                 }
-                if (sharedHits != null && !sharedHits.Add(target)) // 같은 시전의 다른 파동에 이미 적중
+                HashSet<Component> castHits = returning ? returnHits : sharedHits; // 현재 경로의 같은 시전 적중 기록
+                if (castHits != null && !castHits.Add(target)) // 같은 시전의 다른 발사체가 이미 적중
                 {
+                    if (returningRing) // 회류 원반은 중복 피해 없이 경로 유지
+                    {
+                        continue; // 다른 대상과 복귀 구간을 계속 확인
+                    }
                     Destroy(gameObject); // 중복 피해 없이 접촉한 파동 종료
                     return; // 뒤쪽 대상으로 관통하지 않음
                 }
                 int previousHealth = target is FlightEnemy beforeHit ? beforeHit.Health : 0; // 실제 피해 전 체력
                 Damage(target, profile.Damage); // 실제 표적 직격
+                bool burnHit = target is FlightCraftedTarget || target is FlightEnemy burned && burned.Health > 0 && burned.Health < previousHealth; // 실제 피해를 받은 마물 또는 연습 표적
+                if (recipe.Id == CraftedSpellPresets.All[1].Recipe.Id && burnHit) // 플레임 스파이럴의 유효 직격
+                {
+                    if (!target.TryGetComponent(out FlightCraftedStatus burn)) // 이 대상의 공통 상태 관리자
+                    {
+                        burn = target.gameObject.AddComponent<FlightCraftedStatus>(); // 첫 화상에서 독립 상태 연결
+                    }
+                    burn.TryApply("burn", recipe.Element, 3f * profile.DamageScale, 0.5f, 4, 3, practice); // 시전 피해를 저장한 최대 세 화상 중첩
+                }
                 if (knocksBack && target is FlightEnemy enemy && enemy.Health > 0 && enemy.Health < previousHealth) // 실제로 피해를 받은 살아 있는 마물
                 {
                     if (!enemy.TryGetComponent(out FlightCraftedStatus status)) // 이 대상의 공통 상태 관리자
@@ -107,6 +135,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     Splash(contact.point); // 범위 피해는 별도 1회
                 }
+                if (returningRing) // 회류 원반은 왕복 경로가 끝날 때까지 이동
+                {
+                    continue; // 같은 경로의 다른 대상도 확인
+                }
                 if (!pierces || hits.Count >= pierceLimit) // 한 발의 강화된 관통 한도
                 {
                     Destroy(gameObject); // 한 발 또는 세 번째 대상에서 종료
@@ -115,7 +147,21 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             remaining -= step; // 갱신한 남은 사거리
             transform.position += transform.forward * step; // 실제 프레임 이동
-            if (remaining <= 0f) // 한계 거리에서의 자연 소멸
+            if (returningRing && !returning) // 아직 편도 이동 중인 회류 원반
+            {
+                outboundRemaining -= step; // 남은 전진 거리 갱신
+                if (outboundRemaining <= 0.0001f) // 편도 십이 미터에 도달
+                {
+                    returning = true; // 복귀 경로의 별도 적중 구간
+                    hits.Clear(); // 같은 원반도 복귀 시 다시 한 번 적중 가능
+                    Vector3 home = launchPosition - transform.position; // 생성 시점의 고정 발사 위치
+                    if (home.sqrMagnitude > 0.0001f) // 유효한 복귀 방향
+                    {
+                        transform.rotation = Quaternion.LookRotation(home, transform.up); // 같은 생성 위치를 향한 직선 복귀
+                    }
+                }
+            }
+            if (remaining <= 0.0001f) // 한계 거리에서의 자연 소멸
             {
                 Destroy(gameObject); // 명중하지 않은 발사체의 회수
             }

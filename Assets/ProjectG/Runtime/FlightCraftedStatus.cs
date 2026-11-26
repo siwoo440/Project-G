@@ -105,9 +105,14 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
+        internal void Clear() // 연습 초기화와 대상 회수의 공통 상태 제거
+        {
+            effects.Clear(); // 이전 피해와 중첩을 남기지 않음
+        }
+
         private void OnDisable() // 적이 회수되거나 연습이 종료된 경우
         {
-            effects.Clear(); // 새 출현에 이전 피해와 중첩을 넘기지 않음
+            Clear(); // 새 출현에 이전 피해와 중첩을 넘기지 않음
         }
     }
 }

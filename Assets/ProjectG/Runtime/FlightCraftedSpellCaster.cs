@@ -41,7 +41,18 @@ namespace ProjectG // 프로젝트 게임 영역
             public Material material; // 외형에서만 사용하는 색상 재질
         }
 
-        private static readonly int[] Implemented = { 0, 3, 7, 9, 11 }; // 실제 판정이 완성된 기획 마법
+        private sealed class Burst // 한 번 시전한 순차 발사의 고정 수치
+        {
+            public CraftedSpellRecipe recipe; // 원래 제작 구성
+            public Profile profile; // 시전 시점의 공격력과 탄환 수치
+            public Quaternion aim; // 첫 발의 실제 조준 방향
+            public FlightCraftedEmissionBudget.CastToken token; // 이 시전의 누적 생성 한도
+            public int count; // 강화 이후 발사할 전체 탄 수
+            public int next; // 다음 탄환의 발사 순번
+            public float nextAt; // 다음 탄환의 예정 시각
+        }
+
+        private static readonly int[] Implemented = { 0, 1, 3, 4, 5, 7, 9, 11 }; // 실제 판정이 완성된 기획 마법
         [SerializeField] private FlightCraftedProjectile projectile; // 제작 마법의 공유 프리팹
         [SerializeField] private Transform muzzle; // 이 장면의 실제 발사 위치
         [SerializeField] private LayerMask hitLayers = (1 << 8) | (1 << 9); // 지형과 표적 레이어
@@ -53,10 +64,12 @@ namespace ProjectG // 프로젝트 게임 영역
         private readonly List<FlightCraftedProjectile> active = new(); // 살아 있는 발사체
         private readonly Dictionary<string, float> readyAt = new(); // 같은 조합 두 장이 공유하는 대기시간
         private readonly List<Barrier> barriers = new(); // 살아 있는 정화 결계
+        private readonly List<Burst> bursts = new(); // 시전 후 시간에 따라 발사하는 마법
         private FlightThreatPool threatPool; // 실전 적탄만 관리하는 풀
         private float practiceTime; // 연습에서만 흐르는 시각
         private float practiceMana = 100f; // 실전 출격과 분리한 연습 마력
         public int CastCount { get; private set; } // 이 발사기에서 성공한 시전 수
+        public int EmissionCount { get; private set; } // 실제로 생성한 마법 발사체 수
         internal int PracticeMana => Mathf.FloorToInt(practiceMana); // 연습 화면의 현재 실제 마력
         private float Clock => practice ? practiceTime : Time.time; // 발사기별 독립 시계
         internal static float PracticeDelta => Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime; // 검증과 실제 연습의 렌더 시간
@@ -78,6 +91,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 practiceTime += PracticeDelta; // 연습 재사용 시간만 갱신
                 practiceMana = Mathf.Min(100f, practiceMana + 10f * PracticeDelta); // 문서의 초당 연습 마력 회복
             }
+            UpdateBursts(); // 실전 또는 독립 연습의 순차 발사
         }
 
         internal static bool Supports(CraftedSpellRecipe recipe) // 판정과 확정된 수치가 모두 준비된 마법
@@ -96,6 +110,16 @@ namespace ProjectG // 프로젝트 게임 영역
             return false; // 미구현 또는 수치가 확정되지 않은 구성
         }
 
+        private static bool IsFlameSpiral(CraftedSpellRecipe recipe) // 순차 발사와 화상이 있는 확정 구성
+        {
+            return recipe != null && recipe.Id == CraftedSpellPresets.All[1].Recipe.Id; // 플레임 스파이럴의 고유 구성
+        }
+
+        private static bool IsReturningRing(CraftedSpellRecipe recipe) // 왕복 경로와 공유 적중이 있는 확정 구성
+        {
+            return recipe != null && recipe.Id == CraftedSpellPresets.All[5].Recipe.Id; // 회류 고리의 고유 구성
+        }
+
         private static bool IsPurification(CraftedSpellRecipe recipe) // 초기 정화 결계의 정확한 구성
         {
             return recipe != null && recipe.Id == CraftedSpellPresets.All[11].Recipe.Id; // 문서의 정화 결계 식별자
@@ -103,9 +127,21 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal static Profile Stats(CraftedSpellRecipe recipe) // 지원하는 조합의 초기 시험 성능
         {
+            if (IsFlameSpiral(recipe)) // 플레임 스파이럴의 확정 수치
+            {
+                return new Profile(20, 5, 6f, 24f, 24f, 0.15f, 0f); // 열두 탄환의 마력·피해·속도·거리
+            }
             if (IsPurification(recipe)) // 고정 정화 결계
             {
                 return new Profile(30, 0, 12f, 0f, 0f, 3.5f, 0f); // 마력과 종료 후 대기시간
+            }
+            if (recipe.Id == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 확정 수치
+            {
+                return new Profile(18, 22, 5f, 28f, 32f, 0.12f, 0f); // 세 침탄의 마력·피해·속도·거리
+            }
+            if (IsReturningRing(recipe)) // 회류 고리의 확정 수치
+            {
+                return new Profile(20, 28, 6f, 18f, 24f, 0.3f, 0f); // 여섯 원반의 마력·피해·왕복 거리
             }
             if (recipe.Shape == "wave") // 물결 파동의 투사체 규격
             {
@@ -150,8 +186,9 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 생성 가능 표시 없음
             }
             active.RemoveAll(shot => shot == null); // 이미 종료된 실제 발사체 제외
-            int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 이 시전의 최초 생성 수
-            return emissions.CanBegin(count, active.Count + barriers.Count, Clock); // 예약하지 않고 모든 한도 확인
+            int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 이 시전의 전체 최초 생성 수
+            int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사는 처음 한 발만 즉시 생성
+            return count <= CraftedSpellRules.MaxInitial && emissions.CanBegin(immediate, active.Count + barriers.Count, Clock); // 실제 첫 발과 최초 상한 확인
         }
 
         internal bool TryContinueEmission(FlightCraftedEmissionBudget.CastToken token, int count) // 같은 시전의 후속 생성 한도 예약
@@ -187,7 +224,8 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             active.RemoveAll(shot => shot == null); // 회수한 발사체는 활성 한도에서 제외
             int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 결계 또는 강화한 최초 생성 수
-            if (!emissions.TryBegin(count, active.Count + barriers.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
+            int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사의 처음 한 발만 예약
+            if (count > CraftedSpellRules.MaxInitial || !emissions.TryBegin(immediate, active.Count + barriers.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
             {
                 return false; // 일부 발사나 자원 차감 없이 거절
             }
@@ -202,28 +240,23 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     practiceMana -= profile.Mana; // 연습의 실제 소비
                 }
+                EmissionCount++; // 실제로 생성한 결계 기록
                 CastCount++; // 유효한 결계 시전 기록
                 return true; // 결계 설치 성공
             }
             float now = Clock; // 이번 시전의 시간
             Quaternion aim = AimRotation(profile.Range, spawn); // 실제 생성 위치에서 조준 목표 보정
-            bool pressure = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id; // 수압 파동의 시전별 중복 제한
-            HashSet<Component> sharedHits = pressure ? new HashSet<Component>() : null; // 같은 파동의 공유 적중 기록
+            bool shared = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id || IsReturningRing(recipe); // 수압과 회류의 시전별 중복 제한
+            HashSet<Component> sharedHits = shared ? new HashSet<Component>() : null; // 같은 시전의 전진 적중 기록
+            HashSet<Component> returnHits = IsReturningRing(recipe) ? new HashSet<Component>() : null; // 회류 고리의 별도 복귀 적중 기록
             int pierce = Mathf.Min(5, 3 + Steps(recipe, FlightCraftedSpellBook.Upgrade.Pierce)); // 관통 효과의 최대 대상 수
-            for (int i = 0; i < count; i++) // 검증된 수만큼 새 탄환 생성
+            for (int i = 0; i < immediate; i++) // 이번 프레임에 예약한 실제 탄환
             {
-                Vector3 direction = CraftedSpellVectors.DirectionForCount(recipe, aim, i, profile.Spread, count); // 재현 가능한 3D 배열
-                FlightCraftedProjectile shot = Instantiate(projectile, spawn, Quaternion.LookRotation(direction, aim * Vector3.up), practice ? transform : null); // 월드 비행을 유지하는 공용 발사 프리팹
-                shot.Begin(recipe, profile, hitLayers, practice, sharedHits, pierce, token); // 같은 탄속·피해·접촉 처리
-                if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라가 실전에서 발사한 직접 마법
-                {
-                    shot.SetMeleeSource(weapon.Sword); // 실제 적과의 거리로 제작 마법 피해 조정
-                }
-                else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 실제 전투에서 이리스가 사용한 제작 마법
-                {
-                    shot.SetResonance(weapon.Resonance); // 마법 카드의 유효 적중도 공명에 합산
-                }
-                active.Add(shot); // 동시 활성 개수 검사에 반영
+                SpawnShot(recipe, profile, spawn, aim, i, count, sharedHits, returnHits, pierce, token); // 같은 시전 수치와 생성 기록 적용
+            }
+            if (IsFlameSpiral(recipe) && count > 1) // 나머지 순차 발사가 있는 경우
+            {
+                bursts.Add(new Burst { recipe = recipe, profile = profile, aim = aim, token = token, count = count, next = 1, nextAt = now + 0.1f }); // 영 점 일 초 간격의 후속 발사
             }
             readyAt[recipe.Id] = now + profile.Cooldown; // 같은 조합의 양쪽 슬롯과 연결
             if (practice) // 실전은 기존 스킬의 공용 마력 사용
@@ -232,6 +265,67 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             CastCount++; // 실제 성공한 시전만 집계
             return true; // 소비 가능한 시전
+        }
+
+        private void SpawnShot(CraftedSpellRecipe recipe, Profile profile, Vector3 spawn, Quaternion aim, int index, int count, HashSet<Component> sharedHits, HashSet<Component> returnHits, int pierce, FlightCraftedEmissionBudget.CastToken token) // 예약된 개별 발사체 생성
+        {
+            Vector3 shotOrigin = spawn; // 해당 발사체의 실제 출발점
+            Vector3 direction = CraftedSpellVectors.DirectionForCount(recipe, aim, index, profile.Spread, count); // 재현 가능한 입체 배열
+            if (recipe.Id == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 집중 배열
+            {
+                float offset = (index - (count - 1) * 0.5f) * profile.Radius * 2f; // 탄환 지름 간격의 출발 위치
+                shotOrigin += aim * Vector3.right * offset; // 서로 겹치지 않는 수평 발사점
+                Vector3 focus = spawn + aim * Vector3.forward * profile.Range; // 사거리 끝의 공통 조준점
+                direction = (focus - shotOrigin).normalized; // 확정 사거리 안에서 중앙으로 수렴
+            }
+            if (IsReturningRing(recipe)) // 원형으로 나뉜 여섯 원반의 출발 위치
+            {
+                float angle = index * 2f * Mathf.PI / count; // 발사체별 균등한 원주 위치
+                shotOrigin += aim * new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * profile.Radius * 2f; // 충돌 지름을 기준으로 배열
+            }
+            if (IsFlameSpiral(recipe)) // 순서에 따라 원주를 도는 나선 발사점
+            {
+                float angle = index * 2f * Mathf.PI / count; // 전체 탄 수에 맞춘 발사 순서
+                shotOrigin += aim * new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * profile.Radius * 2f; // 탄환 지름을 기준으로 회전
+            }
+            FlightCraftedProjectile shot = Instantiate(projectile, shotOrigin, Quaternion.LookRotation(direction, aim * Vector3.up), practice ? transform : null); // 월드 비행을 유지하는 공용 발사 프리팹
+            shot.Begin(recipe, profile, hitLayers, practice, sharedHits, pierce, token, returnHits); // 같은 탄속·피해·접촉 처리
+            if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라가 실전에서 발사한 직접 마법
+            {
+                shot.SetMeleeSource(weapon.Sword); // 실제 적과의 거리로 제작 마법 피해 조정
+            }
+            else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 실제 전투에서 이리스가 사용한 제작 마법
+            {
+                shot.SetResonance(weapon.Resonance); // 마법 카드의 유효 적중도 공명에 합산
+            }
+            active.Add(shot); // 동시 활성 개수 검사에 반영
+            EmissionCount++; // 실제 생성한 발사체 기록
+        }
+
+        private void UpdateBursts() // 실제 시간에 따라 순차 발사의 나머지 탄환 생성
+        {
+            if (!practice && Time.timeScale == 0f) // 정지된 실전에서는 후속 발사 차단
+            {
+                return; // 전투와 발사 시각 유지
+            }
+            for (int i = bursts.Count - 1; i >= 0; i--) // 종료한 순차 발사의 안전한 제거
+            {
+                Burst burst = bursts[i]; // 이 시전의 고정 수치와 진행 순서
+                while (burst.next < burst.count && Clock + 0.00001f >= burst.nextAt) // 예정된 다음 발사의 시간이 된 경우
+                {
+                    if (!TryContinueEmission(burst.token, 1)) // 이 시전과 플레이어의 남은 생성 한도
+                    {
+                        break; // 한도가 비워질 때까지 후속 탄환 대기
+                    }
+                    SpawnShot(burst.recipe, burst.profile, muzzle.position, burst.aim, burst.next, burst.count, null, null, 3, burst.token); // 이동 중인 현재 발사점에서 한 발 생성
+                    burst.next++; // 다음 나선 순번
+                    burst.nextAt += 0.1f; // 기획서의 영 점 일 초 간격
+                }
+                if (burst.next >= burst.count) // 모든 후속 탄환 발사 완료
+                {
+                    bursts.RemoveAt(i); // 완료한 순차 발사 정리
+                }
+            }
         }
 
         private Barrier CreateBarrier(Vector3 center, float expires, float radius) // 월드에 고정된 결계 표시
@@ -317,10 +411,12 @@ namespace ProjectG // 프로젝트 게임 영역
                 DestroyBarrier(barrier); // 결계 외형과 재질 반환
             }
             barriers.Clear(); // 결계 수명 기록 초기화
+            bursts.Clear(); // 이전 시전의 후속 발사 취소
             emissions.Reset(); // 초당 생성과 이전 시전 기록 초기화
             readyAt.Clear(); // 재사용 대기 초기화
             practiceMana = 100f; // 표준 조건의 시험 마력 초기화
             CastCount = 0; // 현재 실행의 시험 통계 초기화
+            EmissionCount = 0; // 실제 생성 수의 시험 통계 초기화
         }
 
         private void OnDestroy() // 씬 종료 시 결계의 임시 자원 정리

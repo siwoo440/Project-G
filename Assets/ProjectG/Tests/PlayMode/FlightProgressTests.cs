@@ -257,6 +257,238 @@ namespace ProjectG.Tests // 프로젝트 자동 검증
             }
         }
 
+        [Test] // 연구 과제와 숙련도의 조종사별 분리
+        public void ResearchQualificationsRequireOnePilotAndSurviveReload() // 출격별 과제와 공용 자격 저장
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 영구 성장 저장소
+            Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+            object aria = Enum.Parse(pilot, "Aria"); // 숙련도를 먼저 쌓을 조종사
+            object rian = Enum.Parse(pilot, "Rian"); // 다른 조종사의 독립 연구 과제
+            string directory = Path.Combine(Application.temporaryCachePath, "Research-" + Guid.NewGuid().ToString("N")); // 사용자 저장과 분리한 임시 폴더
+            string path = Path.Combine(directory, "progress.json"); // 재실행에서 확인할 실제 파일
+            try // 실제 정산과 다시 불러오기
+            {
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 실제 파일 기반 영구 저장
+                {
+                    void Sortie(object actor, int enemies, bool middle, bool cleared) // 지정 조종사의 한 번의 정상 정산
+                    {
+                        string id = (string)Call(type, store, "Begin", actor); // 해당 조종사의 새 출격
+                        Assert.That(Call(type, store, "CompleteWithResearch", id, cleared, false, enemies, middle), Is.Not.Null); // 보상과 연구 과제의 원자 정산
+                    }
+                    Sortie(aria, 5, false, false); // 아리아의 첫 출격 다섯 처치와 숙련도 십
+                    Sortie(aria, 5, false, false); // 두 출격의 처치 수를 합산하지 않음
+                    Sortie(rian, 10, false, false); // 리안의 일반 과제와 숙련도 십
+                    Assert.That(Call(type, store, "ResearchTier"), Is.EqualTo(0)); // 서로 다른 조종사의 조건 합산 금지
+                    Sortie(rian, 0, false, false); // 같은 리안의 숙련도 이십
+                    Assert.That(Call(type, store, "ResearchTier"), Is.EqualTo(1)); // 어느 한 조종사가 충족하면 공용 일반 자격
+                    Sortie(rian, 0, true, false); // 리안의 중간 보스 과제와 부족한 숙련도
+                    for (int i = 0; i < 4; i++) // 아리아의 숙련도 육십 도달
+                    {
+                        Sortie(aria, 0, false, false); // 과제 없는 다른 조종사의 숙련도 증가
+                    }
+                    Assert.That(Call(type, store, "ResearchTier"), Is.EqualTo(1)); // 심화 조건도 캐릭터 간 합산 금지
+                    Sortie(aria, 0, true, false); // 아리아가 중간 보스 과제를 충족
+                    Assert.That(Call(type, store, "ResearchTier"), Is.EqualTo(2)); // 동일 조종사의 심화 공용 자격
+                    for (int i = 0; i < 3; i++) // 아리아의 숙련도 백이십 도달
+                    {
+                        Sortie(aria, 0, false, true); // 정상 최종 클리어와 이십 숙련도
+                    }
+                    Assert.That(Call(type, store, "ResearchTier"), Is.EqualTo(3)); // 최종 클리어와 숙련도를 충족한 특수 자격
+                    string pending = (string)Call(type, store, "Begin", rian); // 강제 종료를 가정한 출격
+                    Assert.That(Call(type, store, "Recover"), Is.Not.Null); // 참여 보상만 복구
+                    Assert.That(Call(type, store, "CompleteWithResearch", pending, true, false, 10, true), Is.Not.Null); // 같은 출격의 중복 결과 조회
+                    Assert.That(Call(type, store, "HasResearchTask", rian, 3), Is.False); // 복구 뒤 위조한 정상 과제 반영 금지
+                }
+                using (var reopened = (IDisposable)Activator.CreateInstance(type, path)) // 새 실행의 실제 저장 복원
+                {
+                    Assert.That(Call(type, reopened, "ResearchTier"), Is.EqualTo(3)); // 공용 자격의 영구 보존
+                    Assert.That(Call(type, reopened, "HasResearchTask", aria, 2), Is.True); // 조종사별 심화 과제 보존
+                    Assert.That(Call(type, reopened, "HasResearchTask", rian, 3), Is.False); // 다른 조종사의 특수 과제 분리
+                }
+            }
+            finally // 현재 시험에서 만든 파일만 제거
+            {
+                if (Directory.Exists(directory)) // 독립 시험 폴더 존재 여부
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 저장과 백업·잠금 파일
+                    {
+                        File.Delete(file); // 사용자 저장과 무관한 임시 파일 제거
+                    }
+                    Directory.Delete(directory); // 비운 시험 폴더 제거
+                }
+            }
+        }
+
+        [Test] // 구성 분류별 연구 해금과 단일 재화 정산
+        public void ResearchTreeRequiresPrerequisitesAndPersistsSharedUnlocks() // 선행 트리와 무료 연동 해금
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 영구 성장 저장소
+            Type catalog = Type.GetType("ProjectG.FlightCraftedResearchCatalog, Assembly-CSharp", true); // 기획서의 분류별 연구 표
+            Type group = Type.GetType("ProjectG.CraftedSpellGroup, Assembly-CSharp", true); // 기존 제작 분류 ID
+            Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+            object aria = Enum.Parse(pilot, "Aria"); // 동일 조종사의 실제 연구 자격
+            object shape = Enum.Parse(group, "Shape"); // 탄환 형태 분류
+            object formation = Enum.Parse(group, "Formation"); // 발사 배열 분류
+            object trajectory = Enum.Parse(group, "Trajectory"); // 이동 궤적 분류
+            object aim = Enum.Parse(group, "Aim"); // 조준 방식 분류
+            string directory = Path.Combine(Application.temporaryCachePath, "ResearchTree-" + Guid.NewGuid().ToString("N")); // 사용자 저장과 분리한 폴더
+            string path = Path.Combine(directory, "progress.json"); // 재실행에서 확인할 실제 파일
+            try // 실제 정산·연구 구매·저장 재열기
+            {
+                var nodes = (System.Collections.IList)catalog.GetProperty("All", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null); // 아홉 분류의 전체 연구 항목
+                Assert.That(nodes.Count, Is.EqualTo(101)); // 전체 선택지와 무료 연동 항목의 누락 방지
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 실제 프로필과 공용 재화
+                {
+                    void Sortie(int enemies, bool middle) // 같은 조종사의 정상 클리어
+                    {
+                        string id = (string)Call(type, store, "Begin", aria); // 새 실제 출격
+                        Call(type, store, "CompleteWithResearch", id, true, false, enemies, middle); // 과제와 참여 보상 확정
+                    }
+                    Assert.That(Call(type, store, "IsResearchUnlocked", shape, "orb"), Is.True); // 초기 구체탄은 무료 보유
+                    Assert.That(Call(type, store, "IsResearchUnlocked", shape, "small"), Is.False); // 일반 연구는 처음에 잠김
+                    Type presets = Type.GetType("ProjectG.CraftedSpellPresets, Assembly-CSharp", true); // 실제 기획 마법 구성 목록
+                    var recipes = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 편집과 전투의 같은 프리셋
+                    foreach (int index in new[] { 0, 3, 7, 11 }) // 처음부터 지급하는 네 마법
+                    {
+                        object recipe = recipes[index].GetType().GetProperty("Recipe").GetValue(recipes[index]); // 해당 마법의 실제 조합
+                        Assert.That(Call(type, store, "IsRecipeResearchUnlocked", recipe), Is.True); // 초기 구성만으로 사용 가능
+                    }
+                    object later = recipes[9].GetType().GetProperty("Recipe").GetValue(recipes[9]); // 연구 요소가 필요한 홀리 샤워
+                    Assert.That(Call(type, store, "IsRecipeResearchUnlocked", later), Is.False); // 일부 구성만 가진 마법의 잠금
+                    Assert.That(Call(type, store, "BuyResearch", shape, "small"), Is.False); // 일반 자격 없는 연구 차단
+                    Sortie(10, false); // 동일 조종사의 일반 자격과 첫 재화
+                    Assert.That(Call(type, store, "BuyResearch", formation, "converge"), Is.False); // 같은 단계의 병렬 선행이 없으면 차단
+                    int crystals = Crystals(type, store); // 실패한 구매 전후 비교할 결정
+                    int gold = (int)type.GetProperty("Gold").GetValue(store); // 실패한 구매 전후 비교할 골드
+                    Assert.That(Call(type, store, "BuyResearch", shape, "small"), Is.True); // 구체탄 선행의 소형탄 연구
+                    Assert.That(Crystals(type, store), Is.EqualTo(crystals - 3)); // 일반 연구 결정 세 개 소비
+                    Assert.That(type.GetProperty("Gold").GetValue(store), Is.EqualTo(gold - 300)); // 일반 연구 골드 삼백 소비
+                    Assert.That(Call(type, store, "BuyResearch", shape, "small"), Is.False); // 이미 해금한 연구 재구매 금지
+                    Assert.That(Call(type, store, "BuyResearch", shape, "disc"), Is.False); // 심화 자격이 없는 연구 차단
+                    Assert.That(Call(type, store, "BuyResearch", trajectory, "curve"), Is.True); // 유도형의 일반 선행 연구
+                    Sortie(0, true); // 같은 조종사의 중간 보스 과제
+                    Sortie(0, false); // 동일 조종사의 숙련도 육십
+                    Assert.That(Call(type, store, "BuyResearch", trajectory, "homing"), Is.True); // 심화 자격과 곡선 선행 충족
+                    Assert.That(Call(type, store, "IsResearchUnlocked", aim, "homing"), Is.True); // 유도 조준의 무료 자동 연동
+                    Assert.That(Call(type, store, "BuyResearch", aim, "homing"), Is.False); // 무료 연동의 중복 연구 차단
+                }
+                using (var reopened = (IDisposable)Activator.CreateInstance(type, path)) // 재실행한 동일 프로필
+                {
+                    Assert.That(Call(type, reopened, "IsResearchUnlocked", shape, "small"), Is.True); // 구성 분류별 영구 해금 보존
+                    Assert.That(Call(type, reopened, "IsResearchUnlocked", aim, "homing"), Is.True); // 원래 선행으로부터 무료 연동 복원
+                    Assert.That(Call(type, reopened, "IsResearchUnlocked", formation, "converge"), Is.False); // 실패한 연구의 잠금 보존
+                }
+            }
+            finally // 현재 시험에서 만든 파일만 제거
+            {
+                if (Directory.Exists(directory)) // 독립 시험 폴더 존재 여부
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 저장과 백업·잠금 파일
+                    {
+                        File.Delete(file); // 사용자 저장과 무관한 임시 파일 제거
+                    }
+                    Directory.Delete(directory); // 비운 시험 폴더 제거
+                }
+            }
+        }
+
+        [Test] // 연구 트리와 기존 제작 선택지의 전체 대조
+        public void EveryCraftedChoiceHasAnAcyclicResearchNode() // 누락·중복·잘못된 선행과 순환 금지
+        {
+            Type catalog = Type.GetType("ProjectG.FlightCraftedResearchCatalog, Assembly-CSharp", true); // 실제 연구 노드 표
+            Type choices = Type.GetType("ProjectG.CraftedSpellCatalog, Assembly-CSharp", true); // 기존 제작 선택지 표
+            Type group = Type.GetType("ProjectG.CraftedSpellGroup, Assembly-CSharp", true); // 제작 분류 열거형
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 실제 내부 표 조회
+            var nodes = (System.Collections.IList)catalog.GetProperty("All", hidden).GetValue(null); // 등록된 전체 연구 노드
+            var find = catalog.GetMethod("Find", hidden); // 분류와 요소의 연구 조회
+            var findKey = catalog.GetMethod("FindKey", hidden); // 선행 ID의 실제 노드 조회
+            var keys = new System.Collections.Generic.HashSet<string>(); // 중복을 허용하지 않는 전체 분류 ID
+            int initial = 0; // 효과 없음을 포함한 초기 지급 선택지
+            foreach (object node in nodes) // 등록된 모든 연구 항목
+            {
+                Type nodeType = node.GetType(); // 실제 연구 데이터 형식
+                string key = (string)nodeType.GetProperty("Key").GetValue(node); // 분류를 포함한 안정 ID
+                Assert.That(keys.Add(key), Is.True); // 같은 분류와 요소의 중복 금지
+                if ((int)nodeType.GetField("Tier").GetValue(node) == 0) // 초기 지급 항목
+                {
+                    initial++; // 초기 요소와 효과 없음 개수
+                }
+                string[] parents = (string[])nodeType.GetField("Parents").GetValue(node); // 이 요소의 모든 선행 ID
+                foreach (string parent in parents) // 실제 존재해야 하는 선행 항목
+                {
+                    Assert.That(findKey.Invoke(null, new object[] { parent }), Is.Not.Null, parent); // 오탈자와 없는 분류 차단
+                }
+            }
+            Assert.That(initial, Is.EqualTo(29)); // 초기 실요소 이십팔 개와 효과 없음
+            foreach (object category in Enum.GetValues(group)) // 아홉 제작 분류
+            {
+                var options = (System.Collections.IEnumerable)choices.GetMethod("Choices").Invoke(null, new[] { category }); // 분류별 기존 선택지
+                foreach (object option in options) // 조합 가능한 각 구성 요소
+                {
+                    string id = (string)option.GetType().GetField("Id").GetValue(option); // 기존 저장에서 쓰는 요소 ID
+                    Assert.That(find.Invoke(null, new[] { category, (object)id }), Is.Not.Null, category + "." + id); // 실제 제작 선택지와 연구 표 일치
+                }
+            }
+            void Visit(object node, System.Collections.Generic.HashSet<string> path) // 한 경로의 선행 연구 순환 검사
+            {
+                Type nodeType = node.GetType(); // 현재 선행 노드 형식
+                string key = (string)nodeType.GetProperty("Key").GetValue(node); // 실제 노드의 분류 ID
+                Assert.That(path.Add(key), Is.True, key); // 현재 경로에 같은 노드가 다시 등장하지 않음
+                foreach (string parent in (string[])nodeType.GetField("Parents").GetValue(node)) // 모든 선행 분기
+                {
+                    Visit(findKey.Invoke(null, new object[] { parent }), path); // 해당 분기의 선행을 끝까지 확인
+                }
+                path.Remove(key); // 다른 독립 분기에서 같은 선행 허용
+            }
+            foreach (object node in nodes) // 모든 연구에서 시작한 선행 경로
+            {
+                Visit(node, new System.Collections.Generic.HashSet<string>()); // 순환 없는 유효 연구 트리
+            }
+        }
+
+        [Test] // 연구 기록이 없던 이전 영구 저장과의 호환
+        public void OlderProgressWithoutResearchFieldsKeepsExistingRewards() // 기존 재화와 숙련도 보존
+        {
+            Type type = Type.GetType("ProjectG.FlightProgressStore, Assembly-CSharp", true); // 실제 영구 성장 저장소
+            Type pilot = type.GetMethod("Begin").GetParameters()[0].ParameterType; // 실제 조종사 ID
+            object aria = Enum.Parse(pilot, "Aria"); // 이전 저장의 조종사
+            string directory = Path.Combine(Application.temporaryCachePath, "ResearchLegacy-" + Guid.NewGuid().ToString("N")); // 사용자 저장과 분리한 임시 폴더
+            string path = Path.Combine(directory, "progress.json"); // 이전 형식을 흉내 낼 격리 파일
+            try // 기존 보상 생성과 이전 형식 복원
+            {
+                using (var store = (IDisposable)Activator.CreateInstance(type, path)) // 실제 파일 기반 프로필
+                {
+                    string id = (string)Call(type, store, "Begin", aria); // 이전 형식의 정상 출격
+                    Call(type, store, "Complete", id, true); // 기존 숙련도와 재화 확정
+                }
+                string saved = File.ReadAllText(path); // 실제 정산이 생성한 저장 원본
+                saved = System.Text.RegularExpressions.Regex.Replace(saved, ",\\s*\"research(?:Normal|Advanced|Special)\"\\s*:\\s*(?:true|false)", ""); // 이전 버전에 없던 연구 필드만 제거
+                File.WriteAllText(path, saved); // 사용자 파일과 무관한 이전 형식 시험 자료
+                using (var reopened = (IDisposable)Activator.CreateInstance(type, path)) // 연구 필드가 없는 이전 저장 재열기
+                {
+                    Assert.That(type.GetProperty("Error").GetValue(reopened), Is.Null); // 이전 저장을 오류 없이 복원
+                    Assert.That(Call(type, reopened, "GetMastery", aria), Is.EqualTo(20)); // 기존 캐릭터 숙련도 보존
+                    Assert.That(Crystals(type, reopened), Is.EqualTo(6)); // 기존 공용 결정 보존
+                    Assert.That(type.GetProperty("Gold").GetValue(reopened), Is.EqualTo(600)); // 기존 공용 골드 보존
+                    Assert.That(Call(type, reopened, "ResearchTier"), Is.Zero); // 없는 과제는 임의로 완료하지 않음
+                    string next = (string)Call(type, reopened, "Begin", aria); // 이전 저장으로 새 출격
+                    Call(type, reopened, "CompleteWithResearch", next, false, false, 10, false); // 실제 새 과제를 정상 정산
+                    Assert.That(Call(type, reopened, "ResearchTier"), Is.EqualTo(1)); // 기존 숙련도와 새 과제로 일반 자격
+                }
+            }
+            finally // 현재 시험에서 만든 파일만 제거
+            {
+                if (Directory.Exists(directory)) // 독립 시험 폴더 존재 여부
+                {
+                    foreach (string file in Directory.GetFiles(directory)) // 저장과 백업·잠금 파일
+                    {
+                        File.Delete(file); // 사용자 저장과 무관한 임시 파일 제거
+                    }
+                    Directory.Delete(directory); // 비운 시험 폴더 제거
+                }
+            }
+        }
+
         private static object Call(Type type, object store, string method, params object[] supplied) // 실제 게임 어셈블리의 정산 호출
         {
             return type.GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Invoke(store, supplied); // 참조 없는 테스트 조립과 연결

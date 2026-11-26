@@ -3746,6 +3746,43 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             InputSystem.QueueStateEvent(mouse, new MouseState()); // 마지막 시험 입력 해제
         }
 
+        [UnityTest] // 실제 웨이브 처치와 연구 과제의 정상 정산 연결
+        public IEnumerator StoryWaveKillRecordsResearchOnlyAtSettlement() // 실제 일반 적의 열 번째 처치
+        {
+            System.Type progressType = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 씬이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 격리된 자동 시험의 프로필 초기화
+            progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 자동 시험의 메모리 프로필 분리
+            try // 실제 웨이브와 정상 실패 정산
+            {
+                yield return LoadOuterIslands(); // 본편 웨이브의 실제 출격 씬
+                Component encounter = GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter"); // 지정 웨이브와 정산 경로
+                const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 출격과 웨이브 조회
+                encounter.GetType().GetProperty("ElapsedSeconds").GetSetMethod(true).Invoke(encounter, new object[] { 100f }); // 첫 웨이브 도달 시각
+                yield return WaitFrames(3); // 실제 출격 ID와 첫 웨이브 시작
+                Assert.That(encounter.GetType().GetField("sortieId", hidden).GetValue(encounter), Is.Not.Null); // 정상 본편 참여 기록
+                var waves = (System.Collections.IList)encounter.GetType().GetField("stageWaves", hidden).GetValue(encounter); // 씬에 지정된 본편 웨이브
+                object firstWave = waves[0]; // 첫 번째 실제 일반 적 웨이브
+                var routes = (System.Collections.IList)firstWave.GetType().GetField("enemies").GetValue(firstWave); // 해당 웨이브의 지정 적 경로
+                Component route = (Component)routes[0]; // 처치 이벤트가 연결된 첫 경로
+                Component enemy = route.GetComponent("FlightEnemy"); // 실제 마물 체력과 처치 이벤트
+                Assert.That(enemy.gameObject.activeInHierarchy, Is.True); // 실제로 출현한 마물
+                encounter.GetType().GetField("researchNormalKills", hidden).SetValue(encounter, 9); // 같은 출격에서 이전에 처치한 아홉 마리
+                enemy.GetType().GetMethod("ReceiveHit").Invoke(enemy, new object[] { 100000 }); // 열 번째 일반 적의 실제 처치
+                Assert.That(encounter.GetType().GetField("researchNormalKills", hidden).GetValue(encounter), Is.EqualTo(10)); // 웨이브 이벤트에서 한 번 집계
+                object store = progressType.GetProperty("Current", hiddenStatic).GetValue(null); // 현재 본편의 실제 영구 프로필
+                Component weapon = FindPilot().GetComponent("FlightWeapon"); // 현재 출격의 실제 조종사
+                object actor = weapon.GetType().GetProperty("ActivePilot").GetValue(weapon); // 정산할 조종사 ID
+                var task = store.GetType().GetMethod("HasResearchTask", hidden); // 조종사별 연구 과제 확인
+                Assert.That(task.Invoke(store, new[] { actor, (object)1 }), Is.False); // 전투 중에는 영구 과제 미확정
+                Assert.That(encounter.GetType().GetMethod("Conclude", hidden).Invoke(encounter, new object[] { false }), Is.Not.Null); // 정상 실패 정산
+                Assert.That(task.Invoke(store, new[] { actor, (object)1 }), Is.True); // 정산과 함께 해당 조종사의 과제 기록
+            }
+            finally // 이 자동 시험의 메모리 프로필만 정리
+            {
+                progressType.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 다른 시험에 임시 연구 상태를 넘기지 않음
+            }
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {

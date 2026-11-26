@@ -34,6 +34,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private float phaseStartedAt; // 보스 격파 뒤 후속 일정의 기준 시각
         private string sortieId; // 실제 첫 전투부터 유효한 영구 정산 ID
         private FlightWeapon playerWeapon; // 해당 출격의 실제 유효 적중 기록
+        private int researchNormalKills; // 이번 본편 출격의 지정 일반 적 처치 수
+        private bool researchMidBoss; // 이번 본편 출격의 실제 중간 보스 격파
 
         public int WaveNumber { get; private set; } = 1; // 시작 웨이브 번호
         public float ElapsedSeconds { get; private set; } // 전투 시계의 경과 시간
@@ -192,6 +194,8 @@ namespace ProjectG // 프로젝트 게임 영역
             Conclude(false); // 참여 후 재시작한 이전 실전을 실패로 한 번 정산
             playerWeapon?.StopFirstTask(); // 다음 출격에서 누적 적중 횟수 재시작
             sortieId = null; // 새 출격은 첫 웨이브에서 별도 ID 발급
+            researchNormalKills = 0; // 이전 출격의 일반 적 과제 초기화
+            researchMidBoss = false; // 이전 출격의 보스 과제 초기화
             StopTrial(); // 이전 웨이브 정리
             WaveNumber = IsStage ? 0 : 1; // 실전 준비 또는 시험 첫 웨이브
             ElapsedSeconds = 0f; // 첫 타이머
@@ -212,7 +216,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightProgressReceipt Conclude(bool cleared) // 결과, 일시정지 포기와 재출격의 공통 정산
         {
-            return sortieId == null ? null : FlightProgress.Current.CompleteWithTask(sortieId, cleared, playerWeapon.FirstTaskReady); // 실제 전투의 일반 보상과 최초 과제
+            return sortieId == null ? null : FlightProgress.Current.CompleteWithResearch(sortieId, cleared, playerWeapon.FirstTaskReady, researchNormalKills, researchMidBoss); // 정상 보상과 실제 연구 과제의 원자 정산
         }
 
         internal void StopStage() // 완료·실패·포기 시 실전 출격 닫기
@@ -270,6 +274,12 @@ namespace ProjectG // 프로젝트 게임 영역
                     }
                     foreach (FlightEnemyRoute enemy in next.enemies) // 해당 웨이브의 준비된 적
                     {
+                        FlightEnemy target = enemy.GetComponent<FlightEnemy>(); // 본편에 지정한 실제 웨이브 적
+                        if (target != null && Mode == FlightSortieMode.Story && sortieId != null) // 정상 본편 출격의 지정 적만 집계
+                        {
+                            target.Defeated -= OnResearchEnemyDefeated; // 이전 출현의 구독 중복 방지
+                            target.Defeated += OnResearchEnemyDefeated; // 실제 처치 이벤트 기록
+                        }
                         enemy.Begin(pool, pilot.transform); // 실제 월드 위치에서 등장
                     }
                 }
@@ -285,6 +295,10 @@ namespace ProjectG // 프로젝트 게임 영역
         private void OnBossDefeated(FlightEnemy enemy) // 보스의 실제 처치 경로
         {
             enemy.Defeated -= OnBossDefeated; // 이번 웨이브의 구독 정리
+            if (Mode == FlightSortieMode.Story && sortieId != null && enemy.LootTier == FlightLootTier.MidBoss) // 정상 출격의 실제 중간 보스
+            {
+                researchMidBoss = true; // 정상 정산에서만 반영할 심화 과제
+            }
             activeBoss = null; // 전투 목표와 레이더 해제
             if (enemy.LootTier == FlightLootTier.FinalBoss) // 마지막 관문을 실제로 격파한 경우
             {
@@ -303,9 +317,26 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnDestroy() // 씬 이동 전 남은 보스 구독 정리
         {
+            foreach (FlightEnemyRoute route in routes) // 등록된 일반 적의 구독 정리
+            {
+                FlightEnemy enemy = route.GetComponent<FlightEnemy>(); // 실제 경로 적의 처치 이벤트
+                if (enemy != null) // 유효한 마물 개체
+                {
+                    enemy.Defeated -= OnResearchEnemyDefeated; // 씬을 떠난 정산 대상 제거
+                }
+            }
             if (activeBoss != null) // 전투 종료 전에 씬이 닫히는 경우
             {
                 activeBoss.Enemy.Defeated -= OnBossDefeated; // 보스의 이벤트 연결 해제
+            }
+        }
+
+        private void OnResearchEnemyDefeated(FlightEnemy enemy) // 실제 본편 웨이브의 지정 적 처치
+        {
+            enemy.Defeated -= OnResearchEnemyDefeated; // 같은 출현의 중복 집계 방지
+            if (Mode == FlightSortieMode.Story && sortieId != null && enemy.LootTier == FlightLootTier.Normal && !enemy.IsElite) // 일반 적만 연구 과제에 포함
+            {
+                researchNormalKills++; // 이번 출격의 단일 처치 누적
             }
         }
 
@@ -319,6 +350,11 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             foreach (FlightEnemyRoute route in routes) // 표시 중인 시험 마물 확인
             {
+                FlightEnemy enemy = route.GetComponent<FlightEnemy>(); // 이전 웨이브의 실제 처치 구독
+                if (enemy != null) // 유효한 경로 마물
+                {
+                    enemy.Defeated -= OnResearchEnemyDefeated; // 포기·재출격 후 이전 집계 차단
+                }
                 route.gameObject.SetActive(false); // 마물의 피해와 이동을 일시 종료
             }
         }

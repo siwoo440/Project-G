@@ -13,7 +13,7 @@ namespace ProjectG // 프로젝트 게임 영역
             CraftedSpellGroup.FireMode, CraftedSpellGroup.Origin, CraftedSpellGroup.Aim, CraftedSpellGroup.Trigger, // 생성 위치와 발동 방식
             CraftedSpellGroup.Effect, CraftedSpellGroup.Effect // 중복을 검사하는 최대 두 가지 효과
         };
-        private static readonly int[] Presets = { 0, 3, 7, 11, 15, 9 }; // 기본 네 조합과 유도·관통 시험
+        private static readonly int[] Presets = { 0, 3, 7, 11, 9 }; // 실제 판정이 있는 기획 마법
         private static readonly float[] Distances = { 10f, 14f, 20f }; // 사거리 경계와 중립 시험 표적 거리
 
         [SerializeField] private FlightCraftedSpellBook book; // 실전에서 불러올 제작 마법
@@ -114,7 +114,7 @@ namespace ProjectG // 프로젝트 게임 영역
             Refresh(); // 공통 규칙으로 다시 계산
         }
 
-        private void CyclePreset() // 시작 마법과 유도 시험 조합 전환
+        private void CyclePreset() // 구현된 기획 마법의 기본 구성 전환
         {
             presetIndex = (presetIndex + 1) % Presets.Length; // 정해진 기본 구성 순환
             Load(CraftedSpellPresets.All[Presets[presetIndex]].Recipe); // 공용 제작 규칙을 통과한 조합

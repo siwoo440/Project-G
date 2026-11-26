@@ -130,6 +130,86 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             Assert.That(middle.y, Is.EqualTo(0f).Within(0.001f)); // 가운데 파동의 중립 고도
         }
 
+        [Test] // 기획 수치가 확인된 구현 마법만 실제 발사 허용
+        public void CombatCasterRejectsUndocumentedGenericProfiles() // 미지원 조합의 시험값 추측 방지
+        {
+            Type presets = Runtime("CraftedSpellPresets"); // 기획서의 마법 목록
+            var all = (IList)presets.GetProperty("All").GetValue(null); // 검증된 구성 목록
+            Type caster = Runtime("FlightCraftedSpellCaster"); // 실제 전투의 제작 발사기
+            var supports = caster.GetMethod("Supports", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 실제 발사 지원 확인
+            foreach (int index in new[] { 0, 3, 7, 9, 11 }) // 이미 판정이 구현된 기획 마법
+            {
+                object recipe = all[index].GetType().GetProperty("Recipe").GetValue(all[index]); // 정확한 구성 ID
+                Assert.That(supports.Invoke(null, new[] { recipe }), Is.True); // 구현된 명시적 시험값 사용
+            }
+            object generic = Compose("element=fire;shape=orb;trigger=immediate").Recipe; // 수치가 확정되지 않은 유효 조합
+            Assert.That(supports.Invoke(null, new[] { generic }), Is.False); // 기존 구체탄 수치의 임의 적용 차단
+            object homing = all[15].GetType().GetProperty("Recipe").GetValue(all[15]); // 열다섯 종에 없는 이전 유도 시험탄
+            Assert.That(supports.Invoke(null, new[] { homing }), Is.False); // 임시 시험값을 정식 구성으로 제공하지 않음
+            object notYetImplemented = all[1].GetType().GetProperty("Recipe").GetValue(all[1]); // 후속 구현할 플레임 스파이럴
+            Assert.That(supports.Invoke(null, new[] { notYetImplemented }), Is.False); // 수치만 있고 판정이 없는 마법은 시전 금지
+        }
+
+        [Test] // 아홉 분류 중 생성 위치의 명시적 좌표 처리
+        public void CraftedOriginsResolveOnlyExplicitlyAvailableWorldPositions() // 여덟 위치와 미지정 대상 거절
+        {
+            Type contextType = Runtime("FlightCraftedOriginContext"); // 실제 시전의 위치 모음
+            Type originsType = Runtime("FlightCraftedOrigins"); // 출발 위치 선택기
+            object context = Activator.CreateInstance(contextType, true); // 아직 지정한 좌표가 없는 컨텍스트
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 내부 위치 처리 API
+            var resolve = originsType.GetMethod("TryResolve", hidden); // 입력한 종류의 실제 위치
+            object[] absent = { "target", context, null }; // 실제 목표 좌표가 없는 경우
+            Assert.That(resolve.Invoke(null, absent), Is.False); // 미지정 좌표를 임의로 만들지 않음
+            string[] names = { "front", "around", "rear", "summon", "projectile", "point", "target", "path" }; // 기획서의 여덟 생성 위치
+            string[] fields = { "Front", "Around", "Rear", "Summon", "Projectile", "Point", "Target", "Path" }; // 실제 시전 컨텍스트의 대응 좌표
+            for (int i = 0; i < names.Length; i++) // 위치별 서로 다른 월드 좌표
+            {
+                Vector3 position = new Vector3(i + 1f, i * 2f, -i); // 다른 위치와 구별할 표본
+                contextType.GetField(fields[i]).SetValue(context, position); // 해당 위치를 실제로 지정
+                object[] args = { names[i], context, null }; // 선택한 생성 위치 조회
+                Assert.That(resolve.Invoke(null, args), Is.True); // 명시된 좌표는 사용 가능
+                Assert.That((Vector3)args[2], Is.EqualTo(position)); // 정확히 지정한 월드 좌표 반환
+            }
+            object[] unknown = { "unknown", context, null }; // 도감에 없는 위치 ID
+            Assert.That(resolve.Invoke(null, unknown), Is.False); // 잘못된 생성 위치는 실패
+            contextType.GetField("Front").SetValue(context, new Vector3(float.NaN, 0f, 0f)); // 계산할 수 없는 월드 좌표
+            object[] invalid = { "front", context, null }; // 유효하지 않은 발사점 조회
+            Assert.That(resolve.Invoke(null, invalid), Is.False); // 숫자가 아닌 좌표에서는 생성 차단
+        }
+
+        [Test] // 여러 시전이 공유하는 생성 수와 원자적 제한
+        public void EmissionBudgetEnforcesInitialCastRateAndActiveLimits() // 최초·누적·초당·동시 생성 경계
+        {
+            Type ledgerType = Runtime("FlightCraftedEmissionBudget"); // 실제 발사기가 쓰는 생성 한도
+            Assert.That(ledgerType, Is.Not.Null); // 발사 한도 관리 구현 확인
+            object ledger = Activator.CreateInstance(ledgerType, true); // 실전과 같은 독립 한도 관리
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 발사 API
+            var begin = ledgerType.GetMethod("TryBegin", hidden); // 새로운 시전 예약
+            var emit = ledgerType.GetMethod("TryContinue", hidden); // 같은 시전의 추가 발사 예약
+            var reset = ledgerType.GetMethod("Reset", hidden); // 새 출격 초기화
+            object[] tooManyInitial = { 25, 0, 0f, null }; // 최초 발사 최대를 한 발 초과
+            Assert.That(begin.Invoke(ledger, tooManyInitial), Is.False); // 최초 이십사 발 경계
+            object[] first = { 24, 0, 0f, null }; // 최초 이십사 발
+            Assert.That(begin.Invoke(ledger, first), Is.True); // 최초 발사 예약 성공
+            object ticket = first[3]; // 같은 시전의 누적 기록
+            object[] tooFast = { 17, 24, 0f, null }; // 초당 합계 사십일 발
+            Assert.That(begin.Invoke(ledger, tooFast), Is.False); // 다른 마법도 초당 제한 공유
+            object[] exactRate = { 16, 24, 0f, null }; // 초당 합계 정확히 사십 발
+            Assert.That(begin.Invoke(ledger, exactRate), Is.True); // 실패한 예약은 자원을 점유하지 않음
+            Assert.That(emit.Invoke(ledger, new object[] { ticket, 24, 40, 1.01f }), Is.True); // 첫 시전의 다음 스물네 발
+            Assert.That(emit.Invoke(ledger, new object[] { ticket, 24, 64, 2.02f }), Is.True); // 같은 시전의 추가 스물네 발
+            Assert.That(emit.Invoke(ledger, new object[] { ticket, 24, 88, 3.03f }), Is.True); // 누적 정확히 아흔여섯 발
+            Assert.That(emit.Invoke(ledger, new object[] { ticket, 1, 112, 4.04f }), Is.False); // 동일 시전 누적 한 발 초과
+            object[] activeOverflow = { 24, 105, 5.05f, null }; // 활성 포함 백스물아홉 발
+            Assert.That(begin.Invoke(ledger, activeOverflow), Is.False); // 플레이어 동시 활성 상한
+            object[] activeEdge = { 23, 105, 5.05f, null }; // 활성 포함 정확히 백스물여덟 발
+            Assert.That(begin.Invoke(ledger, activeEdge), Is.True); // 동시 활성 경계 허용
+            reset.Invoke(ledger, null); // 새 출격의 모든 생성 기록 초기화
+            Assert.That(emit.Invoke(ledger, new object[] { ticket, 1, 0, 6f }), Is.False); // 이전 출격의 시전 기록 무효화
+            object[] restarted = { 24, 0, 6f, null }; // 새 출격의 최초 발사
+            Assert.That(begin.Invoke(ledger, restarted), Is.True); // 초당 제한도 새 출격에서 초기화
+        }
+
         private static object Value(object recipe, string property) // 검증 결과 속성 읽기
         {
             Assert.That(recipe, Is.Not.Null, "유효한 제작 조합"); // 앞 단계의 조합 성공 확인

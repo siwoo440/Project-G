@@ -22,8 +22,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private HashSet<Component> sharedHits; // 같은 시전의 공유 적중 기록
         private bool knocksBack; // 선택한 넉백 효과
         private int pierceLimit; // 시전 시 확정한 최대 관통 대상
+        private FlightCraftedEmissionBudget.CastToken castToken; // 같은 시전의 누적 생성 기록
 
-        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null, int maxPierce = 3) // 장착 마법을 실제 탄환에 적용
+        internal void Begin(CraftedSpellRecipe cast, FlightCraftedSpellCaster.Profile stats, LayerMask hitLayers, bool isPractice, HashSet<Component> castHits = null, int maxPierce = 3, FlightCraftedEmissionBudget.CastToken token = null) // 장착 마법을 실제 탄환에 적용
         {
             recipe = cast; // 발사 중 편집에 영향 없는 원본
             profile = stats; // 한 발의 실제 이동과 피해
@@ -32,6 +33,7 @@ namespace ProjectG // 프로젝트 게임 영역
             practice = isPractice; // 연습에서만 일시정지와 독립
             sharedHits = castHits; // 같은 시전의 파동 적중 기록
             pierceLimit = maxPierce; // 이 탄의 관통 상한 고정
+            castToken = token; // 같은 시전의 후속 생성 기록
             knocksBack = cast.FirstEffect == "knockback" || cast.SecondEffect == "knockback"; // 넉백 선택 여부
             pierces = cast.FirstEffect == "pierce" || cast.SecondEffect == "pierce"; // 관통 효과의 한 발당 처리
             explodes = cast.FirstEffect == "explode" || cast.SecondEffect == "explode"; // 명중점 폭발
@@ -93,9 +95,13 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
                 int previousHealth = target is FlightEnemy beforeHit ? beforeHit.Health : 0; // 실제 피해 전 체력
                 Damage(target, profile.Damage); // 실제 표적 직격
-                if (knocksBack && target is FlightEnemy enemy && enemy.Health > 0 && enemy.Health < previousHealth && enemy.LootTier == FlightLootTier.Normal && enemy.TryGetComponent(out FlightEnemyRoute route)) // 피해를 받은 일반 적의 경로 확인
+                if (knocksBack && target is FlightEnemy enemy && enemy.Health > 0 && enemy.Health < previousHealth) // 실제로 피해를 받은 살아 있는 마물
                 {
-                    route.ApplyCraftedKnockback(transform.forward * 2f); // 일반 적의 기본 넉백 거리
+                    if (!enemy.TryGetComponent(out FlightCraftedStatus status)) // 이 대상의 공통 상태 관리자
+                    {
+                        status = enemy.gameObject.AddComponent<FlightCraftedStatus>(); // 첫 제어 때 상태 관리 연결
+                    }
+                    status.TryKnockback(transform.forward, 2f); // 일반 마물의 기본 넉백과 저항 확인
                 }
                 if (explodes) // 충돌한 지점에서만 폭발
                 {

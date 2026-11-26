@@ -64,14 +64,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 cost.text = mana.ToString("0.##"); // 소수점까지 반영한 실제 소비 마력
             }
 
-            public void UpdateCrafted(string name, int rank, float mana, int composition, float cooldown, bool affordable, bool withinBudget) // 현재 강화와 자원 조건 표시
+            public void UpdateCrafted(string name, int rank, float mana, int composition, float cooldown, bool affordable, bool withinBudget, bool emissionRoom, bool supported) // 현재 강화와 자원 조건 표시
             {
                 title.text = $"{name} +{rank}"; // 구성 ID의 공유 강화 단계
-                cost.text = mana.ToString("0.##"); // 실제 소비하는 소수점 마력
+                cost.text = supported ? mana.ToString("0.##") : "-"; // 지원하지 않는 구성의 추측 수치 숨김
                 if (status != null) // 기존 입력 표시가 있는 카드
                 {
                     status.fontSize = 17; // 짧은 제약 문구를 읽는 글자 크기
-                    status.text = !withinBudget ? $"{inputLabel} 한도 초과" : cooldown > 0f ? $"{inputLabel} {cooldown:0.0}초" : affordable ? $"{inputLabel} 비용{composition}" : $"{inputLabel} 마력 부족"; // 편성 한도·대기·마력 구분
+                    status.text = !supported ? $"{inputLabel} 미지원" : !withinBudget ? $"{inputLabel} 한도 초과" : cooldown > 0f ? $"{inputLabel} {cooldown:0.0}초" : !affordable ? $"{inputLabel} 마력 부족" : !emissionRoom ? $"{inputLabel} 생성 한도" : $"{inputLabel} 비용{composition}"; // 편성·대기·마력·생성 구분
                 }
             }
 
@@ -140,8 +140,13 @@ namespace ProjectG // 프로젝트 게임 영역
                         active.SetCrafted(FlightCraftedSpellBook.NameOf(recipe), book.CurrentStats(recipe).Mana, symbol, art); // 저장 조합의 그림·마력·이름
                         next.root.gameObject.SetActive(false); // 고정 장착 제작 마법은 순환 없이 유지
                     }
-                    active.UpdateCrafted(FlightCraftedSpellBook.NameOf(recipe), book.UpgradeRank(slot), book.CurrentStats(recipe).Mana, recipe.Cost, book.Cooldown(recipe), book.HasMana(recipe), book.WithinBudget()); // 공유 강화와 실제 제약 갱신
-                    active.Render(book.CanCast(slot), false); // 마력과 재사용 시간의 어둡기
+                    bool supported = book.IsSupported(recipe); // 실제 수치와 판정의 준비 여부
+                    float cooldown = book.Cooldown(recipe); // 현재 구성의 공유 대기시간
+                    bool affordable = book.HasMana(recipe); // 실제 마력 충족 여부
+                    bool withinBudget = book.WithinBudget(); // 현재 편성 비용 한도
+                    bool emissionRoom = book.HasEmissionRoom(recipe); // 발사체 생성 여유
+                    active.UpdateCrafted(FlightCraftedSpellBook.NameOf(recipe), book.UpgradeRank(slot), book.CurrentStats(recipe).Mana, recipe.Cost, cooldown, affordable, withinBudget, emissionRoom, supported); // 공유 강화와 실제 제약 갱신
+                    active.Render(supported && withinBudget && affordable && cooldown <= 0f && emissionRoom, false); // 마력과 재사용 시간의 어둡기
                     return; // 고정 장착과 이전 시험 덱을 같이 표시하지 않음
                 }
                 if (craftedId != null) // 제작 슬롯을 해제한 상태

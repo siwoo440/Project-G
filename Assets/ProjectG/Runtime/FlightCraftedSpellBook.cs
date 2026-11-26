@@ -32,6 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public CraftedSpellRecipe Saved { get; private set; } // 편집기로 불러올 가장 최근 조합
         internal int MagicBudget => 100 + Mathf.RoundToInt(equipment.GetBonus(FlightBroomStat.MagicPower)); // 실전 편성 기준과 장착 효과
+        internal float MagicAttack => Mathf.Max(0f, 100f + equipment.GetBonus(FlightBroomStat.MagicPower)); // 현재 장비를 포함한 실제 마법 공격력
         internal bool AppliesNow => encounter == null; // 출격 준비 씬에서만 현재 편성 변경
 
         private void Awake() // 저장된 제작 마법과 편성 읽기
@@ -54,8 +55,8 @@ namespace ProjectG // 프로젝트 게임 영역
                         bool legacyTrialDeck = data.version < 2 && string.IsNullOrEmpty(data.left) && string.IsNullOrEmpty(data.right); // 이전 저장의 기본 시험 덱
                         if (!legacyTrialDeck) // 이전 시험 덱 이외의 명시적인 편성
                         {
-                            lanes[0] = CraftedSpellRules.TryRead(data.left, out CraftedSpellRecipe left) && FlightCraftedSpellCaster.Supports(left) ? left : null; // 첫 칸 또는 빈 칸 복원
-                            lanes[1] = CraftedSpellRules.TryRead(data.right, out CraftedSpellRecipe right) && FlightCraftedSpellCaster.Supports(right) ? right : null; // 둘째 칸 또는 빈 칸 복원
+                            lanes[0] = CraftedSpellRules.TryRead(data.left, out CraftedSpellRecipe left) ? left : null; // 첫 칸 또는 빈 칸 복원
+                            lanes[1] = CraftedSpellRules.TryRead(data.right, out CraftedSpellRecipe right) ? right : null; // 둘째 칸 또는 빈 칸 복원
                         }
                     }
                 }
@@ -111,7 +112,12 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal FlightCraftedSpellCaster.Profile CurrentStats(CraftedSpellRecipe recipe) // 전투 카드의 실제 시전 수치
         {
-            return caster.EffectiveStats(recipe); // 구성 ID에 공유한 강화 반영
+            return FlightCraftedSpellCaster.Supports(recipe) ? caster.EffectiveStats(recipe) : default; // 미지원 구성에는 임시 수치 미적용
+        }
+
+        internal bool IsSupported(CraftedSpellRecipe recipe) // 확정 수치와 실제 판정의 구현 여부
+        {
+            return FlightCraftedSpellCaster.Supports(recipe); // 시전 경로와 같은 지원 기준
         }
 
         internal float Cooldown(CraftedSpellRecipe recipe) // 전투 카드의 남은 재사용 시간
@@ -121,7 +127,12 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool HasMana(CraftedSpellRecipe recipe) // 전투 카드의 실제 자원 조건
         {
-            return skills.HasCraftedMana(caster.EffectiveStats(recipe).Mana); // 소수점 비용까지 비교
+            return FlightCraftedSpellCaster.Supports(recipe) && skills.HasCraftedMana(caster.EffectiveStats(recipe).Mana); // 지원하는 구성의 소수점 비용 비교
+        }
+
+        internal bool HasEmissionRoom(CraftedSpellRecipe recipe) // 카드의 실제 발사체 생성 여유
+        {
+            return caster.HasEmissionRoom(recipe); // 현재 플레이어의 생성 한도 확인
         }
 
         internal bool WithinBudget() // 현재 출격의 편성 비용 한도
@@ -132,8 +143,8 @@ namespace ProjectG // 프로젝트 게임 영역
         internal bool CanCast(int index) // 현재 클릭과 카드의 사용 가능 상태
         {
             CraftedSpellRecipe recipe = runningLanes[index]; // 이번 출격의 실제 장착 마법
-            return recipe != null && WithinBudget() // 부품 보정 후 실제 편성 비용
-                && skills.HasCraftedMana(caster.EffectiveStats(recipe).Mana) && caster.CooldownRemaining(recipe) <= 0f; // 실제 마력과 동일 ID 대기시간
+            return IsSupported(recipe) && WithinBudget() // 지원 상태와 실제 편성 비용
+                && skills.HasCraftedMana(caster.EffectiveStats(recipe).Mana) && caster.CooldownRemaining(recipe) <= 0f && caster.HasEmissionRoom(recipe); // 실제 마력·대기시간·생성 한도
         }
 
         internal void Use(int index) // 기존 마우스 입력 경로의 제작 마법 사용
@@ -178,7 +189,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 잘못된 선택 거절
             }
             CraftedSpellRecipe recipe = runningLanes[slot]; // 이번 출격의 고정 마법
-            if (recipe == null || UpgradeRank(slot) >= 3) // 빈 칸 또는 총 강화 상한
+            if (!IsSupported(recipe) || UpgradeRank(slot) >= 3) // 미지원 구성 또는 총 강화 상한
             {
                 return false; // 유효한 네 번째 강화 없음
             }

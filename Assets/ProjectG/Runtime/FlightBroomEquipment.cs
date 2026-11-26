@@ -23,6 +23,13 @@ namespace ProjectG // 프로젝트 게임 영역
         private readonly float[] bonuses = new float[Enum.GetValues(typeof(FlightBroomStat)).Length]; // 활성 조합의 효과 합계
         private Material[] defaultMaterials; // 부착점 기본 재질
         private Vector3[] defaultScales; // 부착점 기본 크기
+        private FirstFlightController flight; // 집중 비행의 실제 상태
+        private FlightSkillController skills; // 낮은 마력의 실제 상태
+        private bool bonusFocus; // 마지막으로 계산한 집중 조건
+        private bool bonusLowMana; // 마지막으로 계산한 낮은 마력 조건
+        private float dashSpeedUntil; // 폭풍 장식의 한시 비행 속도 종료 시각
+        private float dashSpeedReadyAt; // 폭풍 장식의 내부 재사용 시각
+        private int dashSpeedTriggers; // 이번 출격의 장식 속도 발동 횟수
         private const string LoadoutKey = "ProjectG.Flight.Broom.Loadouts.v1"; // 버전별 현재 장착 저장 키
 
         [Serializable] // 캐릭터·슬롯 순서로 기록하는 저장 형식
@@ -79,6 +86,8 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void Awake() // 씬 참조와 시작 장착 초기화
         {
+            TryGetComponent(out flight); // 현재 캐릭터의 집중 비행 상태
+            TryGetComponent(out skills); // 현재 캐릭터의 소수 마력 상태
             defaultMaterials = new Material[mounts.Length]; // 렌더러별 원본 재질 공간
             defaultScales = new Vector3[mounts.Length]; // 렌더러별 원본 크기 공간
             for (int i = 0; i < mounts.Length; i++) // 부착점 원본 기록
@@ -303,7 +312,137 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public float GetBonus(FlightBroomStat stat) // 활성 조합의 수치 합
         {
-            return bonuses[(int)stat]; // 개별 효과와 불이익의 합
+            RefreshConditions(); // 집중이나 마력 경계 변경의 즉시 반영
+            return bonuses[(int)stat] + (stat == FlightBroomStat.Speed ? DashSpeedFor(-1, null) : 0f); // 세트·개별 효과와 실제 한시 속도
+        }
+
+        internal void OnDashFinished() // 실제 돌파 종료의 한시 비행 속도
+        {
+            if (HasSpecial("storm", FlightBroomSlot.Ornament, 5) && Time.time >= dashSpeedReadyAt && dashSpeedTriggers < 25) // 전설 폭풍 장식의 실제 발동 제한
+            {
+                dashSpeedUntil = Time.time + 1f; // 실제 종료 뒤 1초 동안 속도 증가
+                dashSpeedReadyAt = Time.time + 5f; // 장식의 내부 재사용 간격
+                dashSpeedTriggers++; // 이번 출격의 최대 25회 기록
+            }
+        }
+
+        internal void ResetBroomRun() // 새 출격의 한시 장비 효과 초기화
+        {
+            dashSpeedUntil = 0f; // 이전 출격의 속도 증가 제거
+            dashSpeedReadyAt = 0f; // 이전 출격의 장식 쿨타임 제거
+            dashSpeedTriggers = 0; // 이전 출격의 발동 횟수 제거
+        }
+
+        private float DashSpeedFor(int replaceSlot, OwnedPart candidate) // 현재 또는 교체 후보의 한시 비행 속도
+        {
+            int slot = (int)FlightBroomSlot.Ornament; // 한시 효과를 가진 실제 장식 부위
+            OwnedPart item = slot == replaceSlot ? candidate : equipped[(int)ActivePilot, slot]; // 교체 후보 또는 현재 장착
+            return Time.time < dashSpeedUntil && item != null && item.Definition.setId == "storm" && item.Grade >= 5 ? 0.5f : 0f; // 유효 시간과 실제 전설 장식 확인
+        }
+
+        private void RefreshConditions() // 실시간 조건이 바뀐 경우에만 보너스 재계산
+        {
+            bool focused = flight != null && flight.IsFocusHeld; // 실제 집중 비행 여부
+            bool lowMana = skills != null && skills.IsLowMana; // 실제 소수 마력이 30 이하
+            if (focused != bonusFocus || lowMana != bonusLowMana) // 마지막 계산과 다른 조건
+            {
+                bonusFocus = focused; // 새 집중 조건 기록
+                bonusLowMana = lowMana; // 새 마력 조건 기록
+                CalculateBonuses((int)ActivePilot, -1, null, bonuses); // 현재 장착의 조건부 효과 재계산
+            }
+        }
+
+        internal float ElementSpeedBonus(string element) // 확정된 속성 세트의 탄속 보정
+        {
+            return element == "fire" ? (SetPieces("flame") >= 2 ? 5f : 0f) + FirePartBonus(false) : 0f; // 화염 세트와 개별 탄속을 별도 합산
+        }
+
+        internal float ElementRangeBonus(string element) // 확정된 속성별 개별 사거리
+        {
+            return element == "fire" ? FirePartBonus(true) : 0f; // 화염 부품만 해당 속성에 적용
+        }
+
+        private float FirePartBonus(bool range) // 화염 속성의 같은 효과 중 상위 두 개
+        {
+            float first = 0f; // 현재까지 가장 큰 해당 속성 효과
+            float second = 0f; // 현재까지 두 번째로 큰 해당 속성 효과
+            for (int slot = 0; slot < equipped.GetLength(1); slot++) // 실제 조종사의 여덟 부위
+            {
+                OwnedPart item = equipped[(int)ActivePilot, slot]; // 실제 장착한 개별 사본
+                if (item == null || item.Definition.setId != "flame") // 화염 세트가 아닌 부품
+                {
+                    continue; // 다른 속성의 효과 적용 금지
+                }
+                bool active = range // 요청한 속성 사거리 또는 속도
+                    ? item.Definition.slot == FlightBroomSlot.Body && item.Grade >= 3 || item.Definition.slot == FlightBroomSlot.Ornament && item.Grade >= 5 // 잿불 몸체와 불사조 장식의 사거리
+                    : item.Definition.slot == FlightBroomSlot.Grip && item.Grade >= 5 || item.Definition.slot == FlightBroomSlot.Tip && item.Grade >= 3; // 화승 손잡이와 용화 선단부의 탄속
+                if (active) // 해당 희귀도에서 실제 열린 속성 효과
+                {
+                    second = first; // 기존 최대를 두 번째로 이동
+                    first = 5f; // 모두 같은 기획 가산량 5%p
+                }
+            }
+            return first + second; // 같은 속성과 능력치의 최대 두 효과
+        }
+
+        internal int SetPieces(string setId) // 활성 캐릭터의 실제 세트별 장착 수
+        {
+            int count = 0; // 같은 세트의 서로 다른 부위 수
+            for (int slot = 0; slot < equipped.GetLength(1); slot++) // 실제 여덟 장착 부위
+            {
+                if (equipped[(int)ActivePilot, slot]?.Definition.setId == setId) // 같은 세트의 실제 장착
+                {
+                    count++; // 희귀도와 무관한 부위 한 개
+                }
+            }
+            return count; // 현재 조종사의 실제 장착 수
+        }
+
+        internal bool HasSpecial(string setId, FlightBroomSlot slot, int minimumGrade) // 조건부 효과의 실제 부품과 희귀도
+        {
+            OwnedPart item = equipped[(int)ActivePilot, (int)slot]; // 현재 캐릭터의 정확한 부위
+            return item != null && item.Definition.setId == setId && item.Grade >= minimumGrade; // 해당 세트와 희귀도가 모두 충족
+        }
+
+        internal float DashDurationBonus() // 실제 돌파 지속시간의 동일 효과 상위 두 개
+        {
+            return LargestTwo( // 기획된 세 부품의 지속시간 증가
+                HasSpecial("storm", FlightBroomSlot.Propulsion, 3) ? 0.05f : 0f, // 질풍 추진부의 희귀 효과
+                HasSpecial("flame", FlightBroomSlot.Stabilizer, 5) ? 0.03f : 0f, // 열풍 안정기의 전설 효과
+                HasSpecial("thunder", FlightBroomSlot.Propulsion, 5) ? 0.03f : 0f); // 뇌전 추진부의 전설 효과
+        }
+
+        internal float DashSpeedBonus() // 실제 돌파 속도의 기획 퍼센트포인트
+        {
+            return HasSpecial("starlight", FlightBroomSlot.Propulsion, 3) ? 10f : 0f; // 유성 추진부의 희귀 이상 효과
+        }
+
+        internal float DashCooldownReduction() // 실제 돌파 재사용 감소의 동일 효과 상위 두 개
+        {
+            return LargestTwo( // 기획된 네 부품의 고정 초 감소
+                HasSpecial("storm", FlightBroomSlot.Ornament, 3) ? 0.2f : 0f, // 돌풍 장식의 희귀 효과
+                HasSpecial("hawk", FlightBroomSlot.Propulsion, 5) ? 0.2f : 0f, // 급강하 추진부의 전설 효과
+                HasSpecial("shadow", FlightBroomSlot.Propulsion, 3) ? 0.2f : 0f, // 야행 추진부의 희귀 효과
+                HasSpecial("thunder", FlightBroomSlot.Grip, 5) ? 0.15f : 0f); // 번개 손잡이의 전설 효과
+        }
+
+        private static float LargestTwo(params float[] values) // 같은 조건과 능력치의 큰 두 효과
+        {
+            float first = 0f; // 가장 큰 효과
+            float second = 0f; // 두 번째로 큰 효과
+            foreach (float value in values) // 실제 장착한 후보들
+            {
+                if (value > first) // 현재 최댓값을 넘는 효과
+                {
+                    second = first; // 기존 최댓값을 두 번째로 보존
+                    first = value; // 더 큰 효과 기록
+                }
+                else if (value > second) // 두 번째보다 큰 효과
+                {
+                    second = value; // 같은 ID의 두 번째 효과 기록
+                }
+            }
+            return first + second; // 승인된 상위 두 효과만 합산
         }
 
         internal string GetEquippedName(FlightBroomSlot slot) // 출격 요약의 실제 장착 이름
@@ -344,9 +483,12 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal float ComparePart(FlightBroomSlot slot, string id, FlightBroomStat stat) // 후보 장착 시 활성 조합과의 차이
         {
-            OwnedPart prior = equipped[(int)ActivePilot, (int)slot]; // 현재 슬롯의 보유 부품
+            RefreshConditions(); // 현재 집중과 마력 조건을 미리보기에도 적용
             OwnedPart candidate = id == null ? null : owned[id]; // 선택한 후보 또는 해제
-            return Contribution(candidate, stat) - Contribution(prior, stat); // 이전 부품 제거와 새 부품 가산
+            var proposed = new float[bonuses.Length]; // 교체 후의 별도 계산 결과
+            CalculateBonuses((int)ActivePilot, (int)slot, candidate, proposed); // 세트 활성화까지 포함한 후보 능력치
+            float temporary = stat == FlightBroomStat.Speed ? DashSpeedFor((int)slot, candidate) - DashSpeedFor(-1, null) : 0f; // 현재와 교체 후보의 한시 속도 차이
+            return proposed[(int)stat] - bonuses[(int)stat] + temporary; // 실제 현재 조합과 교체 후 차이
         }
 
         internal void ShowPreview(MeshRenderer[] preview, FlightBroomSlot slot, string id) // 미리보기 전용 렌더러에 부품 외형 적용
@@ -386,20 +528,80 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void ApplyLoadout() // 활성 캐릭터의 부착점과 효과 갱신
         {
-            Array.Clear(bonuses, 0, bonuses.Length); // 누적 없이 현재 조합 재계산
+            bonusFocus = flight != null && flight.IsFocusHeld; // 실제 장착 시점의 집중 조건
+            bonusLowMana = skills != null && skills.IsLowMana; // 실제 장착 시점의 마력 조건
             int pilot = (int)ActivePilot; // 활성 캐릭터 배열 위치
             for (int slot = 0; slot < equipped.GetLength(1); slot++) // 전체 장착 슬롯 순회
             {
                 OwnedPart item = equipped[pilot, slot]; // 슬롯의 개별 부품
                 ApplyAppearance(mounts[slot], item, slot); // 실전 부착점 외형 적용
+            }
+            CalculateBonuses(pilot, -1, null, bonuses); // 현재 장착의 부품과 세트 효과를 중복 없이 계산
+        }
+
+        private void CalculateBonuses(int pilot, int replaceSlot, OwnedPart candidate, float[] result) // 실제 장착 또는 후보 조합의 순수 수치 계산
+        {
+            Array.Clear(result, 0, result.Length); // 이전 계산값을 누적하지 않음
+            var sets = new Dictionary<string, int>(); // 이 캐릭터의 세트별 실제 장착 수
+            var passive = new FlightBroomPassiveEffects(); // 같은 능력치의 상위 두 개별 상시 효과
+            for (int slot = 0; slot < equipped.GetLength(1); slot++) // 서로 다른 여덟 부위
+            {
+                OwnedPart item = slot == replaceSlot ? candidate : equipped[pilot, slot]; // 후보 교체 또는 현재 실제 장착
                 if (item == null) // 미장착 상태
                 {
-                    continue; // 외형과 수치 적용 건너뛰기
+                    continue; // 부품과 세트 수에 포함하지 않음
                 }
-
-                FlightBroomPart part = item.Definition; // 기본 외형과 효과
-                bonuses[(int)part.stat] += part.GetValue(item.Grade, item.Upgrade); // 양의 보너스 합산
-                bonuses[(int)part.penaltyStat] += part.penalty; // 불이익 합산
+                FlightBroomPart part = item.Definition; // 실제 장착한 부품의 기획 정보
+                passive.Include(part, item.Grade); // 희귀도와 부품별 무조건 상시 효과 수집
+                result[(int)part.stat] += part.GetValue(item.Grade, item.Upgrade); // 개별 등급과 강화의 기본 보너스
+                result[(int)part.penaltyStat] += part.penalty; // 개별 부품의 고정 불이익
+                if (!string.IsNullOrEmpty(part.setId)) // 세트에 소속된 실제 부품
+                {
+                    sets.TryGetValue(part.setId, out int count); // 같은 세트의 기존 장착 수
+                    sets[part.setId] = count + 1; // 희귀도와 무관하게 한 부위 추가
+                }
+            }
+            passive.AddTo(result, bonusFocus, bonusLowMana); // 실제 조건별 개별 효과 최대 두 개 반영
+            foreach (KeyValuePair<string, int> set in sets) // 동시에 장착한 모든 세트
+            {
+                if (set.Value < 2) // 두 부품 미만인 세트
+                {
+                    continue; // 세트 효과 없음
+                }
+                switch (set.Key) // 기획서의 세트별 상시 효과
+                {
+                    case "storm": // 폭풍의 질주
+                        result[(int)FlightBroomStat.Speed] += 1f; // 두 부품의 일반 비행 속도
+                        if (set.Value >= 4) // 네 부품의 추가 단계
+                        {
+                            result[(int)FlightBroomStat.Acceleration] += 4f; // 가속력 증가
+                            result[(int)FlightBroomStat.Braking] += 4f; // 제동력 증가
+                        }
+                        break; // 해당 세트 계산 종료
+                    case "guard": // 천공의 수호
+                        result[(int)FlightBroomStat.ImpactResistance] += 5f; // 두 부품의 충격 저항
+                        break; // 조건부 보호막은 별도 전투 효과
+                    case "flow": // 마력의 순환
+                        result[(int)FlightBroomStat.Mana] += 10f; // 두 부품의 최대 마력
+                        if (set.Value >= 4) // 네 부품의 추가 단계
+                        {
+                            result[(int)FlightBroomStat.ManaRecovery] += 2f; // 초당 마력 회복량
+                        }
+                        break; // 해당 세트 계산 종료
+                    case "starlight": // 별빛의 조율
+                        result[(int)FlightBroomStat.MagicPower] += set.Value >= 4 ? 20f : 8f; // 두 단계의 마법 공격력 누적
+                        break; // 해당 세트 계산 종료
+                    case "hawk": // 매의 시선
+                        result[(int)FlightBroomStat.Range] += 10f; // 두 부품의 마법 사거리
+                        if (set.Value >= 4) // 네 부품의 추가 단계
+                        {
+                            result[(int)FlightBroomStat.BoltSpeed] += 15f; // 탄환 속도 증가
+                        }
+                        break; // 해당 세트 계산 종료
+                    case "shadow": // 그림자의 비행
+                        result[(int)FlightBroomStat.Turn] += 30f; // 두 부품의 선회 속도
+                        break; // 그레이즈 효과는 별도 전투 효과
+                }
             }
         }
 
@@ -412,17 +614,6 @@ namespace ProjectG // 프로젝트 게임 영역
                 mount.sharedMaterial = part.material != null ? part.material : defaultMaterials[slot]; // 지정 재질 우선
                 mount.transform.localScale = Vector3.Scale(defaultScales[slot], part.scale); // 원본 크기에서 계산한 배율
             }
-        }
-
-        private static float Contribution(OwnedPart item, FlightBroomStat stat) // 장착 부품 하나가 추가하는 같은 항목의 효과
-        {
-            if (item == null) // 빈 슬롯의 효과
-            {
-                return 0f; // 합산값 없음
-            }
-            FlightBroomPart part = item.Definition; // 주 효과와 불이익
-            float primary = part.stat == stat ? part.GetValue(item.Grade, item.Upgrade) : 0f; // 같은 주 효과만 합산
-            return primary + (part.penaltyStat == stat ? part.penalty : 0f); // 같은 불이익까지 합산
         }
 
         private void SaveLoadouts() // 확정 장착 형태 저장

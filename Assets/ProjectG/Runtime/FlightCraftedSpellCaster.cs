@@ -291,8 +291,8 @@ namespace ProjectG // 프로젝트 게임 영역
             float mana = 1f - 0.05f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Mana); // 소수점 마력 감소 배율
             float cooldown = 1f - 0.1f * Steps(recipe, FlightCraftedSpellBook.Upgrade.Cooldown); // 다음 쿨타임 감소 배율
             bool moving = recipe.BaseId == CraftedSpellPresets.All[8].Recipe.Id || recipe.FireMode != "placed" && recipe.Shape != "beam" && recipe.Trajectory != "stationary" && recipe.Trajectory != "orbit"; // 씨앗 자탄과 직접 이동형에만 장비 보정
-            float speed = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileSpeedBonus / 100f) : 1f; // 합산 탄속 비율 한 번 적용
-            float range = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileRangeBonus / 100f) : 1f; // 합산 사거리 비율 한 번 적용
+            float speed = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileSpeedFor(recipe.Element) / 100f) : 1f; // 일반과 해당 속성의 탄속을 한 번 합산
+            float range = moving && !practice && growth != null ? Mathf.Max(0f, 1f + growth.ProjectileRangeFor(recipe.Element) / 100f) : 1f; // 일반과 해당 속성의 사거리를 한 번 합산
             speed *= recipe.Performance == "fast" ? 1.2f : recipe.Performance == "long" ? 0.8f : 1f; // 이동형 성능 프리셋의 탄속 비율
             range *= recipe.Performance == "fast" ? 0.8f : recipe.Performance == "long" ? 1.2f : 1f; // 이동형 성능 프리셋의 사거리 비율
             return new Profile(basis.Mana * mana, basis.Damage * damage, basis.Cooldown * cooldown, basis.Speed * speed, basis.Range * range, basis.Radius * width, basis.Spread * width, damage, width); // 현재 장비와 강화의 시전 스냅샷
@@ -350,6 +350,7 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return false; // 일부 발사나 자원 차감 없이 거절
             }
+            token.effects = practice ? null : skills; // 실전 시전의 빗자루 효과 연결
             if (IsPurification(recipe)) // 정화 결계의 고정 설치
             {
                 float started = Clock; // 결계 시작 시각

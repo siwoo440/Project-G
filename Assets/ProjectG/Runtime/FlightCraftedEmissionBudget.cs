@@ -9,6 +9,8 @@ namespace ProjectG // 프로젝트 게임 영역
             internal FlightCraftedEmissionBudget owner; // 이 기록을 만든 발사 한도
             internal int generation; // 재출격 전후의 기록 구분
             internal int emitted; // 이번 시전에서 이미 생성한 총 수
+            internal bool hit; // 시전당 최초 유효 명중 여부
+            internal FlightSkillController effects; // 실전 빗자루의 명중 효과
         }
 
         private readonly Queue<float> recent = new(); // 최근 일 초 동안 생성한 발사체

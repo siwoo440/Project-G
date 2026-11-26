@@ -7,6 +7,19 @@ namespace ProjectG // 프로젝트 게임 영역
     [DisallowMultipleComponent] // 풀 오브젝트 한 곳에서 적탄 관리
     public sealed class FlightThreatPool : MonoBehaviour // 활성 탄막의 재사용과 일괄 갱신
     {
+        private readonly struct CancelRequest // 적탄 순회가 끝난 뒤 처리할 보호막 소거
+        {
+            public readonly Vector3 Origin; // 파괴 시점의 실제 기체 위치
+            public readonly float Radius; // 소거할 3D 반경
+            public readonly int Maximum; // 해당 효과의 최대 소거 수
+
+            public CancelRequest(Vector3 origin, float radius, int maximum) // 실제 소거 범위의 불변 기록
+            {
+                Origin = origin; // 파괴 당시 위치 보존
+                Radius = radius; // 기획된 실제 반경
+                Maximum = maximum; // 기획된 소거 수 상한
+            }
+        }
         [SerializeField] private FlightThreatBolt template; // 실제 적탄 프리팹
         [SerializeField] private FlightPilotVitals target; // 현재 비행체의 피격 상태
         [SerializeField, Min(1)] private int capacity = 128; // 활성 및 전체 생성의 상한
@@ -14,6 +27,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private List<FlightThreatBolt> active; // 발사 순서로 움직이는 실제 탄
         private Stack<FlightThreatBolt> idle; // 즉시 재사용할 비활성 탄
         private Transform targetPosition; // 한 프레임에 한 번만 읽을 비행체 위치
+        private readonly List<CancelRequest> pendingCancels = new(); // 충돌 처리 중 발생한 지연 소거
 
         public int Capacity => capacity; // 편집 가능한 탄 수 한도
         public int ActiveCount => active.Count; // 현재 이동하는 탄 수
@@ -33,7 +47,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void LateUpdate() // 활성 탄만 같은 표본 위치로 갱신
         {
-            if (active.Count == 0 || Time.timeScale == 0f) // 탄이 없거나 메뉴에서 시간이 정해진 상태
+            if (Time.timeScale == 0f) // 메뉴에서 시간이 정지된 상태
             {
                 return; // 물리 이동 없이 현재 장면 유지
             }
@@ -52,6 +66,11 @@ namespace ProjectG // 프로젝트 게임 영역
                     Recycle(index); // 뺀 자리에 온 다음 탄을 이어서 검사
                 }
             }
+            foreach (CancelRequest request in pendingCancels) // 현재 적탄 순회가 모두 끝난 뒤
+            {
+                CancelWithin(request.Origin, request.Radius, request.Maximum); // 소거 가능한 적탄만 안전하게 회수
+            }
+            pendingCancels.Clear(); // 이미 처리한 소거 요청 제거
         }
 
         public bool TryFire(Vector3 position, Vector3 direction, float speed, int damage = 0) // 직접 발사와 훈련의 같은 기본탄
@@ -81,6 +100,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         public void ReturnAll() // 재출격 또는 보스 패턴 종료의 일괄 회수
         {
+            pendingCancels.Clear(); // 이전 전투에서 예약한 소거가 새 탄에 적용되지 않음
             for (int index = active.Count - 1; index >= 0; index--) // 활성 탄의 뒤부터 처리
             {
                 Recycle(index); // 같은 활성 탄을 두 번 회수하지 않음
@@ -135,6 +155,14 @@ namespace ProjectG // 프로젝트 게임 영역
                 }
             }
             return count; // 이번 프레임의 상쇄 수
+        }
+
+        internal void QueueCancelWithin(Vector3 origin, float radius, int maximum) // 피격 처리 도중에도 안전한 적탄 소거 요청
+        {
+            if (radius > 0f && maximum > 0) // 실제 범위와 소거 가능 수
+            {
+                pendingCancels.Add(new CancelRequest(origin, radius, maximum)); // 현재 순회가 끝난 뒤 같은 위치에서 처리
+            }
         }
 
         internal int AbsorbWithin(Vector3 origin, float radius, int maximum) // 흡수가 허용된 적탄만 정해진 수까지 회수

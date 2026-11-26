@@ -48,10 +48,33 @@ namespace ProjectG // 프로젝트 게임 영역
         private float ultimate; // 소수 단위로 누적하는 필살기 에너지
         private int recordedGrazes; // 마지막으로 자원에 반영한 스침 수
         private float nextWeakReduction; // 실제 약점 적중의 초당 재사용 감소 제한
+        private float flowSetReadyAt; // 마력 순환 여덟 세트의 내부 재사용 시각
+        private int flowSetTriggers; // 이번 출격에서 실제로 발동한 횟수
+        private float flowOrnamentReadyAt; // 순환 장식의 내부 재사용 시각
+        private int flowOrnamentTriggers; // 이번 출격의 순환 장식 발동 횟수
+        private float shadowSetReadyAt; // 그림자 네 세트의 내부 재사용 시각
+        private int shadowSetTriggers; // 이번 출격의 그레이즈 회복 횟수
+        private float shadowManaReadyAt; // 그림자 마력석의 내부 재사용 시각
+        private int shadowManaTriggers; // 이번 출격의 마력석 그레이즈 회복 횟수
+        private float shadowOrnamentReadyAt; // 그림자 장식의 내부 재사용 시각
+        private int shadowOrnamentTriggers; // 이번 출격의 장식 회복 횟수
+        private int shadowOrnamentGrazes; // 장식 발동까지 누적한 유효 스침
+        private float shadowCounterReadyAt; // 그림자 여덟 세트의 반격탄 재사용 시각
+        private int shadowCounterTriggers; // 이번 출격의 세트 반격탄 발동 횟수
+        private int shadowCounterGrazes; // 세트 반격탄의 유효 스침 누적
+        private float shadowPartCounterReadyAt; // 전설 장식의 반격탄 재사용 시각
+        private int shadowPartCounterTriggers; // 이번 출격의 장식 반격탄 발동 횟수
+        private sealed class DashTrigger // 한 장비 효과의 재사용과 출격별 횟수
+        {
+            public float ReadyAt; // 다음에 발동 가능한 실제 시각
+            public int Count; // 현재 출격에서 발동한 횟수
+        }
+        private readonly System.Collections.Generic.Dictionary<string, DashTrigger> dashTriggers = new(); // 세트와 부품별 독립 발동 이력
 
         public int MaxMana => Mathf.Max(1, BaseMana + Mathf.RoundToInt(equipment != null ? equipment.GetBonus(FlightBroomStat.Mana) : 0f)); // 장착한 마력석과 마법 장식의 용량
         public float ManaRecovery => Mathf.Max(0f, BaseRecovery + (equipment != null ? equipment.GetBonus(FlightBroomStat.ManaRecovery) : 0f)); // 장착의 증가와 불이익을 합산한 초당 마력
         public int Mana => Mathf.FloorToInt(mana); // 화면과 카드가 확인하는 현재 마력
+        internal bool IsLowMana => mana <= 30f; // 소수점을 보존한 낮은 마력 조건
         public int Ultimate => Mathf.FloorToInt(ultimate); // HUD와 유효 보상이 보는 정수 값
         internal event System.Action<int> SkillActivated; // 안내에서 성공 시전만 확인
 
@@ -73,6 +96,14 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnEnable() // 실제 스테이지의 처치 에너지 연결
         {
+            if (pilot != null) // 실제 3D 돌파를 수행하는 비행체
+            {
+                pilot.DashFinished += HandleDashFinished; // 돌파 종료에만 장비 효과 적용
+            }
+            if (vitals != null) // 실제 그레이즈 판정이 연결된 경우
+            {
+                vitals.Grazed += RecoverShadowGraze; // 성공한 스침에서만 세트 효과 확인
+            }
             foreach (FlightEnemy enemy in defeatRewards) // 씬에 연결한 적과 보스
             {
                 enemy.Defeated += RewardDefeat; // 실제 처치에서만 에너지 지급
@@ -81,6 +112,14 @@ namespace ProjectG // 프로젝트 게임 영역
 
         private void OnDisable() // 씬 변경 전 처치 알림 정리
         {
+            if (pilot != null) // 이전에 연결한 실제 비행체
+            {
+                pilot.DashFinished -= HandleDashFinished; // 씬 재활성화 시 중복 구독 방지
+            }
+            if (vitals != null) // 이전에 연결한 실제 그레이즈 판정
+            {
+                vitals.Grazed -= RecoverShadowGraze; // 재활성화 시 중복 구독 방지
+            }
             foreach (FlightEnemy enemy in defeatRewards) // 등록했던 에너지 출처
             {
                 if (enemy != null) // 먼저 사라진 씬 객체 제외
@@ -103,6 +142,150 @@ namespace ProjectG // 프로젝트 게임 영역
                 _ => 2 // 일반 적의 기획 시험값
             };
             AddUltimate(amount); // 실제 필살기 자원과 게이지 갱신
+        }
+
+        private bool TriggerAvailable(string id, int maximum) // 한 효과의 현재 쿨타임과 횟수
+        {
+            return !dashTriggers.TryGetValue(id, out DashTrigger state) || Time.time >= state.ReadyAt && state.Count < maximum; // 처음 발동 또는 제한 안의 재사용
+        }
+
+        private void RecordTrigger(string id, float cooldown) // 실제로 성공한 장비 효과 기록
+        {
+            if (!dashTriggers.TryGetValue(id, out DashTrigger state)) // 이번 출격의 첫 발동
+            {
+                state = new DashTrigger(); // 해당 효과만의 재사용 상태
+                dashTriggers.Add(id, state); // 다른 개별 효과와 분리해 보존
+            }
+            state.ReadyAt = Time.time + cooldown; // 기획된 내부 쿨타임
+            state.Count++; // 해당 효과의 이번 출격 횟수
+        }
+
+        private void TriggerBolts(string id, int count, int damage, float cooldown, int maximum) // 실제로 생성한 장비 추가탄
+        {
+            if (weapon != null && TriggerAvailable(id, maximum) && weapon.FireBroomBolts(count, damage)) // 한도와 실제 조준·발사 성공
+            {
+                RecordTrigger(id, cooldown); // 발사한 경우에만 쿨타임과 횟수 반영
+            }
+        }
+
+        private void DashMana(string id, float cooldown, int maximum) // 실제 종료 시 기획된 마력 3 회복
+        {
+            if (TriggerAvailable(id, maximum)) // 해당 개별 효과의 독립 제한
+            {
+                mana = Mathf.Min(MaxMana, mana + 3f); // 실제 마력 상한을 넘지 않는 회복
+                RecordTrigger(id, cooldown); // 발동한 부품의 쿨타임과 횟수
+            }
+        }
+
+        private void HandleDashFinished() // 실제 세라 돌파 종료의 장비 효과
+        {
+            if (equipment == null || !pilot.CanFly) // 실제 장비가 없거나 실패한 출격
+            {
+                return; // 중단된 이동의 추가 효과 없음
+            }
+            equipment.OnDashFinished(); // 전설 폭풍 장식의 한시 비행 속도
+            if (equipment.SetPieces("storm") >= 8) // 폭풍 여덟 세트의 실제 장착
+            {
+                TriggerBolts("storm.set8", 3, 8, 3f, 30); // 세트의 전방 바람탄 세 발
+            }
+            if (equipment.HasSpecial("storm", FlightBroomSlot.ManaStone, 5)) // 전설 폭풍 마력석
+            {
+                DashMana("storm.manastone", 5f, 20); // 대시 종료의 마력 3 회복
+            }
+            if (equipment.HasSpecial("flow", FlightBroomSlot.Propulsion, 5)) // 전설 수맥 추진부
+            {
+                DashMana("flow.propulsion", 6f, 20); // 대시 종료의 독립 마력 3 회복
+            }
+            if (equipment.HasSpecial("storm", FlightBroomSlot.Propulsion, 5)) // 전설 질풍 추진부
+            {
+                TriggerBolts("storm.propulsion", 1, 5, 4f, 25); // 대시 종료의 바람탄 한 발
+            }
+            if (equipment.HasSpecial("starlight", FlightBroomSlot.Propulsion, 5)) // 전설 유성 추진부
+            {
+                TriggerBolts("starlight.propulsion", 1, 5, 6f, 20); // 대시 종료의 별빛탄 한 발
+            }
+            if (equipment.HasSpecial("shadow", FlightBroomSlot.Propulsion, 5)) // 전설 야행 추진부
+            {
+                TriggerBolts("shadow.propulsion", 1, 5, 5f, 25); // 대시 종료의 잔상탄 한 발
+            }
+            if (equipment.HasSpecial("flame", FlightBroomSlot.Propulsion, 3)) // 희귀 이상 홍염 추진부
+            {
+                TriggerBolts("flame.propulsion", 1, 5, 5f, 25); // 대시 종료의 화염탄 한 발
+            }
+            if (equipment.HasSpecial("thunder", FlightBroomSlot.Propulsion, 3)) // 희귀 이상 뇌전 추진부
+            {
+                TriggerBolts("thunder.propulsion", 1, 5, 5f, 25); // 대시 종료의 번개탄 한 발
+            }
+            ShowResources(); // 같은 프레임의 실제 마력 회복 표시
+        }
+
+        internal void OnCraftedFirstHit() // 실전 제작 마법의 시전당 최초 유효 명중
+        {
+            if (equipment != null && equipment.SetPieces("starlight") >= 8) // 별빛 여덟 세트의 실제 장착
+            {
+                TriggerBolts("starlight.set8.hit", 2, 8, 6f, 30); // 최초 명중의 독립 별빛탄 두 발
+            }
+            if (equipment != null && equipment.HasSpecial("flow", FlightBroomSlot.Tip, 5) && TriggerAvailable("flow.tip.hit", 20)) // 전설 수맥 선단부의 독립 제한
+            {
+                mana = Mathf.Min(MaxMana, mana + 2f); // 실제 마력 상한 안에서 2 회복
+                RecordTrigger("flow.tip.hit", 6f); // 출격당 횟수와 6초 쿨타임
+                ShowResources(); // 회복한 마력의 화면 반영
+            }
+        }
+
+        private void RecoverShadowGraze() // 실제 스침에서 그림자 네 세트 적용
+        {
+            if (equipment == null) // 실제 빗자루가 없는 시험 기체
+            {
+                return; // 발동할 수 있는 장비 효과 없음
+            }
+            if (equipment.SetPieces("shadow") >= 4 && Time.time >= shadowSetReadyAt && shadowSetTriggers < 60) // 그림자 네 세트의 실제 발동 제한
+            {
+                mana = Mathf.Min(MaxMana, mana + 2f); // 실제 최대 마력을 넘지 않는 세트 회복
+                shadowSetReadyAt = Time.time + 1f; // 세트 회복의 내부 재사용 간격
+                shadowSetTriggers++; // 이번 출격의 최대 60회 기록
+            }
+            if (equipment.HasSpecial("shadow", FlightBroomSlot.ManaStone, 3) && Time.time >= shadowManaReadyAt && shadowManaTriggers < 60) // 희귀 이상 그림자 마력석의 독립 발동
+            {
+                mana = Mathf.Min(MaxMana, mana + 1f); // 실제 최대 마력을 넘지 않는 개별 회복
+                shadowManaReadyAt = Time.time + 1f; // 마력석 회복의 내부 재사용 간격
+                shadowManaTriggers++; // 해당 부품의 출격당 최대 60회 기록
+            }
+            if (equipment.HasSpecial("shadow", FlightBroomSlot.Ornament, 3)) // 희귀 이상 그림자 장식의 실제 장착
+            {
+                shadowOrnamentGrazes = Mathf.Min(3, shadowOrnamentGrazes + 1); // 대기 중에도 최대 발동 조건까지 스침 누적
+                if (shadowOrnamentGrazes >= 3 && Time.time >= shadowOrnamentReadyAt && shadowOrnamentTriggers < 25) // 세 번의 스침과 독립 발동 제한
+                {
+                    mana = Mathf.Min(MaxMana, mana + 3f); // 실제 최대 마력 안에서 장식 회복
+                    shadowOrnamentGrazes = 0; // 실제 발동한 뒤에만 누적 초기화
+                    shadowOrnamentReadyAt = Time.time + 5f; // 장식 회복의 내부 쿨타임
+                    shadowOrnamentTriggers++; // 해당 부품의 출격당 최대 25회 기록
+                }
+            }
+            else // 해당 장식이 장착되지 않은 경우
+            {
+                shadowOrnamentGrazes = 0; // 다른 장비의 스침을 해당 장식에 누적하지 않음
+            }
+            if (equipment.SetPieces("shadow") >= 8) // 그림자 여덟 세트의 실제 장착
+            {
+                shadowCounterGrazes = Mathf.Min(5, shadowCounterGrazes + 1); // 쿨타임 중에도 다섯 스침까지 누적
+                if (shadowCounterGrazes >= 5 && Time.time >= shadowCounterReadyAt && shadowCounterTriggers < 30 && weapon != null && weapon.FireBroomBolts(2, 8)) // 다음 유효 스침의 실제 두 발 발사
+                {
+                    shadowCounterGrazes = 0; // 실제 발동한 뒤 누적 초기화
+                    shadowCounterReadyAt = Time.time + 4f; // 세트 반격탄의 내부 쿨타임
+                    shadowCounterTriggers++; // 이번 출격의 최대 서른 번 발동
+                }
+            }
+            else // 그림자 여덟 부위가 아닌 경우
+            {
+                shadowCounterGrazes = 0; // 다른 조합의 스침은 누적하지 않음
+            }
+            if (equipment.HasSpecial("shadow", FlightBroomSlot.Ornament, 5) && Time.time >= shadowPartCounterReadyAt && shadowPartCounterTriggers < 25 && weapon != null && weapon.FireBroomBolts(1, 4)) // 전설 그림자 장식의 실제 반격탄
+            {
+                shadowPartCounterReadyAt = Time.time + 4f; // 개별 반격탄의 내부 쿨타임
+                shadowPartCounterTriggers++; // 해당 부품의 출격당 최대 25회
+            }
+            ShowResources(); // 실제 회복한 마력의 화면 갱신
         }
 
         public void AddUltimate(int amount) // 레벨업 대체 보상의 필살기 에너지
@@ -185,6 +368,24 @@ namespace ProjectG // 프로젝트 게임 영역
             ultimate = 0; // 새 출격의 필살기 에너지
             recordedGrazes = 0; // 스침 반영 초기화
             nextWeakReduction = 0f; // 이전 출격의 약점 감소 제한 제거
+            flowSetReadyAt = 0f; // 새 출격의 순환 세트 대기 초기화
+            flowSetTriggers = 0; // 새 출격의 순환 세트 횟수 초기화
+            flowOrnamentReadyAt = 0f; // 새 출격의 순환 장식 대기 초기화
+            flowOrnamentTriggers = 0; // 새 출격의 순환 장식 횟수 초기화
+            shadowSetReadyAt = 0f; // 새 출격의 그림자 세트 대기 초기화
+            shadowSetTriggers = 0; // 새 출격의 그림자 세트 횟수 초기화
+            shadowManaReadyAt = 0f; // 새 출격의 그림자 마력석 대기 초기화
+            shadowManaTriggers = 0; // 새 출격의 그림자 마력석 횟수 초기화
+            shadowOrnamentReadyAt = 0f; // 새 출격의 그림자 장식 대기 초기화
+            shadowOrnamentTriggers = 0; // 새 출격의 그림자 장식 횟수 초기화
+            shadowOrnamentGrazes = 0; // 새 출격의 장식 스침 누적 초기화
+            shadowCounterReadyAt = 0f; // 새 출격의 세트 반격탄 대기 초기화
+            shadowCounterTriggers = 0; // 새 출격의 세트 반격탄 횟수 초기화
+            shadowCounterGrazes = 0; // 새 출격의 세트 스침 누적 초기화
+            shadowPartCounterReadyAt = 0f; // 새 출격의 개별 반격탄 대기 초기화
+            shadowPartCounterTriggers = 0; // 새 출격의 개별 반격탄 횟수 초기화
+            dashTriggers.Clear(); // 새 출격의 모든 개별 대시 발동 기록 제거
+            equipment?.ResetBroomRun(); // 이전 대시의 한시 비행 속도 제거
             weapon.ResetCadence(); // 새 출격의 스킬과 패시브 초기화
             for (int slot = 0; slot < readyAt.Length; slot++) // 세 슬롯 초기화
             {
@@ -201,7 +402,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 return false; // 카드 순서와 마력을 보존
             }
             FlightAudio.Play(FlightSfx.MagicCard); // 실제 성공 소비에서만 카드 소리
-            mana -= cost; // 해당 카드 보석에 표시한 마력 비용
+            SpendMana(cost); // 카드 비용과 세트의 낮은 마력 진입
             ShowResources(); // 클릭 다음 프레임에 실제 자원 갱신
             return true; // 카드 순환 가능 여부
         }
@@ -236,7 +437,7 @@ namespace ProjectG // 프로젝트 게임 영역
         internal float ConsumeCraftedMaintenance(float amount) // 유지 마법의 연속 마력 소모
         {
             float spent = Mathf.Min(mana, Mathf.Max(0f, amount)); // 실제 보유량 안에서만 소비
-            mana -= spent; // 소수점 마력까지 반영
+            SpendMana(spent); // 소수점 마력 소비와 세트 효과
             ShowResources(); // 실전 자원 표시 갱신
             return spent; // 유지할 수 있었던 실제 소비량
         }
@@ -244,8 +445,30 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void SpendCraftedMana(float cost) // 성공한 제작 마법의 실제 소비
         {
             FlightAudio.Play(FlightSfx.MagicCard); // 제작 조합을 실제로 발사한 소리
-            mana -= cost; // 보석과 같은 마력 비용 반영
+            SpendMana(cost); // 제작 마법 비용과 세트 효과
             ShowResources(); // 전투 게이지의 실제 마력 수치
+        }
+
+        private void SpendMana(float amount) // 정상 소비에서 낮은 마력 진입 감지
+        {
+            float before = mana; // 비용을 차감하기 전의 실제 마력
+            mana -= amount; // 호출자가 승인한 카드·스킬·유지 비용
+            if (before <= 30f || mana > 30f || equipment == null) // 새로 30 이하에 진입하지 않은 소비
+            {
+                return; // 같은 낮은 마력 상태에서 반복 발동 방지
+            }
+            if (equipment.SetPieces("flow") >= 8 && Time.time >= flowSetReadyAt && flowSetTriggers < 8) // 여덟 부위의 독립 발동 제한
+            {
+                mana = Mathf.Min(MaxMana, mana + 20f); // 실제 마력 상한을 넘지 않는 세트 회복
+                flowSetReadyAt = Time.time + 20f; // 세트의 내부 쿨타임
+                flowSetTriggers++; // 이번 출격의 최대 여덟 회 기록
+            }
+            if (equipment.HasSpecial("flow", FlightBroomSlot.Ornament, 3) && Time.time >= flowOrnamentReadyAt && flowOrnamentTriggers < 10) // 희귀 이상 순환 장식의 독립 발동 제한
+            {
+                mana = Mathf.Min(MaxMana, mana + 5f); // 같은 실제 경계에서 개별 장식 마력 회복
+                flowOrnamentReadyAt = Time.time + 15f; // 장식의 내부 쿨타임
+                flowOrnamentTriggers++; // 이번 출격의 최대 열 번 기록
+            }
         }
 
         private void TrySkill(int slot, FlightMagicEffect effect, int cost, float cooldown, bool useUltimate, float startsIn = 0f) // Q·E·R 공통 조건과 효과
@@ -261,7 +484,11 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             else // 일반 스킬의 마력 차감
             {
-                mana -= cost; // 사용 후 남은 마력
+                SpendMana(cost); // 일반 스킬 비용과 낮은 마력 진입
+            }
+            if (effect == FlightMagicEffect.BreakthroughBlade && equipment != null) // 실제 대시가 있는 세라의 돌파 검기
+            {
+                cooldown = Mathf.Max(0f, cooldown - equipment.DashCooldownReduction()); // 기존 배율 이후 상위 두 고정 초 감소
             }
             readyAt[slot] = Time.time + startsIn + cooldown; // 재사용 시간 시작
             hud.SetDelayedCooldown(slot, cooldown, startsIn); // 슬롯 안 흰 숫자 갱신

@@ -33,6 +33,10 @@ namespace ProjectG // 프로젝트 게임 영역
         private int selected = -1; // 목록 선택 또는 빈 자리
         private Text[] slotLabels; // 슬롯 버튼의 한글 설명
         private Text[] partLabels; // 보유 부품의 이름과 등급
+        private Button previousPage; // 이전 개별 부품 페이지
+        private Button nextPage; // 다음 개별 부품 페이지
+        private Text pageLabel; // 현재 목록과 전체 페이지
+        private int page; // 같은 슬롯의 현재 부품 페이지
         private Action close; // 현재 메뉴의 뒤로 가기
 
         internal void Initialize(Action closeWorkshop) // 정지 메뉴의 준비 단계에서 연결
@@ -55,8 +59,35 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 int index = i; // 현재 화면의 후보 자리
                 partLabels[i] = partButtons[i].GetComponentInChildren<Text>(); // 부품 이름
-                partButtons[i].onClick.AddListener(() => SelectPart(index)); // 장착 전 미리보기
+                partButtons[i].onClick.AddListener(() => SelectPart(page * partButtons.Length + index)); // 현재 페이지의 실제 사본 미리보기
             }
+            Transform list = partButtons[0].transform.parent; // 두 조립 씬에서 공유하는 부품 목록
+            previousPage = PageButton(partButtons[0], list, "PreviousPage", new Vector2(-125f, -250f), "이전"); // 목록 아래의 이전 페이지
+            nextPage = PageButton(partButtons[0], list, "NextPage", new Vector2(125f, -250f), "다음"); // 목록 아래의 다음 페이지
+            previousPage.onClick.AddListener(() => ChangePage(-1)); // 실제 이전 목록 표시
+            nextPage.onClick.AddListener(() => ChangePage(1)); // 실제 다음 목록 표시
+            pageLabel = Instantiate(partLabels[0], list, false); // 기존 글꼴과 색상을 공유하는 페이지 표시
+            pageLabel.name = "Page"; // 실제 페이지 표시 식별자
+            RectTransform pageRect = pageLabel.rectTransform; // 표시할 페이지의 UI 영역
+            pageRect.anchorMin = pageRect.anchorMax = new Vector2(0.5f, 0.5f); // 목록 중앙 기준
+            pageRect.anchoredPosition = new Vector2(0f, -250f); // 앞뒤 버튼 사이
+            pageRect.sizeDelta = new Vector2(100f, 40f); // 읽기 쉬운 페이지 너비
+            pageLabel.alignment = TextAnchor.MiddleCenter; // 페이지 숫자 중앙 정렬
+            pageLabel.raycastTarget = false; // 양옆 버튼 입력 가림 방지
+        }
+
+        private static Button PageButton(Button template, Transform parent, string name, Vector2 position, string label) // 기존 조립 버튼과 같은 페이지 조작
+        {
+            Button button = Instantiate(template, parent, false); // 씬에서 사용하던 버튼 외형 복제
+            button.name = name; // 실제 화면과 자동 시험 식별자
+            button.onClick = new Button.ButtonClickedEvent(); // 원래 부품 선택 동작 제거
+            RectTransform rect = (RectTransform)button.transform; // 페이지 버튼의 위치와 크기
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f); // 목록 중앙 기준
+            rect.anchoredPosition = position; // 아홉 후보 아래의 빈 공간
+            rect.sizeDelta = new Vector2(120f, 40f); // 페이지 조작에 맞는 크기
+            button.GetComponentInChildren<Text>().text = label; // 앞 또는 뒤 이동 안내
+            FlightCraftedUi.FitLabel(button); // 버튼 폭에 맞는 선명한 글자
+            return button; // 실제 페이지 동작을 연결할 버튼
         }
 
         internal void Show() // 현재 활동 중인 캐릭터의 조합 표시
@@ -77,7 +108,15 @@ namespace ProjectG // 프로젝트 게임 영역
             equipment.ListParts(slot, options); // 조립 가능 목록 읽기
             string current = CurrentId(); // 현재 사용 중인 부품
             selected = options.FindIndex(part => part.Id == current); // 장착 부품으로 미리보기 초기화
+            page = selected >= 0 ? selected / partButtons.Length : 0; // 현재 장착이 보이는 실제 페이지
             Refresh(); // 목록과 비교와 3D 갱신
+        }
+
+        private void ChangePage(int delta) // 같은 슬롯의 개별 부품 목록 이동
+        {
+            int pages = Mathf.Max(1, (options.Count + partButtons.Length - 1) / partButtons.Length); // 보유 수량에 필요한 페이지
+            page = Mathf.Clamp(page + delta, 0, pages - 1); // 실제 목록 밖 이동 차단
+            Refresh(); // 현재 선택을 보존하며 새 페이지 표시
         }
 
         private void SelectPart(int value) // 후보만 바꾸고 실제 조합 보존
@@ -110,17 +149,27 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             for (int i = 0; i < partButtons.Length; i++) // 편집 가능한 목록 오브젝트 갱신
             {
-                bool visible = i < options.Count; // 슬롯에 들어갈 후보가 있는 행
+                int index = page * partButtons.Length + i; // 전체 목록의 개별 사본 위치
+                bool visible = index < options.Count; // 슬롯에 들어갈 후보가 있는 행
                 partButtons[i].gameObject.SetActive(visible); // 후보 없는 행 감춤
                 if (!visible) // 비어 있는 행
                 {
                     continue; // 이전 이름을 다시 읽지 않음
                 }
-                FlightBroomEquipment.PartOption part = options[i]; // 행의 보유 부품 정보
+                FlightBroomEquipment.PartOption part = options[index]; // 현재 페이지의 실제 보유 부품
                 string marker = part.Id == current ? " · 장착" : part.Owner >= 0 && part.Owner != pilot ? $" · {PilotNames[part.Owner]}" : ""; // 장착된 캐릭터 표시
                 string copy = part.Copies > 1 ? $" #{part.Id[(part.Id.LastIndexOf(':') + 1)..]}" : ""; // 동일 종류의 보유 순번 구분
-                partLabels[i].text = $"{(i == selected ? "●  " : "")}{part.Name}{copy}  {Grades[part.Grade - 1]}+{part.Upgrade}{marker}"; // 이름·등급·강화·장착
+                partLabels[i].text = $"{(index == selected ? "●  " : "")}{part.Name}{copy}  {Grades[part.Grade - 1]}+{part.Upgrade}{marker}"; // 이름·등급·강화·장착
             }
+
+            int pages = Mathf.Max(1, (options.Count + partButtons.Length - 1) / partButtons.Length); // 같은 슬롯의 전체 페이지
+            bool paging = pages > 1; // 모든 후보가 한 화면에 들어가지 않는 경우
+            previousPage.gameObject.SetActive(paging); // 필요한 경우에만 이전 버튼 표시
+            nextPage.gameObject.SetActive(paging); // 필요한 경우에만 다음 버튼 표시
+            pageLabel.gameObject.SetActive(paging); // 필요한 경우에만 현재 페이지 표시
+            previousPage.interactable = page > 0; // 첫 페이지 이전 이동 방지
+            nextPage.interactable = page + 1 < pages; // 마지막 페이지 이후 이동 방지
+            pageLabel.text = $"{page + 1} / {pages}"; // 실제 페이지와 전체 수
 
             equipment.ShowPreview(previewMounts, slot, candidate); // 시각 전용 장비에 후보 외형 적용
             bool usedElsewhere = selected >= 0 && options[selected].Owner >= 0 && options[selected].Owner != pilot; // 타 캐릭터의 부품 여부

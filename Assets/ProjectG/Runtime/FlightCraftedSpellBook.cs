@@ -59,7 +59,9 @@ namespace ProjectG // 프로젝트 게임 영역
         internal int MagicBudget => 100 + Mathf.RoundToInt(equipment.GetBonus(FlightBroomStat.MagicPower)); // 실전 편성 기준과 장착 효과
         internal float MagicAttack => Mathf.Max(0f, 100f + equipment.GetBonus(FlightBroomStat.MagicPower)); // 현재 장비를 포함한 실제 마법 공격력
         internal float ProjectileSpeedBonus => equipment.GetBonus(FlightBroomStat.BoltSpeed); // 이동형 제작 탄환의 합산 탄속 보정
+        internal float ProjectileSpeedFor(string element) => ProjectileSpeedBonus + equipment.ElementSpeedBonus(element); // 실제 속성의 세트 효과까지 합산
         internal float ProjectileRangeBonus => equipment.GetBonus(FlightBroomStat.Range); // 이동형 제작 탄환의 합산 사거리 보정
+        internal float ProjectileRangeFor(string element) => ProjectileRangeBonus + equipment.ElementRangeBonus(element); // 실제 속성의 개별 사거리까지 합산
         internal bool AppliesNow => encounter == null; // 출격 준비 씬에서만 현재 편성 변경
 
         private void Awake() // 저장된 제작 마법과 편성 읽기

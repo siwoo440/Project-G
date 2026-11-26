@@ -228,6 +228,11 @@ namespace ProjectG // 프로젝트 게임 영역
                 if (enemy.Health < before) // 전환 무적과 차단 상태에서 공명 제외
                 {
                     resonance?.Observe(enemy, false); // 실제로 한 번 피해를 입은 대상만 전달
+                    if (castToken != null && !castToken.hit) // 같은 시전의 최초 유효 명중
+                    {
+                        castToken.hit = true; // 다른 발사체와 영역의 중복 발동 방지
+                        castToken.effects?.OnCraftedFirstHit(); // 실전 부품의 최초 명중 효과
+                    }
                 }
             }
             else if (target is FlightCraftedTarget practiceTarget) // 정산에 영향을 주지 않는 표적

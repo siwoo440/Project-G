@@ -2215,7 +2215,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             start = pilot.position.z; // 다른 몸체로 비행할 시작점
             yield return WaitFrames(15); // 동일한 0.25초의 실제 이동
             SetKeys(); // 실제 비행 입력 해제
-            Assert.That((pilot.position.z - start) * 4f, Is.EqualTo(12.7f).Within(0.08f)); // 이전 +0.3 제거와 새 +0.7 적용
+            Assert.That((pilot.position.z - start) * 4f, Is.EqualTo(13.2f).Within(0.08f)); // 새 몸체의 기본 수치와 전설 속도 효과 적용
             Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Body", "aria.body:1"), Is.True); // 시작 부품을 다시 장착
             Assert.That(body.sharedMaterial, Is.SameAs(defaultArt)); // 교체 후 기존 외형 복원
             Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Propulsion", "trial.storm-drive:1"), Is.True); // 가속형 추진부로 교체
@@ -2249,6 +2249,1132 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(art.sharedMaterial, Is.SameAs(ariaArt)); // 아리아의 장착 상태 복원
         }
 
+        [UnityTest] // 별빛 여덟 세트의 실제 제작 마법 명중
+        public IEnumerator StarlightSetFiresTwoBoltsOnlyOnFirstEffectiveHit() // 유효 명중과 독립 발사 제한
+        {
+            yield return LoadOuterIslands(); // 실전 기체와 제작 마법 준비
+            Transform pilot = FindPilot(); // 현재 실전 기체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 빗자루 장착
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전 제작 마법 발사기
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 추가탄 발사
+            ((Behaviour)weapon).enabled = false; // 일반 자동탄과 추가탄 구분
+            Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 편성한 실제 마법
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 전투의 내부 API
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 기획 부품 목록
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 부품 종류
+            System.Type part = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 유형
+            System.Type bolt = equipment.GetType().Assembly.GetType("ProjectG.FlightSpellBolt"); // 실전 아군 탄환 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { part, typeof(string), typeof(int) }, null); // 개별 부품 등록
+            int count = 0; // 장착한 세트 부위
+            foreach (object definition in definitions) // 실제 카탈로그의 부품
+            {
+                if ((string)part.GetField("setId").GetValue(definition) == "starlight") // 별빛 세트 부품
+                {
+                    object slot = part.GetField("slot").GetValue(definition); // 부품의 실제 위치
+                    string id = "verify.starlight." + count++; // 중복 없는 보유 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 기본 등급의 실제 사본
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 여덟 부위 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 세트 발동에 필요한 부위
+            object recipe = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 기본 제작 마법
+            Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { recipe }), Is.True); // 실제 제작 마법 시전
+            var active = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 해당 시전의 발사체
+            Component shot = (Component)active[0]; // 첫 실제 마법 탄환
+            Transform enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy"); // 실제 전투 대상
+            Component life = enemy.GetComponent("FlightEnemy"); // 대상의 실제 체력
+            life.GetType().GetField("maxHealth", hidden).SetValue(life, 1000); // 반복 명중을 견딜 체력
+            enemy.gameObject.SetActive(true); // 실전 대상 활성화
+            var damage = shot.GetType().GetMethod("Damage", hidden); // 제작 마법의 실제 유효 피해
+            int before = Object.FindObjectsByType(bolt, FindObjectsSortMode.None).Length; // 발사 전 기존 탄환
+            damage.Invoke(shot, new object[] { life, 10f }); // 첫 유효 명중
+            Assert.That(Object.FindObjectsByType(bolt, FindObjectsSortMode.None).Length, Is.EqualTo(before + 2)); // 실제 별빛탄 두 발
+            damage.Invoke(shot, new object[] { life, 10f }); // 같은 시전의 추가 명중
+            Assert.That(Object.FindObjectsByType(bolt, FindObjectsSortMode.None).Length, Is.EqualTo(before + 2)); // 중복 추가 발사 금지
+        }
+
+        [UnityTest] // 제작 마법의 시전당 최초 유효 명중
+        public IEnumerator FlowTipRecoversManaOnlyOncePerCastAndHonorsCooldown() // 전설 선단부의 실제 명중 효과
+        {
+            yield return LoadOuterIslands(); // 실전 기체와 제작 마법 준비
+            Transform pilot = FindPilot(); // 현재 조종사의 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 빗자루 장착
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전 제작 마법 발사기
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실전 마력
+            Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 실제 제작 마법 구성
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 실전 API
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 부품 카탈로그
+            System.Type part = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 유형
+            object definition = catalog.GetType().GetMethod("Find", hidden).Invoke(catalog, new object[] { "set.flow.tip" }); // 수맥 선단부
+            Assert.That(definition, Is.Not.Null); // 기획 부품 확인
+            equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { part, typeof(string), typeof(int) }, null).Invoke(equipment, new object[] { definition, "verify.flow.tip", 5 }); // 전설 부품 사본
+            Assert.That(BroomAction(equipment, "TryEquip", "Aria", "Tip", "verify.flow.tip"), Is.True); // 실제 선단부 장착
+            object recipe = book.GetType().GetMethod("Slot", hidden).Invoke(book, new object[] { 0 }); // 기본 파이어 볼트
+            var cast = caster.GetType().GetMethod("Cast", hidden); // 실전 마법 시전
+            var active = (System.Collections.IList)caster.GetType().GetField("active", hidden).GetValue(caster); // 실제 발사체 목록
+            var mana = skills.GetType().GetField("mana", hidden); // 소수점 마력 원본
+            mana.SetValue(skills, 50f); // 자연 회복과 분리한 기준
+            Assert.That(cast.Invoke(caster, new[] { recipe }), Is.True); // 실제 첫 시전
+            Component shot = (Component)active[0]; // 첫 시전의 실제 발사체
+            Transform enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy"); // 실제 전투 대상
+            Component life = enemy.GetComponent("FlightEnemy"); // 실제 적 체력
+            life.GetType().GetField("maxHealth", hidden).SetValue(life, 1000); // 여러 명중을 견딜 체력
+            enemy.gameObject.SetActive(true); // 실제 적 활성화
+            var damage = shot.GetType().GetMethod("Damage", hidden); // 실전 유효 피해 처리
+            damage.Invoke(shot, new object[] { life, 10f }); // 첫 유효 명중
+            Assert.That((float)mana.GetValue(skills), Is.EqualTo(52f).Within(0.001f)); // 선단부 마력 2 회복
+            damage.Invoke(shot, new object[] { life, 10f }); // 같은 시전의 추가 명중
+            Assert.That((float)mana.GetValue(skills), Is.EqualTo(52f).Within(0.001f)); // 같은 시전에서 중복 회복 금지
+            caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 다른 시전의 독립 발사 준비
+            Assert.That(cast.Invoke(caster, new[] { recipe }), Is.True); // 내부 쿨타임 중 새 시전
+            shot = (Component)active[0]; // 새 시전의 실제 발사체
+            damage.Invoke(shot, new object[] { life, 10f }); // 새 시전의 첫 유효 명중
+            Assert.That((float)mana.GetValue(skills), Is.EqualTo(52f).Within(0.001f)); // 개별 쿨타임 중 회복 금지
+        }
+
+        [UnityTest] // 실제 돌파 종료의 폭풍 세트와 개별 부품 효과
+        public IEnumerator StormDashEndTriggersBoltsManaAndTemporarySpeed() // 실제 이동 종료·쿨타임·독립 발동
+        {
+            yield return LoadOuterIslands(); // 실제 비행체와 조준 사격
+            Transform pilot = FindPilot(); // 현재 실전 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 세트 부품
+            Component flight = pilot.GetComponent("FirstFlightController"); // 실제 입체 돌파 이동
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 아군 탄환 발사
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력과 대시 종료 효과
+            ((Behaviour)weapon).enabled = false; // 일반 자동탄과 반격탄 분리
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 실제 웨이브의 방해 방지
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 기획 부품과 실제 수치
+            object sera = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Sera"); // 실제 돌파를 가진 조종사
+            weapon.GetType().GetMethod("SelectPilot", hidden).Invoke(weapon, new[] { sera }); // 세라의 실제 장착으로 전환
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 부품 목록
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 정의
+            System.Type statType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 능력치 유형
+            System.Type boltType = equipment.GetType().Assembly.GetType("ProjectG.FlightSpellBolt"); // 실제 아군 탄환
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 독립 시험 사본 등록
+            int count = 0; // 실제 폭풍 세트의 부위 수
+            foreach (object definition in definitions) // 실제 기획한 세트 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "storm") // 같은 폭풍 세트의 부품
+                {
+                    object slot = partType.GetField("slot").GetValue(definition); // 실제 장착 부위
+                    string name = slot.ToString(); // 등급을 정할 부위 이름
+                    int grade = name == "ManaStone" || name == "Propulsion" || name == "Ornament" ? 5 : 1; // 대시 종료 효과가 열린 전설 부품
+                    string id = "verify.storm.end." + count++; // 다른 보유와 분리한 사본 ID
+                    add.Invoke(equipment, new[] { definition, (object)id, grade }); // 실제 등급의 개별 사본
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { sera, slot, id }), Is.True); // 실제 캐릭터 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 실제 폭풍 여덟 세트
+            object speedStat = System.Enum.Parse(statType, "Speed"); // 실제 비행 속도 항목
+            object recoveryStat = System.Enum.Parse(statType, "ManaRecovery"); // 독립 시험의 마력 회복 항목
+            float speedBefore = (float)equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { speedStat }); // 종료 전 실제 비행 속도 보정
+            float[] bonuses = (float[])equipment.GetType().GetField("bonuses", hidden).GetValue(equipment); // 현재 장비 수치의 시험 격리
+            bonuses[System.Convert.ToInt32(recoveryStat)] = -6f; // 자연 회복과 대시 회복 분리
+            skills.GetType().GetField("mana", hidden).SetValue(skills, 50f); // 회복량을 확인할 실제 마력
+            int before = Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length; // 기존 아군 탄환 수
+            var dash = flight.GetType().GetMethod("StartSkillDash", hidden); // 실제 입체 돌파 시작
+            dash.Invoke(flight, new object[] { Vector3.forward, 16f, 0.25f }); // 실제 세라 돌파
+            yield return WaitFrames(25); // 지속시간을 끝까지 진행한 실제 돌파
+            Assert.That(Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length, Is.EqualTo(before + 4)); // 여덟 세트 세 발과 전설 추진부 한 발
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 전설 마력석의 대시 종료 마력 3 회복
+            Assert.That((float)equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { speedStat }), Is.EqualTo(speedBefore + 0.5f).Within(0.001f)); // 전설 장식의 1초 비행 속도 증가
+            dash.Invoke(flight, new object[] { Vector3.forward, 16f, 0.25f }); // 내부 쿨타임 중 다음 실제 돌파
+            yield return WaitFrames(25); // 두 번째 돌파의 실제 종료
+            Assert.That(Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length, Is.EqualTo(before + 4)); // 각 쿨타임 중 추가 발사 금지
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 마력 회복의 쿨타임 중 재발동 금지
+            yield return WaitFrames(40); // 첫 번째 속도 증가의 실제 1초 경과
+            Assert.That((float)equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { speedStat }), Is.EqualTo(speedBefore).Within(0.001f)); // 만료 뒤 원래 장비 속도 복귀
+        }
+
+        [UnityTest] // 세라 돌파의 빗자루 대시 상시 효과
+        public IEnumerator BroomDashBonusesApplyToSeraWithStrongestTwoLimit() // 지속·속도·고정 쿨타임 감소
+        {
+            yield return LoadOuterIslands(); // 실제 세라와 3D 비행
+            Transform pilot = FindPilot(); // 현재 실전 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 개별 부품과 세트 장착
+            Component flight = pilot.GetComponent("FirstFlightController"); // 실제 돌파 이동
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 현재 조종사의 실제 전환
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 Q 사용과 재사용 시각
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 부품과 비행 상태
+            System.Type assemblyPilot = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 조종사 유형
+            object sera = System.Enum.Parse(assemblyPilot, "Sera"); // 실제 돌파가 있는 세라
+            weapon.GetType().GetMethod("SelectPilot", hidden).Invoke(weapon, new[] { sera }); // 실전 무기와 빗자루를 함께 전환
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 기획 부품 카탈로그
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            var find = catalog.GetType().GetMethod("Find", hidden); // 실제 부품 종류 조회
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트용 개별 사본
+            var equip = equipment.GetType().GetMethod("TryEquip"); // 해당 캐릭터의 실제 장착
+            string[] ids = { "trial.storm-drive", "set.flame.stabilizer", "set.starlight.propulsion", "set.storm.ornament", "set.hawk.propulsion", "set.thunder.grip" }; // 기획된 대시 지속·속도·쿨타임 부품
+            int[] grades = { 3, 5, 3, 3, 5, 5 }; // 각 특수 효과를 여는 실제 희귀도
+            for (int i = 0; i < ids.Length; i++) // 여섯 개의 실제 기획 부품
+            {
+                object part = find.Invoke(catalog, new object[] { ids[i] }); // 실제 카탈로그 정의
+                Assert.That(part, Is.Not.Null, ids[i]); // 잘못된 부품 ID 방지
+                add.Invoke(equipment, new[] { part, (object)("verify.dash." + i), grades[i] }); // 서로 다른 고유 보유 사본
+            }
+            object storm = find.Invoke(catalog, new object[] { ids[0] }); // 대시 지속 0.05초 추진부
+            object flame = find.Invoke(catalog, new object[] { ids[1] }); // 전설 대시 지속 0.03초 안정기
+            Assert.That(equip.Invoke(equipment, new[] { sera, partType.GetField("slot").GetValue(storm), (object)"verify.dash.0" }), Is.True); // 실제 추진부 장착
+            Assert.That(equip.Invoke(equipment, new[] { sera, partType.GetField("slot").GetValue(flame), (object)"verify.dash.1" }), Is.True); // 실제 안정기 장착
+            var dash = flight.GetType().GetMethod("StartSkillDash", hidden); // 실제 세라 돌파 이동 시작
+            dash.Invoke(flight, new object[] { Vector3.forward, 16f, 0.25f }); // 현재 기체의 실제 대시
+            Assert.That((float)flight.GetType().GetField("dashRemaining", hidden).GetValue(flight), Is.EqualTo(0.33f).Within(0.001f)); // 두 조건의 지속시간 합산
+            object star = find.Invoke(catalog, new object[] { ids[2] }); // 대시 속도 +10%p 추진부
+            Assert.That(equip.Invoke(equipment, new[] { sera, partType.GetField("slot").GetValue(star), (object)"verify.dash.2" }), Is.True); // 실제 추진부 교체
+            dash.Invoke(flight, new object[] { Vector3.forward, 16f, 0.25f }); // 동일한 실제 대시 재시작
+            Assert.That(((Vector3)flight.GetType().GetField("dashVelocity", hidden).GetValue(flight)).magnitude, Is.EqualTo(17.6f).Within(0.001f)); // 실제 대시 속도 10%p 증가
+            Assert.That((float)flight.GetType().GetField("dashRemaining", hidden).GetValue(flight), Is.EqualTo(0.28f).Within(0.001f)); // 남은 장착 효과의 실제 지속시간
+            for (int i = 3; i < ids.Length; i++) // 같은 대시 쿨타임 감소 효과 세 개 장착
+            {
+                object part = find.Invoke(catalog, new object[] { ids[i] }); // 실제 기획 부품
+                object slot = partType.GetField("slot").GetValue(part); // 서로 다른 실제 부위
+                Assert.That(equip.Invoke(equipment, new[] { sera, slot, (object)("verify.dash." + i) }), Is.True); // 실제 세라 장착
+            }
+            System.Type effectType = equipment.GetType().Assembly.GetType("ProjectG.FlightMagicEffect"); // 실제 스킬 효과 종류
+            object breakthrough = System.Enum.Parse(effectType, "BreakthroughBlade"); // 세라의 실제 Q 돌파 검기
+            skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 실제 스킬 비용을 낼 마력
+            skills.GetType().GetMethod("TrySkill", hidden).Invoke(skills, new[] { (object)0, breakthrough, 25, 6f, false, 0f }); // 기존 배율을 적용한 6초의 실제 Q
+            float[] ready = (float[])skills.GetType().GetField("readyAt", hidden).GetValue(skills); // 실제 스킬 재사용 시각
+            Assert.That(ready[0] - Time.time, Is.EqualTo(5.6f).Within(0.001f)); // 큰 두 효과 0.2초씩을 배율 이후 차감
+        }
+
+        [UnityTest] // 서리 여덟 세트의 실제 유효 피격 적탄 소거
+        public IEnumerator FrostSetCancelsEligibleBulletsAfterValidHit() // 반경·소거 가능 여부와 발동 제한
+        {
+            yield return LoadOuterIslands(); // 실제 기체와 재사용 적탄 풀
+            Transform pilot = FindPilot(); // 실제 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 서리 세트 장착
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 유효 피격
+            Component pool = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightThreatPool, Assembly-CSharp", true)) as Component; // 실제 적탄 풀
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 부품과 소거 제한
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 전체 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 격리된 고유 사본
+            int count = 0; // 실제 서리 세트 장착 수
+            foreach (object definition in definitions) // 실제 기획된 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "frost") // 같은 서리 세트의 부위
+                {
+                    string id = "verify.frost.hit." + count++; // 다른 보유와 분리한 고유 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 개별 효과가 없는 일반 등급
+                    object slot = partType.GetField("slot").GetValue(definition); // 실제 부품의 장착 부위
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 여덟 부위 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 실제 서리 여덟 세트
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 실제 상쇄 가능한 기본 적탄
+            Vector3 center = pilot.position; // 실제 피격한 기체의 위치
+            for (int i = 0; i < 7; i++) // 반경 3m 안의 일곱 발
+            {
+                Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * (1f + i * 0.2f), Vector3.forward, 0.01f, 1 }), Is.True); // 소거 가능한 실제 적탄
+            }
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 4f, Vector3.forward, 0.01f, 1 }), Is.True); // 반경 밖의 실제 적탄
+            System.Type patternType = equipment.GetType().Assembly.GetType("ProjectG.FlightThreatPattern"); // 실제 탄막 유형
+            object pattern = System.Enum.Parse(patternType, "Aimed"); // 일반 조준탄 유형
+            var typedFire = pool.GetType().GetMethod("TryFire", hidden, null, new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int), patternType, typeof(bool) }, null); // 소거 허용을 정하는 실제 발사
+            Assert.That(typedFire.Invoke(pool, new[] { (object)(center + Vector3.left), Vector3.forward, 0.01f, 1, pattern, false }), Is.True); // 반경 안의 소거 불가능한 탄
+            Assert.That(fire.Invoke(pool, new object[] { center, Vector3.forward, 0.01f, 20 }), Is.True); // 풀 순회 중 실제로 피격할 탄
+            yield return WaitFrames(2); // 실제 유효 피격과 순회 후 안전한 소거
+            Assert.That(pool.GetType().GetProperty("ActiveCount").GetValue(pool), Is.EqualTo(4)); // 충돌 탄과 허용 탄 다섯 발만 제거
+            Assert.That(vitals.GetType().GetField("frostSetTriggers", hidden).GetValue(vitals), Is.EqualTo(1)); // 실제 피격의 첫 발동
+            Assert.That((float)vitals.GetType().GetField("frostSetReadyAt", hidden).GetValue(vitals) - Time.time, Is.InRange(11.8f, 12f)); // 기획된 내부 쿨타임 12초
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 유효 피격 판정
+            object[] hit = { Vector3.zero, Vector3.zero, 0.1f, 1, false, false }; // 실제로 적중한 별도 탄
+            vitals.GetType().GetField("immuneUntil", hidden).SetValue(vitals, 0f); // 새로운 유효 피격 허용
+            resolve.Invoke(vitals, hit); // 세트 쿨타임 중 실제 피격
+            yield return WaitFrames(2); // 추가 소거 요청 확인
+            Assert.That(pool.GetType().GetProperty("ActiveCount").GetValue(pool), Is.EqualTo(4)); // 쿨타임 중 다른 적탄 보존
+            Assert.That(vitals.GetType().GetField("frostSetTriggers", hidden).GetValue(vitals), Is.EqualTo(1)); // 중복 발동 방지
+        }
+
+        [UnityTest] // 전설 수호 장식의 보호막 파괴 적탄 소거
+        public IEnumerator GuardOrnamentCancelsOneBulletOnShieldBreak() // 확정된 2m 범위와 개별 제한
+        {
+            yield return LoadOuterIslands(); // 실제 조종사와 적탄 풀
+            Transform pilot = FindPilot(); // 현재 기체의 실제 위치
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 부품 장착
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 장비 보호막과 피격
+            Component pool = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightThreatPool, Assembly-CSharp", true)) as Component; // 실제 적탄 풀
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 기획 부품과 발동 제한
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 기획 카탈로그
+            object part = catalog.GetType().GetMethod("Find", hidden).Invoke(catalog, new object[] { "set.guard.ornament" }); // 서약의 마법 장식
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 유형
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 격리된 고유 사본
+            add.Invoke(equipment, new[] { part, (object)"verify.guard.ornament", 5 }); // 실제 전설 등급
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            object slot = partType.GetField("slot").GetValue(part); // 해당 장식의 실제 부위
+            Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, (object)"verify.guard.ornament" }), Is.True); // 전설 장식만 실제 장착
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 실제 상쇄 가능 적탄
+            Vector3 center = pilot.position; // 소거 범위의 실제 중심
+            for (int i = 0; i < 3; i++) // 반경 안의 세 발
+            {
+                Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * (1f + i * 0.2f), Vector3.forward, 0.01f, 1 }), Is.True); // 소거 가능한 실제 적탄
+            }
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 1 }), Is.True); // 반경 밖의 실제 적탄
+            vitals.GetType().GetMethod("AddEquipmentShield", hidden).Invoke(vitals, new object[] { 1, 5f }); // 실제 파괴할 장비 보호막
+            Assert.That(fire.Invoke(pool, new object[] { center, Vector3.forward, 0.01f, 20 }), Is.True); // 풀 순회에서 실제 충돌할 적탄
+            yield return WaitFrames(2); // 실제 보호막 파괴와 안전한 지연 소거
+            Assert.That(pool.GetType().GetProperty("ActiveCount").GetValue(pool), Is.EqualTo(3)); // 충돌 탄과 가까운 적탄 한 발만 제거
+            Assert.That(vitals.GetType().GetField("guardPartBreakTriggers", hidden).GetValue(vitals), Is.EqualTo(1)); // 개별 효과의 첫 발동
+            Assert.That((float)vitals.GetType().GetField("guardPartBreakReadyAt", hidden).GetValue(vitals) - Time.time, Is.InRange(11.8f, 12f)); // 개별 효과의 내부 쿨타임 12초
+        }
+
+        [UnityTest] // 장비 보호막 파괴에 따른 수호 세트 적탄 소거
+        public IEnumerator GuardSetShieldBreakCancelsOnlyEligibleNearbyBullets() // 실제 풀과 쿨타임·소거 수 제한
+        {
+            yield return LoadOuterIslands(); // 실제 기체와 재사용 적탄 풀
+            Transform pilot = FindPilot(); // 실제 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 수호 세트 장착
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 장비 보호막과 실제 피격
+            Component pool = Object.FindFirstObjectByType(System.Type.GetType("ProjectG.FlightThreatPool, Assembly-CSharp", true)) as Component; // 실제 적탄 재사용 풀
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 기획 부품과 적탄 속성
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 부품 배열
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 개별 부품 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 격리된 시험 사본
+            int count = 0; // 실제 수호 세트 부위 수
+            foreach (object definition in definitions) // 실제 기획 데이터 순회
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "guard") // 같은 수호 세트의 부품
+                {
+                    string id = "verify.guard.break." + count++; // 각 부위의 실제 개별 ID
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 개별 발동이 없는 일반 등급
+                    object slot = partType.GetField("slot").GetValue(definition); // 부품의 실제 부위
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 여덟 부위 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 실제 수호 세트의 여덟 부위
+            var fire = pool.GetType().GetMethod("TryFire", new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int) }); // 상쇄 가능한 실제 기본 적탄
+            Vector3 center = pilot.position; // 수호 효과의 실제 중심
+            for (int i = 0; i < 7; i++) // 반경 안에서 소거 가능한 일곱 발
+            {
+                Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * (1f + i * 0.1f), Vector3.forward, 0.01f, 1 }), Is.True); // 실제 적탄 풀에 발사
+            }
+            Assert.That(fire.Invoke(pool, new object[] { center + Vector3.right * 3f, Vector3.forward, 0.01f, 1 }), Is.True); // 반경 밖의 실제 적탄
+            System.Type patternType = equipment.GetType().Assembly.GetType("ProjectG.FlightThreatPattern"); // 적탄의 실제 분류
+            object pattern = System.Enum.Parse(patternType, "Aimed"); // 일반 조준 탄막 유형
+            var typedFire = pool.GetType().GetMethod("TryFire", hidden, null, new[] { typeof(Vector3), typeof(Vector3), typeof(float), typeof(int), patternType, typeof(bool) }, null); // 상쇄 허용을 명시하는 실제 발사
+            Assert.That(typedFire.Invoke(pool, new[] { (object)(center + Vector3.left), Vector3.forward, 0.01f, 1, pattern, false }), Is.True); // 반경 안의 소거 불가능한 탄
+            var ready = vitals.GetType().GetField("guardBreakReadyAt", hidden); // 여덟 세트의 내부 쿨타임
+            var triggers = vitals.GetType().GetField("guardBreakTriggers", hidden); // 출격당 보호막 파괴 발동 수
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 유효 피격 판정
+            var grant = vitals.GetType().GetMethod("AddEquipmentShield", hidden); // 파괴할 장비 보호막 생성
+            vitals.GetType().GetField("guardSetReadyAt", hidden).SetValue(vitals, Time.time + 100f); // 이번 시험의 자동 보호막 재생성만 차단
+            grant.Invoke(vitals, new object[] { 1, 5f }); // 실제 한 피해 흡수 보호막
+            object[] hit = { Vector3.zero, Vector3.zero, 0.1f, 20, false, false }; // 보호막을 파괴하는 실제 유효 적탄
+            Assert.That(fire.Invoke(pool, new object[] { center, Vector3.forward, 0.01f, 20 }), Is.True); // 풀 순회 도중 보호막을 파괴할 실제 충돌 탄
+            yield return WaitFrames(2); // 현재 적탄 순회를 마친 뒤 안전하게 소거
+            Assert.That(pool.GetType().GetProperty("ActiveCount").GetValue(pool), Is.EqualTo(4)); // 충돌 탄과 안쪽 다섯 발만 소거하고 보호·원거리 탄 유지
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(1)); // 실제 파괴에 한 번만 발동
+            Assert.That((float)ready.GetValue(vitals) - Time.time, Is.InRange(9.8f, 10f)); // 기획된 내부 쿨타임 10초
+            grant.Invoke(vitals, new object[] { 1, 5f }); // 새로 생성한 개별 보호막
+            vitals.GetType().GetField("immuneUntil", hidden).SetValue(vitals, 0f); // 다음 적탄의 유효 피격 조건
+            resolve.Invoke(vitals, hit); // 대기 중 실제 보호막 재파괴
+            yield return WaitFrames(2); // 지연 소거 여부 확인
+            Assert.That(pool.GetType().GetProperty("ActiveCount").GetValue(pool), Is.EqualTo(4)); // 쿨타임 중 추가 탄 소거 금지
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(1)); // 같은 대기 기간의 중복 발동 방지
+        }
+
+        [UnityTest] // 수호 부품의 희귀도별 피격 보호막
+        public IEnumerator GuardPartsGrantSeparateTimedShieldsOnValidHit() // 전설 몸체와 희귀 장식의 실제 발동
+        {
+            yield return LoadOuterIslands(); // 실제 비행체와 적탄 판정
+            Transform pilot = FindPilot(); // 현재 조종하는 기체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 빗자루 장착
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 유효 피격과 장비 보호막
+            Component skills = pilot.GetComponent("FlightSkillController"); // 피격 시 회복할 실제 마력
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 카탈로그와 발동 상태
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 기획된 수호 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 정의 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조종사
+            var find = catalog.GetType().GetMethod("Find", hidden); // 정확한 수호 부품 종류 조회
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 실제 개별 시험 사본
+            string[] ids = { "set.guard.body", "set.guard.ornament", "set.guard.manastone" }; // 보호막과 마력 회복의 기획 부품
+            int[] grades = { 5, 3, 5 }; // 몸체·마력석의 전설과 장식의 희귀
+            for (int i = 0; i < ids.Length; i++) // 서로 다른 실제 부위
+            {
+                object definition = find.Invoke(catalog, new object[] { ids[i] }); // 실제 부품 정의
+                string ownedId = "verify.guard.part." + i; // 다른 소유품과 분리한 개별 ID
+                add.Invoke(equipment, new[] { definition, (object)ownedId, grades[i] }); // 효과가 열린 실제 등급
+                object slot = partType.GetField("slot").GetValue(definition); // 실제 부품 장착 부위
+                Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, ownedId }), Is.True); // 실제 조종사의 장착
+            }
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 적탄 충돌 판정
+            var shield = vitals.GetType().GetProperty("EquipmentShield", hidden); // 실제 장비 보호막 합계
+            skills.GetType().GetField("mana", hidden).SetValue(skills, 50f); // 회복량을 확인할 현재 마력
+            object[] hit = { Vector3.zero, Vector3.zero, 0.1f, 20, false, false }; // 기체에 명중한 실제 적탄
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 기존 아이템이 우선 차단
+            resolve.Invoke(vitals, hit); // 기존 보호에 막힌 유효 피격
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(7)); // 전설 몸체 4와 희귀 장식 3의 독립 기여
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 전설 마력석의 유효 피격 마력 3 회복
+            Assert.That((float)vitals.GetType().GetField("guardManaReadyAt", hidden).GetValue(vitals) - Time.time, Is.EqualTo(8f).Within(0.001f)); // 마력석의 독립 쿨타임 8초
+            Assert.That((float)vitals.GetType().GetField("guardBodyReadyAt", hidden).GetValue(vitals) - Time.time, Is.EqualTo(10f).Within(0.001f)); // 몸체 내부 쿨타임 10초
+            Assert.That((float)vitals.GetType().GetField("guardOrnamentReadyAt", hidden).GetValue(vitals) - Time.time, Is.EqualTo(10f).Within(0.001f)); // 장식 내부 쿨타임 10초
+            object pool = vitals.GetType().GetField("equipmentShield", hidden).GetValue(vitals); // 독립 기여분의 실제 저장
+            var contributions = (System.Collections.IList)pool.GetType().GetField("active", hidden).GetValue(pool); // 만료가 별도인 각 기여분
+            Assert.That(contributions.Count, Is.EqualTo(2)); // 같은 피격의 두 개별 보호막
+            foreach (object entry in contributions) // 실제로 추가한 각 기여분
+            {
+                Assert.That((float)entry.GetType().GetField("Expires").GetValue(entry) - Time.time, Is.EqualTo(5f).Within(0.001f)); // 확정된 개별 지속시간 5초
+            }
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 다음 실제 적탄을 막는 기존 보호
+            resolve.Invoke(vitals, hit); // 두 개별 효과의 쿨타임 중 피격
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(7)); // 재사용 전 중복 기여 금지
+            for (int i = 1; i < 15; i++) // 각 부품의 남은 출격당 발동 횟수
+            {
+                vitals.GetType().GetField("guardBodyReadyAt", hidden).SetValue(vitals, 0f); // 몸체의 쿨타임 종료
+                vitals.GetType().GetField("guardOrnamentReadyAt", hidden).SetValue(vitals, 0f); // 장식의 쿨타임 종료
+                vitals.GetType().GetField("guardManaReadyAt", hidden).SetValue(vitals, 0f); // 마력석의 쿨타임 종료
+                vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 실제 접촉에서 체력 보호
+                resolve.Invoke(vitals, hit); // 유효 피격으로 각 효과 발동
+            }
+            Assert.That(vitals.GetType().GetField("guardBodyTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 몸체의 출격당 최대 15회
+            Assert.That(vitals.GetType().GetField("guardOrnamentTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 장식의 출격당 최대 15회
+            Assert.That(vitals.GetType().GetField("guardManaTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 마력석의 출격당 최대 15회
+            vitals.GetType().GetField("guardBodyReadyAt", hidden).SetValue(vitals, 0f); // 시간 조건을 통과한 추가 시도
+            vitals.GetType().GetField("guardOrnamentReadyAt", hidden).SetValue(vitals, 0f); // 시간 조건을 통과한 추가 시도
+            vitals.GetType().GetField("guardManaReadyAt", hidden).SetValue(vitals, 0f); // 마력석 시간 조건을 통과한 추가 시도
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 다음 유효 피격 차단
+            resolve.Invoke(vitals, hit); // 출격당 상한을 넘는 시도
+            Assert.That(vitals.GetType().GetField("guardBodyTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 몸체 중복 발동 차단
+            Assert.That(vitals.GetType().GetField("guardOrnamentTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 장식 중복 발동 차단
+            Assert.That(vitals.GetType().GetField("guardManaTriggers", hidden).GetValue(vitals), Is.EqualTo(15)); // 마력석 중복 발동 차단
+        }
+
+        [UnityTest] // 수호 세트의 실제 피격 보호막과 발동 제한
+        public IEnumerator GuardSetGrantsShieldOnBlockedValidHits() // 기존 보호막에 막힌 실제 유효 피격
+        {
+            yield return LoadOuterIslands(); // 실제 비행체와 적탄 판정
+            Transform pilot = FindPilot(); // 현재 조종하는 기체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 수호 세트 장착
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 피격과 보호막
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 시험용 부품과 발동 제한
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 기획 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 등록된 전체 세트 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 정의
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 격리된 실제 부품 사본
+            int count = 0; // 실제 수호 세트의 부위 수
+            foreach (object definition in definitions) // 기획된 실제 부품 순회
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "guard" && count < 4) // 수호 세트의 서로 다른 네 부위
+                {
+                    string id = "verify.guard." + count++; // 다른 소유품과 분리한 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 개별 특수 효과가 없는 일반 등급
+                    object slot = partType.GetField("slot").GetValue(definition); // 실제 장착 부위
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 수호 세트 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(4)); // 기획된 수호 네 부위
+            var ready = vitals.GetType().GetField("guardSetReadyAt", hidden); // 여덟 초의 내부 쿨타임
+            var triggers = vitals.GetType().GetField("guardSetTriggers", hidden); // 출격당 세트 발동 수
+            var shield = vitals.GetType().GetProperty("EquipmentShield", hidden); // 실제 남은 장비 보호막
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 적탄의 유효 피격
+            object[] hit = { Vector3.zero, Vector3.zero, 0.1f, 20, false, false }; // 기체에 명중한 실제 적탄
+            int health = (int)vitals.GetType().GetProperty("Health").GetValue(vitals); // 접촉 전 실제 체력
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 기존 아이템 보호막 한 번
+            resolve.Invoke(vitals, hit); // 기존 아이템이 막은 유효 피격
+            Assert.That(vitals.GetType().GetProperty("Health").GetValue(vitals), Is.EqualTo(health)); // 기존 보호막으로 체력 보존
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(10)); // 막힌 유효 피격에서도 수호 세트 발동
+            Assert.That((float)ready.GetValue(vitals) - Time.time, Is.EqualTo(8f).Within(0.001f)); // 기획된 내부 쿨타임 8초
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(1)); // 첫 유효 발동 기록
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 다음 실제 적탄용 기존 보호막
+            resolve.Invoke(vitals, hit); // 8초 대기 중 다른 유효 피격
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(1)); // 대기 중 중복 발동 금지
+            for (int i = 1; i < 20; i++) // 출격당 나머지 열아홉 번
+            {
+                ready.SetValue(vitals, 0f); // 내부 쿨타임이 종료된 상태
+                vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 체력을 보존하는 기존 보호
+                resolve.Invoke(vitals, hit); // 다시 실제 유효 피격
+            }
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(20)); // 기획된 출격당 최대 스무 번
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(30)); // 최대 체력 30%의 장비 보호막 상한
+            ready.SetValue(vitals, 0f); // 대기 시간이 지난 스물한 번째 시도
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 실제 유효 피격 보호
+            resolve.Invoke(vitals, hit); // 출격당 한도 이후의 접촉
+            Assert.That(triggers.GetValue(vitals), Is.EqualTo(20)); // 한도 이후 발동 금지
+            vitals.GetType().GetMethod("ResetRun").Invoke(vitals, null); // 실제 새 출격 초기화
+            Assert.That(shield.GetValue(vitals), Is.Zero); // 이전 출격의 잔여 보호막 제거
+            Assert.That(triggers.GetValue(vitals), Is.Zero); // 새 출격의 발동 횟수 초기화
+        }
+
+        [UnityTest] // 장비 보호막의 개별 만료와 유효 피격 순서
+        public IEnumerator BroomShieldKeepsExpiryAndAbsorbsAfterExistingGuards() // 실제 보호막·피해 감소·세트 발동
+        {
+            System.Type poolType = System.Type.GetType("ProjectG.FlightBroomShield, Assembly-CSharp", true); // 같은 계열의 독립 기여분 관리
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 보호막 동작
+            object pool = System.Activator.CreateInstance(poolType, true); // 별도 시간축의 보호막 시험
+            var addShield = poolType.GetMethod("Add", hidden); // 실제 상한을 적용하는 기여분 추가
+            var total = poolType.GetMethod("Total", hidden); // 개별 만료를 반영한 잔여량
+            var absorb = poolType.GetMethod("Absorb", hidden); // 만료가 빠른 기여분부터 피해 흡수
+            Assert.That(addShield.Invoke(pool, new object[] { 18, 5f, 101, 0f }), Is.EqualTo(18)); // 최대 체력 101의 첫 기여분
+            Assert.That(addShield.Invoke(pool, new object[] { 20, 10f, 101, 1f }), Is.EqualTo(12)); // 30% 상한의 소수점 버림
+            Assert.That(total.Invoke(pool, new object[] { 2f }), Is.EqualTo(30)); // 각각의 만료를 가진 보호막 총량
+            Assert.That(absorb.Invoke(pool, new object[] { 20, 2f }), Is.EqualTo(0)); // 보호막이 피해를 전부 흡수
+            Assert.That(total.Invoke(pool, new object[] { 5.5f }), Is.EqualTo(10)); // 먼저 만료할 기여분이 우선 소모됨
+            Assert.That(total.Invoke(pool, new object[] { 11f }), Is.Zero); // 늦게 만료하는 기여분만 남았다가 제거
+            Assert.That(addShield.Invoke(pool, new object[] { 10, 10f, 100, 20f }), Is.EqualTo(10)); // 먼저 만들어졌으나 늦게 만료하는 기여분
+            Assert.That(addShield.Invoke(pool, new object[] { 10, 3f, 100, 21f }), Is.EqualTo(10)); // 나중에 만들어졌으나 일찍 만료하는 기여분
+            Assert.That(absorb.Invoke(pool, new object[] { 7, 22f }), Is.EqualTo(0)); // 실제 피해 일곱 흡수
+            Assert.That(total.Invoke(pool, new object[] { 24f }), Is.EqualTo(10)); // 생성 순서 대신 빠른 만료부터 소모
+            yield return LoadOuterIslands(); // 실제 비행체의 보호막과 피해 판정
+            Transform pilot = FindPilot(); // 실제 조종사
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 장비의 피해 감소
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 피격과 보호 순서
+            object reduction = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"), "DamageReduction"); // 실제 피해 감소 능력치
+            float reductionValue = (float)equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { reduction }); // 현재 조합의 기존 피해 감소
+            int expectedDamage = Mathf.Max(1, Mathf.RoundToInt(20f * (1f - Mathf.Clamp(reductionValue, 0f, 50f) / 100f))); // 기존 피해 감소를 먼저 적용한 정수 피해
+            var grant = vitals.GetType().GetMethod("AddEquipmentShield", hidden); // 실제 장비 보호막 기여분 추가
+            var shield = vitals.GetType().GetProperty("EquipmentShield", hidden); // 만료를 반영한 실제 보호막
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 적탄 충돌 판정
+            var immunity = vitals.GetType().GetField("immuneUntil", hidden); // 다음 유효 피격의 재사용 시간
+            Assert.That(grant.Invoke(vitals, new object[] { 10, 5f }), Is.EqualTo(10)); // 실제 빗자루 보호막 열 추가
+            Component hud = LocateCombatHud().GetComponent("FlightCombatHud"); // 실제 전투 HUD
+            hud.GetType().GetMethod("LateUpdate", hidden).Invoke(hud, null); // 장비 보호막을 포함한 현재 화면 갱신
+            object meter = hud.GetType().GetField("health", hidden).GetValue(hud); // 실제 체력 게이지
+            Text healthLabel = (Text)meter.GetType().GetField("label").GetValue(meter); // 화면에 보이는 체력과 보호막 문구
+            Assert.That(healthLabel.text, Does.Contain("보호막 10")); // 실제 흡수 가능한 보호막 표시
+            vitals.GetType().GetMethod("AddItemShield").Invoke(vitals, new object[] { 1 }); // 기존 아이템의 한 번 차단
+            object[] hit = { Vector3.zero, Vector3.zero, 0.1f, 20, false, false }; // 실제 명중한 별도 적탄
+            int health = (int)vitals.GetType().GetProperty("Health").GetValue(vitals); // 피격 전 실제 체력
+            resolve.Invoke(vitals, hit); // 기존 차단 횟수가 있는 유효 피격
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(10)); // 기존 아이템이 먼저 막아 장비 보호막 보존
+            Assert.That(vitals.GetType().GetProperty("Health").GetValue(vitals), Is.EqualTo(health)); // 기존 보호막이 실제 피해 차단
+            immunity.SetValue(vitals, 0f); // 다음 적탄이 유효한 상태
+            resolve.Invoke(vitals, hit); // 기존 보호가 없는 실제 유효 피격
+            Assert.That(shield.GetValue(vitals), Is.EqualTo(Mathf.Max(0, 10 - expectedDamage))); // 피해 감소 후 남은 피해를 장비가 흡수
+            Assert.That(vitals.GetType().GetProperty("Health").GetValue(vitals), Is.EqualTo(health - Mathf.Max(0, expectedDamage - 10))); // 장비 흡수 후 남은 피해만 체력 차감
+            hud.GetType().GetMethod("LateUpdate", hidden).Invoke(hud, null); // 흡수 후 실제 HUD 갱신
+            Assert.That(healthLabel.text.Contains("보호막"), Is.EqualTo((int)shield.GetValue(vitals) > 0)); // 소모된 보호막의 표시 제거
+        }
+
+        [UnityTest] // 집중과 낮은 마력의 조건부 상시 효과
+        public IEnumerator BroomConditionalPassivesUpdateWhenFocusAndManaChange() // 같은 조건의 상위 두 효과와 실시간 복원
+        {
+            yield return LoadOuterIslands(); // 실제 비행·마력·빗자루 장비
+            Transform pilot = FindPilot(); // 현재 조종하는 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 장착과 능력치
+            Component flight = pilot.GetComponent("FirstFlightController"); // 현재 집중 비행 상태
+            Component skills = pilot.GetComponent("FlightSkillController"); // 현재 마력
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 시험의 현재 상태 조회
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 부품 카탈로그
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 정의
+            System.Type statType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 능력치 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조작 캐릭터
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트용 고유 사본
+            var find = catalog.GetType().GetMethod("Find", hidden); // 기획표의 정확한 종류
+            var equip = equipment.GetType().GetMethod("TryEquip"); // 실제 부위별 장착
+            var bonus = equipment.GetType().GetMethod("GetBonus"); // 전투에서 쓰는 실제 능력치
+            var focus = flight.GetType().GetProperty("IsFocusHeld").GetSetMethod(true); // 실제 집중 비행의 상태
+            object stability = System.Enum.Parse(statType, "Stability"); // 집중 조건의 안정성
+            string[] ids = { "set.guard.grip", "set.flow.stabilizer", "set.hawk.coupling" }; // 같은 집중 안정성 +8 효과 세 개
+            foreach (string id in ids) // 서로 다른 실제 부품
+            {
+                object definition = find.Invoke(catalog, new object[] { id }); // 기획된 실제 세트 부품
+                Assert.That(definition, Is.Not.Null, id); // 잘못된 ID 없이 실제 카탈로그 조회
+                string ownedId = "verify.focus." + id; // 기존 보유와 다른 시험 사본
+                add.Invoke(equipment, new[] { definition, (object)ownedId, 3 }); // 첫 특수 효과가 열린 희귀 등급
+                object slot = partType.GetField("slot").GetValue(definition); // 해당 부품의 실제 부위
+                Assert.That(equip.Invoke(equipment, new[] { aria, slot, ownedId }), Is.True); // 현재 조종사의 실제 장착
+            }
+            focus.Invoke(flight, new object[] { false }); // 조건이 없는 일반 비행
+            float baseline = (float)bonus.Invoke(equipment, new[] { stability }); // 집중 효과 없는 실제 안정성
+            focus.Invoke(flight, new object[] { true }); // 실제 집중 비행 상태 진입
+            float focused = (float)bonus.Invoke(equipment, new[] { stability }); // 조건 충족 후의 실제 안정성
+            Assert.That(focused - baseline, Is.EqualTo(16f).Within(0.001f)); // 같은 조건의 +8 두 개만 적용
+            focus.Invoke(flight, new object[] { false }); // 집중 비행 종료
+            Assert.That((float)bonus.Invoke(equipment, new[] { stability }), Is.EqualTo(baseline).Within(0.001f)); // 조건 종료 즉시 원래 수치 복원
+            object flowGrip = find.Invoke(catalog, new object[] { "set.flow.grip" }); // 마력 30 이하의 전설 제동 부품
+            string gripId = "verify.low.flow.grip"; // 별도 시험 사본
+            add.Invoke(equipment, new[] { flowGrip, (object)gripId, 5 }); // 전설의 두 번째 효과 활성
+            object gripSlot = partType.GetField("slot").GetValue(flowGrip); // 실제 손잡이 슬롯
+            Assert.That(equip.Invoke(equipment, new[] { aria, gripSlot, gripId }), Is.True); // 기존 손잡이를 실제 교체
+            object braking = System.Enum.Parse(statType, "Braking"); // 낮은 마력 조건의 제동력
+            var mana = skills.GetType().GetField("mana", hidden); // 현재 소수 마력
+            mana.SetValue(skills, 30.1f); // 임계값 위의 실제 소수 마력
+            float high = (float)bonus.Invoke(equipment, new[] { braking }); // 조건 미충족의 제동력
+            mana.SetValue(skills, 30f); // 정확히 30인 실제 경계
+            Assert.That((float)bonus.Invoke(equipment, new[] { braking }), Is.EqualTo(high + 2f).Within(0.001f)); // 30 이하의 실제 제동 보너스
+            mana.SetValue(skills, 31f); // 회복으로 경계를 다시 넘은 경우
+            Assert.That((float)bonus.Invoke(equipment, new[] { braking }), Is.EqualTo(high).Within(0.001f)); // 조건 해제 후 실제 수치 복원
+        }
+
+        [UnityTest] // 희귀도별 개별 상시 효과와 동일 효과 합산 제한
+        public IEnumerator BroomPassiveEffectsUseTheStrongestTwoMatchingBonuses() // 희귀·전설과 실제 조합 변화
+        {
+            yield return LoadOuterIslands(); // 실제 세트 카탈로그와 현재 장비
+            Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 실제 장착과 능력치
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 카탈로그와 시험 사본
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 열 세트의 기획 데이터
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 부품 배열
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            System.Type statType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 비행 능력치
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 조작할 조종사
+            object manaStat = System.Enum.Parse(statType, "Mana"); // 최대 마력의 실제 능력치
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 실제 개별 보유 등록
+            var equip = equipment.GetType().GetMethod("TryEquip"); // 실제 부품 장착
+            var unequip = equipment.GetType().GetMethod("Unequip"); // 실제 부품 해제
+            var bonus = equipment.GetType().GetMethod("GetBonus"); // 실전이 읽는 최종 수치
+            var compare = equipment.GetType().GetMethod("ComparePart", hidden); // 조립 화면의 장착 전 비교
+            var slots = System.Enum.GetValues(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomSlot")); // 여덟 실제 장착 부위
+            foreach (object slot in slots) // 시작 장비의 영향을 제거
+            {
+                unequip.Invoke(equipment, new[] { aria, slot }); // 현재 조종사의 실제 부위 비우기
+            }
+            var picked = new System.Collections.Generic.List<object>(); // 서로 다른 마력 증가 효과 세 개
+            foreach (object definition in definitions) // 실제 기획 세트 목록
+            {
+                string id = (string)partType.GetField("id").GetValue(definition); // 카탈로그의 정확한 종류 ID
+                if (id == "set.flow.body" || id == "set.flow.manastone" || id == "set.flow.coupling") // 마력 +5·+8·전설 +4 부품
+                {
+                    picked.Add(definition); // 각각의 실제 종류
+                }
+            }
+            Assert.That(picked.Count, Is.EqualTo(3)); // 기획한 세 종류의 실제 등록
+            float rawMana = 0f; // 등급과 강화의 기본 능력치 합계
+            foreach (object definition in picked) // 전설 부품 세 개 장착
+            {
+                string id = "verify.passive." + partType.GetField("id").GetValue(definition); // 각 부위의 유일한 시험 사본
+                add.Invoke(equipment, new[] { definition, (object)id, 5 }); // 개별 효과 두 개가 있는 전설 등급
+                object slot = partType.GetField("slot").GetValue(definition); // 실제 개별 장착 부위
+                Assert.That(equip.Invoke(equipment, new[] { aria, slot, id }), Is.True); // 현재 캐릭터에 실제 장착
+                if (System.Convert.ToInt32(partType.GetField("stat").GetValue(definition)) == System.Convert.ToInt32(manaStat)) // 최대 마력이 주 능력치인 부품
+                {
+                    rawMana += (float)partType.GetMethod("GetValue").Invoke(definition, new object[] { 5, 0 }); // 전설 무강화 기본 수치
+                }
+                if (System.Convert.ToInt32(partType.GetField("penaltyStat").GetValue(definition)) == System.Convert.ToInt32(manaStat)) // 최대 마력의 고정 불이익
+                {
+                    rawMana += (float)partType.GetField("penalty").GetValue(definition); // 기획된 실제 감소 수치
+                }
+            }
+            float actual = (float)bonus.Invoke(equipment, new[] { manaStat }); // 현재 세 부품의 실제 최대 마력 보너스
+            Assert.That(actual, Is.EqualTo(rawMana + 10f + 13f).Within(0.001f)); // 두 세트 +10과 개별 효과 중 큰 +8·+5만 적용
+            object first = picked.Find(value => (string)partType.GetField("id").GetValue(value) == "set.flow.body"); // +5를 제공하는 실제 몸체
+            object body = partType.GetField("slot").GetValue(first); // 몸체의 실제 슬롯
+            float predicted = (float)compare.Invoke(equipment, new[] { body, null, manaStat }); // 몸체를 해제했을 때의 실제 비교
+            Assert.That(unequip.Invoke(equipment, new[] { aria, body }), Is.True); // 세트는 유지하면서 개별 효과 하나 제거
+            float after = (float)bonus.Invoke(equipment, new[] { manaStat }); // 남은 +8·+4 효과의 실제 합산
+            Assert.That(predicted, Is.EqualTo(after - actual).Within(0.001f)); // 상위 두 효과의 재선택까지 미리보기 반영
+        }
+
+        [UnityTest] // 그림자 세트와 장식의 실제 그레이즈 반격탄
+        public IEnumerator ShadowGrazeFiresConfiguredCounterBoltsWithoutRecursion() // 실제 탄환·피해·방향과 누적 제한
+        {
+            yield return LoadOuterIslands(); // 실제 비행·적탄·아군 사격 씬
+            Transform pilot = FindPilot(); // 현재 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 그림자 세트 장착
+            Component weapon = pilot.GetComponent("FlightWeapon"); // 실제 조준과 아군 발사
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 그레이즈 효과와 쿨타임
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 적탄의 실제 근접 판정
+            ((Behaviour)weapon).enabled = false; // 기본 자동탄과 개별 반격탄 분리
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 웨이브의 추가 공격 개입 방지
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 부품과 발사 정보
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 빗자루 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 전체 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            System.Type boltType = equipment.GetType().Assembly.GetType("ProjectG.FlightSpellBolt"); // 실제 아군 비행 탄환
+            System.Type statType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 마법 공격력
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트 전용 고유 사본
+            int count = 0; // 실제 그림자 장착 부위 수
+            foreach (object definition in definitions) // 실제 기획 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "shadow") // 그림자 세트의 각 부위
+                {
+                    object slot = partType.GetField("slot").GetValue(definition); // 해당 부품의 실제 슬롯
+                    int grade = slot.ToString() == "Ornament" ? 5 : 1; // 전설 장식과 그 외 일반 부품
+                    string id = "verify.shadow.counter." + count++; // 독립 시험의 고유 부품 ID
+                    add.Invoke(equipment, new[] { definition, (object)id, grade }); // 실제 희귀도의 개별 보유
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 여덟 부위 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 실제 그림자 여덟 세트
+            var previousBolts = new System.Collections.Generic.HashSet<Object>(Object.FindObjectsByType(boltType, FindObjectsSortMode.None)); // 기존 아군 탄환의 실제 식별
+            int before = previousBolts.Count; // 기존 아군 탄환 수
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 적탄의 스침 판정
+            object[] shot = { new Vector3(0.7f, 0f, 0f), new Vector3(1.2f, 0f, 0f), 0.1f, 1, false, false }; // 충돌하지 않고 근접한 별도 적탄
+            for (int i = 0; i < 5; i++) // 세트의 첫 발동 조건인 유효 스침 다섯 번
+            {
+                shot[4] = false; // 매번 다른 탄의 근접 상태
+                shot[5] = false; // 매번 다른 탄의 미지급 상태
+                resolve.Invoke(vitals, shot); // 실제 그레이즈와 장비 이벤트
+            }
+            Object[] bolts = Object.FindObjectsByType(boltType, FindObjectsSortMode.None); // 실제 생성한 아군 탄환
+            Assert.That(bolts.Length, Is.EqualTo(before + 3)); // 전설 장식 한 발과 여덟 세트 두 발
+            Assert.That(skills.GetType().GetField("shadowCounterTriggers", hidden).GetValue(skills), Is.EqualTo(1)); // 다섯 번에 실제 세트 발동 한 번
+            Assert.That(skills.GetType().GetField("shadowPartCounterTriggers", hidden).GetValue(skills), Is.EqualTo(1)); // 개별 장식의 첫 스침 발동
+            Assert.That((float)skills.GetType().GetField("shadowCounterReadyAt", hidden).GetValue(skills) - Time.time, Is.EqualTo(4f).Within(0.001f)); // 세트 반격탄의 내부 쿨타임
+            float magic = 100f + (float)equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { System.Enum.Parse(statType, "MagicPower") }); // 실제 장비의 마법 공격력
+            int expectedSet = Mathf.RoundToInt(8f * Mathf.Max(0f, magic) / 100f); // 승인된 기준 피해와 마법 공격력 산식
+            int expectedPart = Mathf.RoundToInt(4f * Mathf.Max(0f, magic) / 100f); // 개별 반격탄의 같은 산식
+            int setBolts = 0; // 실제 세트 반격탄 수
+            int partBolts = 0; // 실제 장식 반격탄 수
+            Component probeBolt = null; // 실제 피해와 재귀를 검증할 세트 탄환
+            var directions = new System.Collections.Generic.List<Vector3>(); // 두 세트 탄환의 실제 비행 방향
+            foreach (Object entry in bolts) // 현재 실제 아군 탄환
+            {
+                if (previousBolts.Contains(entry)) // 시험 전 이미 있던 탄환
+                {
+                    continue; // 이번 반격탄의 수치와 분리
+                }
+                Component bolt = (Component)entry; // 탄환의 실제 컴포넌트
+                int damage = (int)boltType.GetField("effectiveDamage", hidden).GetValue(bolt); // 발사 시 확정한 실제 피해
+                if (damage == expectedSet) // 세트의 기준 피해를 가진 탄환
+                {
+                    setBolts++; // 실제 두 발 계수
+                    probeBolt ??= bolt; // 표적에 실제 적중시킬 세트 탄환
+                    directions.Add(bolt.transform.forward); // 실제 균등 펼침 각도 확인
+                }
+                if (damage == expectedPart) // 장식의 기준 피해를 가진 탄환
+                {
+                    partBolts++; // 실제 한 발 계수
+                }
+                Assert.That((float)boltType.GetField("speed", hidden).GetValue(bolt), Is.EqualTo(40f).Within(0.001f)); // 확정한 기본 탄속
+                Assert.That((float)boltType.GetField("remaining", hidden).GetValue(bolt), Is.EqualTo(85f).Within(0.001f)); // 확정한 기본 사거리
+            }
+            Assert.That(setBolts, Is.EqualTo(2)); // 세트의 실제 피해를 가진 두 발
+            Assert.That(partBolts, Is.EqualTo(1)); // 장식의 실제 피해를 가진 한 발
+            Assert.That(Vector3.Angle(directions[0], directions[1]), Is.EqualTo(20f).Within(0.1f)); // 조준 방향의 좌우 최대 10도
+            for (int i = 0; i < 5; i++) // 쿨타임 중 세트에 누적할 다섯 스침
+            {
+                shot[4] = false; // 새로운 탄환의 근접 상태
+                shot[5] = false; // 새로운 탄환의 미지급 상태
+                resolve.Invoke(vitals, shot); // 실제 유효 스침
+            }
+            Assert.That(skills.GetType().GetField("shadowCounterTriggers", hidden).GetValue(skills), Is.EqualTo(1)); // 대기 중 세트의 발동 금지
+            skills.GetType().GetField("shadowCounterReadyAt", hidden).SetValue(skills, 0f); // 세트 쿨타임 종료
+            shot[4] = false; // 새 탄환의 근접 상태
+            shot[5] = false; // 새 탄환의 미지급 상태
+            resolve.Invoke(vitals, shot); // 누적 조건을 만족한 다음 스침
+            Assert.That(skills.GetType().GetField("shadowCounterTriggers", hidden).GetValue(skills), Is.EqualTo(2)); // 다음 스침에서 한 번 발동
+            Assert.That(Object.FindObjectsByType(boltType, FindObjectsSortMode.None).Length, Is.EqualTo(before + 5)); // 세트 반격탄 두 발만 추가
+            Component enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy").GetComponent("FlightEnemy"); // 실제 피해를 받을 일반 마물
+            enemy.gameObject.SetActive(true); // 살아 있는 실제 마물 활성화
+            enemy.transform.position = probeBolt.transform.position + probeBolt.transform.forward * 2f; // 해당 반격탄의 실제 진행 경로
+            Physics.SyncTransforms(); // 충돌 검사에 바뀐 위치 반영
+            int health = (int)enemy.GetType().GetProperty("Health").GetValue(enemy); // 명중 전 실제 마물 체력
+            yield return WaitFrames(15); // 반격탄이 실제 마물에 도달
+            Assert.That((int)enemy.GetType().GetProperty("Health").GetValue(enemy), Is.LessThan(health)); // 독립 탄환의 실제 피해 적용
+            Assert.That(skills.GetType().GetField("shadowCounterTriggers", hidden).GetValue(skills), Is.EqualTo(2)); // 추가탄의 적중이 같은 효과를 재귀 발동하지 않음
+            Assert.That(skills.GetType().GetField("shadowPartCounterTriggers", hidden).GetValue(skills), Is.EqualTo(1)); // 다른 장비 발동 효과도 재귀 호출하지 않음
+        }
+
+        [UnityTest] // 그림자 장식의 그레이즈 누적 회복
+        public IEnumerator ShadowOrnamentAccumulatesGrazesDuringCooldown() // 유효 스침 세 회와 재사용 제한
+        {
+            yield return LoadOuterIslands(); // 실제 조종사와 적탄 판정
+            Transform pilot = FindPilot(); // 현재 조작하는 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 장식 장착
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력 회복
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 그레이즈 이벤트
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 기획 부품과 누적 상태
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            object part = catalog.GetType().GetMethod("Find", hidden).Invoke(catalog, new object[] { "set.shadow.ornament" }); // 그림자의 마법 장식
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 유형
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 다른 보유와 분리된 시험 사본
+            add.Invoke(equipment, new[] { part, (object)"verify.shadow.ornament", 3 }); // 그레이즈 효과가 열린 희귀 등급
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            object slot = partType.GetField("slot").GetValue(part); // 실제 장식 부위
+            Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, (object)"verify.shadow.ornament" }), Is.True); // 실제 개별 장식 장착
+            var mana = skills.GetType().GetField("mana", hidden); // 실제 소수 마력
+            var ready = skills.GetType().GetField("shadowOrnamentReadyAt", hidden); // 개별 장식의 재사용 시간
+            var triggers = skills.GetType().GetField("shadowOrnamentTriggers", hidden); // 실제 출격당 발동 횟수
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 적탄의 실제 스침 판정
+            object[] shot = { new Vector3(0.7f, 0f, 0f), new Vector3(1.2f, 0f, 0f), 0.1f, 1, false, false }; // 충돌 없이 근접했다가 벗어나는 탄
+            mana.SetValue(skills, 50f); // 회복을 관찰할 실제 마력
+            for (int i = 0; i < 3; i++) // 처음의 유효 스침 세 번
+            {
+                shot[4] = false; // 별도 탄환의 초기 근접 상태
+                shot[5] = false; // 별도 탄환의 초기 지급 상태
+                resolve.Invoke(vitals, shot); // 실제 유효 그레이즈 판정
+            }
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 세 번의 스침 후 마력 3 회복
+            Assert.That((float)ready.GetValue(skills) - Time.time, Is.EqualTo(5f).Within(0.001f)); // 내부 쿨타임 5초
+            for (int i = 0; i < 5; i++) // 쿨타임 중에도 누적할 다섯 번의 스침
+            {
+                shot[4] = false; // 새 탄환의 근접 상태
+                shot[5] = false; // 새 탄환의 지급 상태
+                resolve.Invoke(vitals, shot); // 실제 유효 그레이즈
+            }
+            Assert.That(triggers.GetValue(skills), Is.EqualTo(1)); // 대기 중에는 추가 발동 금지
+            ready.SetValue(skills, 0f); // 재사용 시간이 종료된 상태
+            shot[4] = false; // 다음 탄환의 근접 상태
+            shot[5] = false; // 다음 탄환의 지급 상태
+            resolve.Invoke(vitals, shot); // 쿨타임 뒤 첫 실제 스침
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(56)); // 누적된 조건의 다음 스침 발동
+            Assert.That(triggers.GetValue(skills), Is.EqualTo(2)); // 발동한 횟수 두 번 기록
+            skills.GetType().GetMethod("ResetRun", hidden).Invoke(skills, null); // 실제 새 출격
+            Assert.That(triggers.GetValue(skills), Is.Zero); // 새 출격의 발동 제한 초기화
+        }
+
+        [UnityTest] // 그림자 네 부품의 실제 그레이즈 마력 회복
+        public IEnumerator ShadowSetRecoversManaOnActualGrazeWithLimits() // 실제 적탄 스침과 출격 제한
+        {
+            yield return LoadOuterIslands(); // 실제 빗자루와 적탄 피격 판정
+            Transform pilot = FindPilot(); // 현재 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 개별 세트 부품
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력과 회복 처리
+            Component vitals = pilot.GetComponent("FlightPilotVitals"); // 실제 탄환 그레이즈 이벤트
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 테스트용 세트와 판정 관찰
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 열 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 기획 부품 배열
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 개별 부품의 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트용 고유 사본
+            int count = 0; // 실제 그림자 세트의 장착 수
+            foreach (object definition in definitions) // 에셋의 실제 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "shadow" && count < 4) // 그림자 세트의 서로 다른 네 부위
+                {
+                    string id = "verify.shadow." + count++; // 개별 시험 사본
+                    object slot = partType.GetField("slot").GetValue(definition); // 실제 부품 장착 부위
+                    int grade = slot.ToString() == "ManaStone" ? 3 : 1; // 개별 회복이 열린 희귀 마력석
+                    add.Invoke(equipment, new[] { definition, (object)id, grade }); // 실제 개별 사본의 희귀도
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 세트 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(4)); // 실제 네 부품의 조합
+            var mana = skills.GetType().GetField("mana", hidden); // 실제 현재 마력
+            var ready = skills.GetType().GetField("shadowSetReadyAt", hidden); // 세트의 내부 쿨타임
+            var partReady = skills.GetType().GetField("shadowManaReadyAt", hidden); // 그림자 마력석의 내부 쿨타임
+            var resolve = vitals.GetType().GetMethod("ResolveThreat", hidden); // 실제 적탄 근접·이탈 판정
+            object[] shot = { new Vector3(0.7f, 0f, 0f), new Vector3(1.2f, 0f, 0f), 0.1f, 1, false, false }; // 충돌 없이 범위에 진입하고 벗어나는 탄
+            mana.SetValue(skills, 50f); // 회복량을 볼 수 있는 마력
+            resolve.Invoke(vitals, shot); // 실제 스침 판정과 이벤트
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 세트 마력 2와 개별 마력석 1 회복
+            Assert.That((float)ready.GetValue(skills) - Time.time, Is.EqualTo(1f).Within(0.001f)); // 실제 내부 쿨타임 1초
+            Assert.That((float)partReady.GetValue(skills) - Time.time, Is.EqualTo(1f).Within(0.001f)); // 개별 마력석의 독립 쿨타임 1초
+            shot[4] = false; // 새 탄환의 근접 상태
+            shot[5] = false; // 새 탄환의 스침 지급 상태
+            resolve.Invoke(vitals, shot); // 1초 대기 중 다른 실제 탄환
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 내부 쿨타임 중 추가 회복 방지
+            for (int i = 1; i < 60; i++) // 출격당 나머지 59회
+            {
+                ready.SetValue(skills, 0f); // 내부 쿨타임이 끝난 상태
+                partReady.SetValue(skills, 0f); // 개별 효과의 쿨타임이 끝난 상태
+                mana.SetValue(skills, 50f); // 최대치에 가리지 않는 실제 마력
+                shot[4] = false; // 새 탄환의 근접 상태
+                shot[5] = false; // 새 탄환의 미지급 상태
+                resolve.Invoke(vitals, shot); // 실제 스침 이벤트
+                Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(53)); // 세트와 개별 효과의 횟수 한도 안 회복
+            }
+            ready.SetValue(skills, 0f); // 내부 쿨타임이 끝난 추가 시도
+            partReady.SetValue(skills, 0f); // 개별 효과의 쿨타임이 끝난 추가 시도
+            mana.SetValue(skills, 50f); // 한도 초과 전 현재 마력
+            shot[4] = false; // 별도 새 탄환의 근접 상태
+            shot[5] = false; // 별도 새 탄환의 미지급 상태
+            resolve.Invoke(vitals, shot); // 출격당 한도 이후의 실제 스침
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(50)); // 최대 60회의 회복 제한
+        }
+
+        [UnityTest] // 낮은 마력에서 세트와 개별 장식의 동시 발동
+        public IEnumerator FlowSetAndOrnamentBothTriggerOnTheSameThreshold() // 실제 소비 경계와 독립 쿨타임
+        {
+            yield return LoadOuterIslands(); // 실제 장비와 마력 소비
+            Transform pilot = FindPilot(); // 현재 조종하는 기체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 마력 세트
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 마력 자원
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 기획 자료와 자원
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 실제 부품 목록
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 캐릭터
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트용 고유 사본
+            int count = 0; // 실제 순환 세트의 장착 수
+            foreach (object definition in definitions) // 기획된 실제 카탈로그 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "flow") // 순환 세트의 각 부위
+                {
+                    object slot = partType.GetField("slot").GetValue(definition); // 해당 부품의 실제 장착 부위
+                    int grade = slot.ToString() == "Ornament" ? 3 : 1; // 개별 효과가 열린 희귀 장식과 일반 부품
+                    string id = "verify.flow.together." + count++; // 다른 장비와 다른 고유 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, grade }); // 실제 등급을 가진 장비 등록
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 여덟 부위 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 실제 순환 여덟 세트 완성
+            var mana = skills.GetType().GetField("mana", hidden); // 실제 소수 마력
+            var spend = skills.GetType().GetMethod("SpendCraftedMana", hidden); // 실제 마법의 비용 소비
+            mana.SetValue(skills, 35f); // 30 경계 직전의 실제 마력
+            spend.Invoke(skills, new object[] { 10f }); // 같은 소비로 30 이하 진입
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(50)); // 소비 후 세트 20과 장식 5 회복
+            Assert.That((float)skills.GetType().GetField("flowSetReadyAt", hidden).GetValue(skills) - Time.time, Is.EqualTo(20f).Within(0.001f)); // 세트의 독립 20초 쿨타임
+            Assert.That((float)skills.GetType().GetField("flowOrnamentReadyAt", hidden).GetValue(skills) - Time.time, Is.EqualTo(15f).Within(0.001f)); // 장식의 독립 15초 쿨타임
+            mana.SetValue(skills, 35f); // 같은 경계에 다시 진입할 마력
+            spend.Invoke(skills, new object[] { 10f }); // 두 효과가 대기 중인 실제 소비
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(25)); // 두 효과 모두 쿨타임 중 재발동 금지
+        }
+
+        [UnityTest] // 마력 세트 여덟 부위의 낮은 마력 복구
+        public IEnumerator FlowSetRecoversManaAtThresholdWithCooldownAndRunCap() // 실제 제작 마법 비용과 발동 제한
+        {
+            yield return LoadOuterIslands(); // 실제 마력과 빗자루
+            Transform pilot = FindPilot(); // 현재 실전 비행체
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 세트 부품의 실제 장착
+            Component skills = pilot.GetComponent("FlightSkillController"); // 실제 시전 비용과 마력
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 장착과 자원 관찰
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 부품 데이터
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 에셋에 등록한 전체 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 개별 부품의 실제 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 현재 조작 캐릭터
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 시험용 고유 사본
+            int count = 0; // 실제 마력 세트의 장착 수
+            foreach (object definition in definitions) // 카탈로그의 실제 세트 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "flow") // 마력의 순환 세트
+                {
+                    string id = "verify.flow." + count++; // 각 부위의 고유 시험 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 개별 효과가 없는 일반 등급
+                    object slot = partType.GetField("slot").GetValue(definition); // 해당 부품의 실제 부위
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 세트 조합 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(8)); // 모든 부위의 실제 세트 완성
+            var mana = skills.GetType().GetField("mana", hidden); // 이번 시험의 현재 소수 마력
+            var spend = skills.GetType().GetMethod("SpendCraftedMana", hidden); // 실제 제작 마법의 비용 소비
+            var ready = skills.GetType().GetField("flowSetReadyAt", hidden); // 기획된 내부 재사용 시간
+            mana.SetValue(skills, 35f); // 경계 직전의 실제 마력
+            spend.Invoke(skills, new object[] { 10f }); // 30 이하로 내려가는 정상 소비
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(45)); // 소비 후 마력 20 회복
+            Assert.That((float)ready.GetValue(skills) - Time.time, Is.EqualTo(20f).Within(0.001f)); // 실제 내부 쿨타임 20초
+            mana.SetValue(skills, 35f); // 같은 조건의 재진입
+            spend.Invoke(skills, new object[] { 10f }); // 재사용 시간 중 소비
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(25)); // 20초 안의 중복 발동 방지
+            for (int i = 1; i < 8; i++) // 출격당 나머지 일곱 회
+            {
+                ready.SetValue(skills, 0f); // 내부 쿨타임 종료 상태
+                mana.SetValue(skills, 35f); // 다시 경계 위에서 실제 소비
+                spend.Invoke(skills, new object[] { 10f }); // 각각의 유효한 낮은 마력 진입
+                Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(45)); // 제한 안의 회복 성공
+            }
+            ready.SetValue(skills, 0f); // 쿨타임이 끝난 아홉 번째 시도
+            mana.SetValue(skills, 35f); // 다시 경계 위에서 소비
+            spend.Invoke(skills, new object[] { 10f }); // 출격당 횟수 상한 초과
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(25)); // 최대 여덟 회의 실제 제한
+            skills.GetType().GetMethod("ResetRun", hidden).Invoke(skills, null); // 실제 새 출격 초기화
+            mana.SetValue(skills, 35f); // 새 출격의 경계 전 마력
+            spend.Invoke(skills, new object[] { 10f }); // 새 출격의 첫 발동
+            Assert.That(skills.GetType().GetProperty("Mana").GetValue(skills), Is.EqualTo(45)); // 새 출격의 횟수와 쿨타임 초기화
+        }
+
+        [UnityTest] // 화염 세트의 개별 속성 상시 효과
+        public IEnumerator FlamePartBonusesApplyOnlyToMatchingMagic() // 실제 화염 탄속과 사거리의 개별 합산
+        {
+            yield return LoadOuterIslands(); // 실제 조종사와 제작 마법 발사기
+            Transform pilot = FindPilot(); // 현재 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 부품 장착
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실제 시전 수치
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 기획 데이터 조회
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 실제 세트 카탈로그
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 부품 정의 유형
+            object aria = System.Enum.Parse(equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"), "Aria"); // 실제 조종사
+            var find = catalog.GetType().GetMethod("Find", hidden); // 카탈로그의 정확한 종류
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 실제 개별 사본 등록
+            string[] ids = { "set.flame.body", "set.flame.grip", "set.flame.ornament", "set.flame.tip" }; // 화염 사거리·탄속의 기획된 네 부품
+            foreach (string id in ids) // 네 개의 실제 부위
+            {
+                object definition = find.Invoke(catalog, new object[] { id }); // 세트의 실제 기획 부품
+                string ownedId = "verify.fire.passive." + id; // 기존 보유와 다른 고유 사본
+                add.Invoke(equipment, new[] { definition, (object)ownedId, 5 }); // 모든 기획 개별 효과가 열린 전설 등급
+                object slot = partType.GetField("slot").GetValue(definition); // 실제 장착 부위
+                Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, ownedId }), Is.True); // 실제 캐릭터에 장착
+            }
+            var all = (System.Collections.IList)equipment.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets").GetProperty("All").GetValue(null); // 확정된 실제 마법
+            object fire = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 실제 화염 파이어 볼트
+            object grass = all[7].GetType().GetProperty("Recipe").GetValue(all[7]); // 대조할 실제 풀 마법
+            var actual = caster.GetType().GetMethod("EffectiveStats", hidden); // 실제 장비가 반영된 시전 수치
+            var basis = caster.GetType().GetMethod("Stats", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 마법별 기획 기준 수치
+            object actualFire = actual.Invoke(caster, new[] { fire }); // 실제 화염 시전
+            object actualGrass = actual.Invoke(caster, new[] { grass }); // 실제 풀 시전
+            object baseFire = basis.Invoke(null, new[] { fire }); // 화염의 원래 기준
+            object baseGrass = basis.Invoke(null, new[] { grass }); // 풀의 원래 기준
+            var speed = baseFire.GetType().GetField("Speed"); // 각 실제 마법의 탄속
+            var range = baseFire.GetType().GetField("Range"); // 각 실제 마법의 사거리
+            float fireSpeed = (float)speed.GetValue(actualFire) / (float)speed.GetValue(baseFire); // 화염의 실제 합산 탄속 비율
+            float grassSpeed = (float)speed.GetValue(actualGrass) / (float)speed.GetValue(baseGrass); // 다른 속성의 공통 탄속 비율
+            float fireRange = (float)range.GetValue(actualFire) / (float)range.GetValue(baseFire); // 화염의 실제 합산 사거리 비율
+            float grassRange = (float)range.GetValue(actualGrass) / (float)range.GetValue(baseGrass); // 다른 속성의 공통 사거리 비율
+            Assert.That(fireSpeed - grassSpeed, Is.EqualTo(0.15f).Within(0.001f)); // 화염 세트 5%p와 개별 두 효과 10%p
+            Assert.That(fireRange - grassRange, Is.EqualTo(0.10f).Within(0.001f)); // 화염 사거리의 개별 두 효과 10%p
+        }
+
+        [UnityTest] // 화염 세트의 속성별 탄환 속도
+        public IEnumerator FlameSetBoostsOnlyFireProjectiles() // 실제 제작 마법 시전 수치
+        {
+            yield return LoadOuterIslands(); // 실제 빗자루와 제작 마법 발사기
+            Transform pilot = FindPilot(); // 현재 비행 캐릭터
+            Component equipment = pilot.GetComponent("FlightBroomEquipment"); // 실제 개별 세트 장착
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 제작 마법의 실제 시전 수치
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 카탈로그와 수치 조회
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 열 세트의 실제 부품
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 카탈로그 전체 항목
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 유형
+            System.Type pilotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 조종사 열거형
+            object aria = System.Enum.Parse(pilotType, "Aria"); // 현재 장착할 조종사
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 테스트용 실제 사본
+            var all = (System.Collections.IList)equipment.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets").GetProperty("All").GetValue(null); // 실제 확정 마법
+            object fire = all[0].GetType().GetProperty("Recipe").GetValue(all[0]); // 화염 파이어 볼트
+            object grass = all[7].GetType().GetProperty("Recipe").GetValue(all[7]); // 화염이 아닌 가시 산탄
+            var stats = caster.GetType().GetMethod("EffectiveStats", hidden); // 실제 다음 시전의 능력치
+            object beforeFire = stats.Invoke(caster, new[] { fire }); // 장착 전 화염 수치
+            object beforeGrass = stats.Invoke(caster, new[] { grass }); // 장착 전 풀 수치
+            var speed = beforeFire.GetType().GetField("Speed"); // 실제 발사체의 탄속
+            object baseFire = caster.GetType().GetMethod("Stats", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).Invoke(null, new[] { fire }); // 기존 장비를 제외한 화염 기준 탄속
+            int count = 0; // 서로 다른 화염 세트 부위 수
+            foreach (object definition in definitions) // 실제 에셋의 모든 부품
+            {
+                if ((string)partType.GetField("setId").GetValue(definition) == "flame" && count < 2) // 화염 세트의 첫 두 부위
+                {
+                    string id = "verify.flame." + count++; // 다른 보유품과 분리한 고유 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 특수 효과가 없는 일반 등급
+                    object slot = partType.GetField("slot").GetValue(definition); // 실제 몸체 또는 손잡이
+                    Assert.That(equipment.GetType().GetMethod("TryEquip").Invoke(equipment, new[] { aria, slot, id }), Is.True); // 실제 세트 부품 장착
+                }
+            }
+            Assert.That(count, Is.EqualTo(2)); // 화염 세트의 실제 두 부위
+            object afterFire = stats.Invoke(caster, new[] { fire }); // 세트 장착 후 화염 마법
+            object afterGrass = stats.Invoke(caster, new[] { grass }); // 세트 장착 후 풀 마법
+            Assert.That((float)speed.GetValue(afterFire), Is.EqualTo((float)speed.GetValue(beforeFire) + (float)speed.GetValue(baseFire) * 0.05f).Within(0.001f)); // 기존 보너스에 화염 탄속 5%p 합산
+            Assert.That(speed.GetValue(afterGrass), Is.EqualTo(speed.GetValue(beforeGrass))); // 다른 속성의 탄속 보존
+        }
+
+        [UnityTest] // 세트의 두·네 부품 상시 보너스와 비교
+        public IEnumerator BroomSetBonusesFollowPieceCountsAndPreviewChanges() // 실제 장착·해제·캐릭터 전환
+        {
+            yield return LoadOuterIslands(); // 실제 빗자루 카탈로그와 장착
+            Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 능력치를 사용하는 실제 장비
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 카탈로그와 임시 보유 등록
+            object catalog = equipment.GetType().GetField("catalog", hidden).GetValue(equipment); // 열 세트의 실제 카탈로그
+            var definitions = (System.Array)catalog.GetType().GetField("parts", hidden).GetValue(catalog); // 카탈로그의 전체 직렬화 부품
+            System.Type partType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPart"); // 실제 부품 정의 유형
+            System.Type pilotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomPilot"); // 조종사 열거형
+            System.Type slotType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomSlot"); // 여덟 부위 열거형
+            System.Type statType = equipment.GetType().Assembly.GetType("ProjectG.FlightBroomStat"); // 실제 능력치 열거형
+            object aria = System.Enum.Parse(pilotType, "Aria"); // 현재 조작하는 캐릭터
+            var add = equipment.GetType().GetMethod("AddOwned", hidden, null, new[] { partType, typeof(string), typeof(int) }, null); // 시험용 고유 사본 등록
+            var equip = equipment.GetType().GetMethod("TryEquip"); // 실제 부위별 장착
+            var unequip = equipment.GetType().GetMethod("Unequip"); // 실제 개별 장착 해제
+            var bonus = equipment.GetType().GetMethod("GetBonus"); // 비행과 마법이 사용하는 실제 능력치
+            var compare = equipment.GetType().GetMethod("ComparePart", hidden); // 확정 전 조립 화면 비교
+            string[] setIds = { "storm", "guard", "flow", "starlight", "hawk", "shadow" }; // 상시 세트 효과가 확정된 여섯 세트
+            string[][] stats = { new[] { "Speed", "Acceleration", "Braking" }, new[] { "ImpactResistance" }, new[] { "Mana", "ManaRecovery" }, new[] { "MagicPower" }, new[] { "Range", "BoltSpeed" }, new[] { "Turn" } }; // 각 세트의 실제 적용 능력치
+            float[][] two = { new[] { 1f, 0f, 0f }, new[] { 5f }, new[] { 10f, 0f }, new[] { 8f }, new[] { 10f, 0f }, new[] { 30f } }; // 각 두 부품의 기획 가산
+            float[][] four = { new[] { 1f, 4f, 4f }, new[] { 5f }, new[] { 10f, 2f }, new[] { 20f }, new[] { 10f, 15f }, new[] { 30f } }; // 네 부품에서 하위 단계를 포함한 가산
+            for (int set = 0; set < setIds.Length; set++) // 여섯 세트의 실제 조합
+            {
+                foreach (object slot in System.Enum.GetValues(slotType)) // 다른 세트와 시작 부품 정리
+                {
+                    unequip.Invoke(equipment, new[] { aria, slot }); // 현재 캐릭터의 각 부위 비우기
+                }
+                var added = new System.Collections.Generic.List<object>(); // 이번 세트의 네 부품
+                foreach (object definition in definitions) // 에셋의 실제 기획 데이터
+                {
+                    if ((string)partType.GetField("setId").GetValue(definition) == setIds[set] && added.Count < 4) // 같은 세트의 서로 다른 앞 네 부위
+                    {
+                        added.Add(definition); // 실제 부품 정의 보존
+                    }
+                }
+                Assert.That(added.Count, Is.EqualTo(4)); // 네 부위의 실제 카탈로그 등록
+                var raw = new float[System.Enum.GetValues(statType).Length]; // 개별 기본 수치와 특화 감소만 합산
+                for (int count = 1; count <= 4; count++) // 각 장착 수에서 중복 없는 보너스 확인
+                {
+                    object definition = added[count - 1]; // 실제로 추가할 세트 부품
+                    string id = "verify.set." + set + "." + count; // 기존 사용자 ID와 다른 고유 사본
+                    add.Invoke(equipment, new[] { definition, (object)id, 1 }); // 시험용 일반 등급 사본
+                    object slot = partType.GetField("slot").GetValue(definition); // 기획한 실제 장착 부위
+                    Assert.That(equip.Invoke(equipment, new[] { aria, slot, id }), Is.True); // 같은 캐릭터의 실제 장착
+                    int primary = System.Convert.ToInt32(partType.GetField("stat").GetValue(definition)); // 실제 주 능력치 위치
+                    int penalty = System.Convert.ToInt32(partType.GetField("penaltyStat").GetValue(definition)); // 특화 감소 위치
+                    raw[primary] += (float)partType.GetField("baseValue").GetValue(definition); // 일반 무강화의 기본 수치
+                    raw[penalty] += (float)partType.GetField("penalty").GetValue(definition); // 기존 고정 불이익
+                    for (int stat = 0; stat < raw.Length; stat++) // 모든 실제 능력치의 세트 추가량
+                    {
+                        string name = System.Enum.GetName(statType, stat); // 해당 능력치 이름
+                        int position = System.Array.IndexOf(stats[set], name); // 이 세트가 바꾸는 수치 위치
+                        float extra = position < 0 || count < 2 ? 0f : count < 4 ? two[set][position] : four[set][position]; // 장착 수에 맞는 누적 세트 효과
+                        float actual = (float)bonus.Invoke(equipment, new[] { System.Enum.ToObject(statType, stat) }); // 실제 비행 장비의 합산
+                        Assert.That(actual, Is.EqualTo(raw[stat] + extra).Within(0.001f), setIds[set] + " " + count + " " + name); // 기본 수치와 기획 세트 가산
+                    }
+                }
+                if (setIds[set] == "storm") // 비행 속도를 바꾸는 실제 폭풍 세트
+                {
+                    Component flight = FindPilot().GetComponent("FirstFlightController"); // 장비를 읽는 실제 비행 제어기
+                    object speedStat = System.Enum.Parse(statType, "Speed"); // 실제 최고 비행 속도 항목
+                    Assert.That((float)flight.GetType().GetProperty("MaximumSpeed").GetValue(flight), Is.EqualTo(12f + (float)bonus.Invoke(equipment, new[] { speedStat })).Within(0.001f)); // 세트 효과가 실제 비행 속도에 반영
+                }
+                if (setIds[set] == "flow") // 마력 용량을 바꾸는 실제 순환 세트
+                {
+                    Component skills = FindPilot().GetComponent("FlightSkillController"); // 실제 스킬과 마력 자원
+                    object manaStat = System.Enum.Parse(statType, "Mana"); // 실제 최대 마력 항목
+                    Assert.That((int)skills.GetType().GetProperty("MaxMana").GetValue(skills), Is.EqualTo(100 + Mathf.RoundToInt((float)bonus.Invoke(equipment, new[] { manaStat })))); // 세트 효과가 실제 최대 마력에 반영
+                }
+                if (setIds[set] == "starlight") // 마법 공격력과 구성 한도의 실제 연결
+                {
+                    Component book = LocateCombatHud().GetComponent("FlightCraftedSpellBook"); // 실제 좌우 제작 마법 편성
+                    object magicStat = System.Enum.Parse(statType, "MagicPower"); // 실제 마법 공격력 항목
+                    Assert.That((float)book.GetType().GetProperty("MagicAttack", hidden).GetValue(book), Is.EqualTo(100f + (float)bonus.Invoke(equipment, new[] { magicStat })).Within(0.001f)); // 세트 효과가 실제 마법 공격력에 반영
+                }
+                object removed = added[3]; // 네 부품 조건을 해제할 마지막 부위
+                object removedSlot = partType.GetField("slot").GetValue(removed); // 실제 장착한 부위
+                object measured = System.Enum.Parse(statType, stats[set][0]); // 이 세트의 첫 상시 수치
+                float before = (float)bonus.Invoke(equipment, new[] { measured }); // 실제 교체 전 능력치
+                float predicted = (float)compare.Invoke(equipment, new[] { removedSlot, null, measured }); // 미리보기의 실제 차이
+                Assert.That(unequip.Invoke(equipment, new[] { aria, removedSlot }), Is.True); // 실제 세트 부품 하나 해제
+                float after = (float)bonus.Invoke(equipment, new[] { measured }); // 단계가 떨어진 실제 능력치
+                Assert.That(predicted, Is.EqualTo(after - before).Within(0.001f), setIds[set]); // 세트 단계 변화를 포함한 비교
+            }
+        }
+
+        [UnityTest] // 조립 화면에서 많은 개별 부품의 페이지 선택
+        public IEnumerator BroomWorkshopPagesReachAllOwnedParts() // 아홉 개 이후 사본의 실제 장착
+        {
+            System.Type progress = System.Type.GetType("ProjectG.FlightProgress, Assembly-CSharp", true); // 게임이 공유하는 실제 프로필
+            const System.Reflection.BindingFlags hiddenStatic = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic; // 독립 프로필 초기화
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 공방 목록 관찰
+            progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이전 시험의 메모리 자산 분리
+            try // 부품이 아홉 개를 넘는 실제 편성
+            {
+                yield return LoadOuterIslands(); // 실제 정지 메뉴와 빗자루
+                Component equipment = FindPilot().GetComponent("FlightBroomEquipment"); // 보유와 장착을 관리하는 장비
+                object store = progress.GetProperty("Current", hiddenStatic).GetValue(null); // 실제 공용 재화
+                object state = store.GetType().GetField("state", hidden).GetValue(store); // 사용자 파일과 분리된 시험 상태
+                state.GetType().GetField("crystals").SetValue(state, 200); // 여러 부품 제작에 필요한 결정
+                state.GetType().GetField("gold").SetValue(state, 30000); // 여러 부품 제작에 필요한 골드
+                var craft = equipment.GetType().GetMethod("CraftItem", hidden); // 실제 개별 제작
+                for (int i = 0; i < 12; i++) // 표시 행 수보다 많은 같은 부위 사본
+                {
+                    Assert.That(craft.Invoke(equipment, new object[] { "trial.storm-body", 1 }), Is.Not.Null); // 실제 고유 부품의 확정 제작
+                }
+                Transform pause = GameObject.Find("CombatHUD").transform.Find("PauseMenu"); // 실제 전투의 정지 메뉴
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 검증용 가상 정지 입력
+                yield return WaitFrames(4); // 실제 정지 UI 표시
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 가상 키 해제
+                ClickPauseButton(pause, "Controls/BroomWorkshop"); // 실제 빗자루 조립 열기
+                Transform workshop = pause.Find("BroomWorkshop"); // 현재 조립 화면
+                Component controller = workshop.GetComponent("FlightBroomWorkshop"); // 실제 표시 목록과 선택 처리
+                var options = (System.Collections.IList)controller.GetType().GetField("options", hidden).GetValue(controller); // 현재 몸체의 전체 개별 후보
+                Assert.That(options.Count, Is.GreaterThan(9)); // 기존 표시 행보다 많은 실제 후보
+                string expected = (string)options[9].GetType().GetField("Id").GetValue(options[9]); // 두 번째 페이지의 첫 개별 ID
+                ClickPauseButton(workshop, "Parts/NextPage"); // 실제 목록의 다음 페이지
+                Assert.That(HudText(workshop.Find("Parts/Page")), Does.Contain("2 /")); // 현재 페이지 표시
+                ClickPauseButton(workshop, "Parts/PreviousPage"); // 앞 페이지로 다시 이동
+                Assert.That(HudText(workshop.Find("Parts/Page")), Does.StartWith("1 /")); // 처음 목록의 복원
+                ClickPauseButton(workshop, "Parts/NextPage"); // 같은 두 번째 페이지로 재진입
+                ClickPauseButton(workshop, "Parts/Part0"); // 새 페이지의 첫 실제 부품
+                ClickPauseButton(workshop, "Equip"); // 선택한 고유 사본을 실제 장착
+                Assert.That(BroomAction(equipment, "GetEquippedId", "Aria", "Body"), Is.EqualTo(expected)); // 아홉 번째 이후 부품의 정확한 장착
+            }
+            finally // 다른 시험의 프로필 보호
+            {
+                progress.GetMethod("Reset", hiddenStatic).Invoke(null, null); // 이번 검증의 메모리 자산 정리
+            }
+        }
+
         [UnityTest] // 정상 정지 메뉴부터 빗자루 미리보기와 장착 저장
         public IEnumerator BroomWorkshopPreviewsThenRestoresConfirmedLoadout() // 미리보기와 저장 상태 분리
         {
@@ -2272,7 +3398,7 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 var model = gear.transform.Find("TrainingBroom/PartMounts/Body/Visual").GetComponent<MeshRenderer>(); // 실제 장착 몸체
                 var preview = shop.Find("PreviewStudio/Turntable/PartMounts/Body/Visual").GetComponent<MeshRenderer>(); // 미리보기 전용 몸체
                 Assert.That(preview.sharedMaterial, Is.Not.SameAs(model.sharedMaterial)); // 확정 전 별도 미리보기 렌더러만 변경
-                Assert.That(shop.Find("PartComparison").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("0.4")); // 새 후보의 속도 차이
+                Assert.That(shop.Find("PartComparison").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("0.9")); // 기본 속도 차이와 전설 속도 효과 합산
                 ClickPauseButton(shop, "Back"); // 바꾸지 않고 정지 화면 복귀
                 Assert.That(BroomAction(gear, "GetEquippedId", "Aria", "Body"), Is.EqualTo("aria.body:1")); // 취소한 조합 제외
                 ClickPauseButton(pause, "Controls/BroomWorkshop"); // 다시 열어 부품 장착
@@ -3764,6 +4890,8 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 Assert.That(cooldown, Is.InRange(9f, 10f)); // 해제 시점부터 십 초 대기
                 caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 고갈 시험의 대기시간 초기화
                 skills.GetType().GetField("mana", hidden).SetValue(skills, 11f); // 시작 비용 이후 일 마력만 남는 상태
+                equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { System.Enum.Parse(stat, "ManaRecovery") }); // 낮은 마력 조건의 실제 장비 재계산
+                bonuses[recovery] = -6f; // 고갈 시험에서도 자연 회복만 격리
                 InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 유지 입력 시작
                 yield return WaitFrames(25); // 남은 마력 소진 이후
                 Assert.That(beams.Count, Is.Zero); // 마력 부족 시 자동 종료
@@ -3772,8 +4900,9 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
                 InputSystem.QueueStateEvent(mouse, new MouseState()); // 시험 입력 해제
                 yield return WaitFrames(2); // 다음 클릭과 입력 분리
                 caster.GetType().GetMethod("ResetCasts", hidden).Invoke(caster, null); // 자연 회복 시험의 대기시간 초기화
-                bonuses[recovery] = 0f; // 기본 초당 육 마력 회복 복원
                 skills.GetType().GetField("mana", hidden).SetValue(skills, 100f); // 자연 회복 시험의 시작 마력
+                equipment.GetType().GetMethod("GetBonus").Invoke(equipment, new[] { System.Enum.Parse(stat, "ManaRecovery") }); // 낮은 마력 해제에 따른 실제 장비 재계산
+                bonuses[recovery] = 0f; // 기본 초당 육 마력 회복만 독립 측정
                 InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Left)); // 실제 유지 입력 시작
                 yield return WaitFrames(190); // 삼 초 유지와 짧은 종료 후 회복
                 mana = (float)skills.GetType().GetField("mana", hidden).GetValue(skills); // 자연 회복이 반영된 실제 마력

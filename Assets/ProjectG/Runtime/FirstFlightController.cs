@@ -25,6 +25,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private float orbitPitch; // 둘러보기의 상하 각도
         private float sensitivityScale = 1f; // 게임 설정의 마우스 회전 배율
         private bool sortieEnded; // 종료 안내에서 비행과 커서 재잠금 차단
+        internal event System.Action DashFinished; // 실제 돌파가 끝난 시점의 장비 효과
 
         public bool CanFly => !sortieEnded && (vitals == null || !vitals.IsDefeated); // 실제 출격 조작 가능 상태
         public bool IsFocusHeld { get; private set; } // 현재 집중 비행 입력
@@ -112,6 +113,10 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     dashRemaining = 0f; // 벽과 경계 바깥으로 밀지 않음
                 }
+                if (dashRemaining <= 0f) // 지속시간 또는 실제 충돌로 돌파가 끝남
+                {
+                    DashFinished?.Invoke(); // 이 돌파의 종료 효과를 정확히 한 번 전달
+                }
                 return; // 같은 프레임의 추가 기본 비행 방지
             }
             Vector3 input = keyboard == null ? Vector3.zero : ReadFlightInput(keyboard); // 현재 비행 방향
@@ -128,8 +133,10 @@ namespace ProjectG // 프로젝트 게임 영역
         internal void StartSkillDash(Vector3 route, float metersPerSecond, float duration) // 실제 고도와 충돌을 따르는 고유기 돌파
         {
             velocity = Vector3.zero; // 돌파 전의 수평·수직 관성 제거
-            dashVelocity = route.normalized * metersPerSecond; // 현재 확정한 입체 추진 방향
-            dashRemaining = duration; // 고유기의 실제 남은 이동 시간
+            float speedBonus = broom != null ? broom.DashSpeedBonus() : 0f; // 실제 장비의 대시 속도 퍼센트포인트
+            float durationBonus = broom != null ? broom.DashDurationBonus() : 0f; // 같은 효과 상위 두 개의 지속시간
+            dashVelocity = route.normalized * metersPerSecond * Mathf.Max(0f, 1f + speedBonus / 100f); // 장비 보너스를 포함한 입체 추진 속도
+            dashRemaining = Mathf.Max(0f, duration + durationBonus); // 기획 효과를 더한 실제 돌파 시간
         }
 
         private float PartBonus(FlightBroomStat stat) // 선택적 부품 효과 조회

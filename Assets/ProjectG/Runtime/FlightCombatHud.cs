@@ -15,6 +15,7 @@ namespace ProjectG // 프로젝트 게임 영역
             private int previousValue = -1; // 변경 여부 확인용 수치
             private int previousMax = -1; // 변경 여부 확인용 최대 수치
             private int previousLevel = -1; // 변경 여부 확인용 레벨
+            private int previousShield = -1; // 장비 보호막 변경 여부
 
             public void Initialize() // 씬의 편집 영역 기억
             {
@@ -22,21 +23,26 @@ namespace ProjectG // 프로젝트 게임 영역
                 artwork = fill.uvRect; // 원래 제작 이미지 영역
             }
 
-            public void Set(int value, int maximum, string labelName, int level = 0) // 실제 체력과 자원 표시
+            public void Set(int value, int maximum, string labelName, int level = 0, int shield = 0) // 실제 체력과 자원 표시
             {
-                if (value == previousValue && maximum == previousMax && level == previousLevel) // 이미지 변경 필요 확인
+                if (value == previousValue && maximum == previousMax && level == previousLevel && shield == previousShield) // 이미지와 보호막의 변경 필요 확인
                 {
                     return; // 같은 수치의 레이아웃 갱신 생략
                 }
                 previousValue = value; // 새 값 기록
                 previousMax = maximum; // 새 범위 기록
                 previousLevel = level; // 레벨 변경 기록
+                previousShield = shield; // 새 보호막 수치 기록
                 float ratio = Mathf.Clamp01((float)value / maximum); // 현재 남은 비율
                 Rect showing = artwork; // 제작 이미지 원래 범위
                 showing.width *= ratio; // 오른쪽에서 남은 길이만 표시
                 fill.uvRect = showing; // 채움 이미지를 늘이지 않는 범위
                 fill.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width * ratio); // 왼쪽 기준으로 줄어드는 길이
                 label.text = level > 0 ? $"LV. {level}   {labelName} {value} / {maximum}" : $"{labelName} {value} / {maximum}"; // 줄 안의 실제 값
+                if (shield > 0) // 실제로 남은 장비 보호막이 있는 체력 게이지
+                {
+                    label.text += $"  보호막 {shield}"; // 체력과 구분되는 실제 잔여량
+                }
             }
         }
 
@@ -94,6 +100,9 @@ namespace ProjectG // 프로젝트 게임 영역
         private void Awake() // 게이지의 편집 당시 크기 저장
         {
             health.Initialize(); // 체력 크기
+            health.label.resizeTextForBestFit = true; // 보호막을 함께 표시할 때 글자 잘림 방지
+            health.label.resizeTextMinSize = 14; // 전투 화면의 최소 글자 크기
+            health.label.resizeTextMaxSize = health.label.fontSize; // 기존 체력 글자의 최대 크기
             mana.Initialize(); // 마력 크기
             ultimate.Initialize(); // 필살기 에너지 크기
             experience.Initialize(); // 경험치 크기
@@ -170,7 +179,7 @@ namespace ProjectG // 프로젝트 게임 영역
         }
         private void LateUpdate() // 현재 전투 화면에 상태 적용
         {
-            health.Set(pilot.Health, pilot.MaxHealth, "HP"); // 실제 피격 체력
+            health.Set(pilot.Health, pilot.MaxHealth, "HP", shield: pilot.EquipmentShield); // 실제 피격 체력과 장비 보호막
             mana.Set(manaPoints, manaCapacity, "MANA"); // 현재 마력
             ultimate.Set(ultimatePoints, MaxResource, "ULT"); // 필살기 에너지
             experience.Set(xp, nextXp, "XP", level); // 현재 레벨과 경험치

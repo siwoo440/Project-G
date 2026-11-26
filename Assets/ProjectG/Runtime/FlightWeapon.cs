@@ -289,6 +289,29 @@ namespace ProjectG // 프로젝트 게임 영역
             bolt.Begin(aimLayers, 35f, null, 0f, assistDamage: damage); // 보조 슬롯의 독립 피해
         }
 
+        internal bool FireBroomBolts(int count, int baseDamage) // 장비 효과의 재귀 발동 없는 실제 추가탄
+        {
+            if (count <= 0 || baseDamage < 0 || !pilot.CanFly) // 유효하지 않거나 실패한 출격
+            {
+                return false; // 발사와 효과 횟수 소비 없음
+            }
+            Ray aim = AttackRay(); // 현재 게임에서 사용하는 실제 조준 방향
+            if (!TryDirection(aim, GetAimPoint(aim, out _), out Vector3 route)) // 총구 뒤의 잘못된 조준
+            {
+                return false; // 실제 발사하지 못한 효과는 기록하지 않음
+            }
+            float power = broom != null ? Mathf.Max(0f, 100f + broom.GetBonus(FlightBroomStat.MagicPower)) : 100f; // 실제 장비를 포함한 마법 공격력
+            int damage = Mathf.RoundToInt(baseDamage * power / 100f); // 승인된 기준 피해와 마법 공격력 산식
+            Quaternion heading = Quaternion.LookRotation(route); // 총구에서 조준점까지의 전방
+            for (int i = 0; i < count; i++) // 기획된 실제 추가탄 수
+            {
+                float yaw = count > 1 ? Mathf.Lerp(-10f, 10f, (float)i / (count - 1)) : 0f; // 승인된 좌우 최대 10도 균등 펼침
+                FlightSpellBolt bolt = Instantiate(standardBolt, muzzle.position, heading * Quaternion.Euler(0f, yaw, 0f)); // 실제 속도 40의 기본 탄환 외형
+                bolt.Begin(aimLayers, 85f, null, 0f, assistDamage: damage); // 승인된 사거리와 비재귀 독립 피해
+            }
+            return true; // 모든 기획 탄환의 실제 생성 성공
+        }
+
         public bool CastSniperBeam(FlightThreatPool pool) // 리안 R 천공 관측선
         {
             Ray aim = AttackRay(); // 실제 시점이 향하는 경로

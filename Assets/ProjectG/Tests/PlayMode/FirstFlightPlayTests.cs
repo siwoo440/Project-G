@@ -3306,6 +3306,219 @@ namespace ProjectG.Tests // 프로젝트 검증 영역
             Assert.That(first == null || !first.gameObject.activeInHierarchy, Is.True); // 발사 지점으로 돌아온 원반 종료
         }
 
+        [UnityTest] // 씨앗 포대의 지연과 분열 후 피해 검증
+        public IEnumerator SeedTurretSplitsOnlyAfterDelayAndDoesNotExplode() // 모탄 한 개와 자탄 세 발
+        {
+            yield return LoadOuterIslands(); // 제작 연습장이 포함된 실제 출격 씬
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 독립 연습 진입 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 정지 입력
+            yield return WaitFrames(4); // 정지 메뉴 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 연습장 열기
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            Component owner = editor.GetComponent("FlightCraftedSpellEditor"); // 연습 발사기 소유자
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 상태 조회
+            Component range = (Component)owner.GetType().GetField("range", hidden).GetValue(owner); // 격리된 연습 발사기
+            Transform muzzle = (Transform)range.GetType().GetField("muzzle", hidden).GetValue(range); // 실제 시험 발사점
+            System.Type presets = range.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
+            object recipe = all[8].GetType().GetProperty("Recipe").GetValue(all[8]); // 씨앗 포대 구성
+            Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 실제 연습 표적
+            target.transform.position = muzzle.position + muzzle.forward * 5f; // 첫 자탄 경로의 표적
+            Physics.SyncTransforms(); // 변경된 충돌 위치 반영
+            Assert.That(range.GetType().GetMethod("Cast", hidden).Invoke(range, new[] { recipe }), Is.True); // 실제 포대 설치
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(1)); // 설치체 하나만 즉시 생성
+            float initialWait = (float)range.GetType().GetMethod("CooldownRemaining", hidden).Invoke(range, new[] { recipe }); // 지연과 종료 후 재사용 시간
+            Assert.That(initialWait, Is.InRange(8.9f, 9.1f)); // 일 초 설치와 팔 초 대기의 합
+            yield return WaitFrames(45); // 일 초보다 짧은 설치 대기
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(1)); // 지연 중 자탄 없음
+            Assert.That(Metric(target, "TotalDamage"), Is.Zero); // 모탄 자체의 폭발 피해 없음
+            yield return WaitFrames(45); // 분열과 자탄의 표적 도달 대기
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(4)); // 원래 시전의 자탄 세 발
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(26)); // 자탄 한 발의 확정 피해
+            yield return WaitFrames(80); // 자탄의 사거리 종료 후 대기
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(4)); // 자탄의 재분열 없음
+            ClickPauseButton(editor, "ResetTest"); // 남아 있는 설치와 마력 초기화
+            Assert.That(range.GetType().GetMethod("Cast", hidden).Invoke(range, new[] { recipe }), Is.True); // 새 포대 설치
+            yield return WaitFrames(20); // 분열 이전의 설치 상태
+            ClickPauseButton(editor, "ResetTest"); // 지연 중인 설치체 회수
+            yield return WaitFrames(80); // 원래 분열 예정 시각 이후
+            Assert.That(Metric(range, "EmissionCount"), Is.Zero); // 초기화 후 이전 자탄 생성 금지
+        }
+
+        [UnityTest] // 황혼 파열의 지정 좌표와 지연 광역 피해
+        public IEnumerator TwilightBurstDamagesEachTargetOnceAfterDelay() // 직격 없이 한 번 폭발
+        {
+            yield return LoadOuterIslands(); // 제작 연습장이 포함된 실제 출격 씬
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 독립 연습 진입 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 정지 입력
+            yield return WaitFrames(4); // 정지 메뉴 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 연습장 열기
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            Component owner = editor.GetComponent("FlightCraftedSpellEditor"); // 연습 발사기 소유자
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 상태 조회
+            Component range = (Component)owner.GetType().GetField("range", hidden).GetValue(owner); // 격리된 연습 발사기
+            Transform muzzle = (Transform)range.GetType().GetField("muzzle", hidden).GetValue(range); // 실제 시험 발사점
+            System.Type presets = range.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
+            object recipe = all[14].GetType().GetProperty("Recipe").GetValue(all[14]); // 황혼 파열 구성
+            Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 피해를 기록할 표적
+            target.transform.position = muzzle.position + muzzle.forward * 20f; // 지정 거리의 폭발 중심
+            Component outside = Object.Instantiate(target, target.transform.parent); // 범위 밖의 독립 표적
+            outside.transform.position = target.transform.position + muzzle.right * 5f; // 폭발 반경보다 멀리 배치
+            Physics.SyncTransforms(); // 변경된 충돌 위치 반영
+            Assert.That(range.GetType().GetMethod("Cast", hidden).Invoke(range, new[] { recipe }), Is.True); // 지정 좌표의 실제 설치
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(1)); // 폭발체 한 개만 생성
+            yield return WaitFrames(45); // 일 초보다 짧은 지연
+            Assert.That(Metric(target, "TotalDamage"), Is.Zero); // 설치체 직격 피해 없음
+            yield return WaitFrames(40); // 지연 폭발 이후 대기
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(70)); // 중심 표적의 확정 폭발 피해
+            Assert.That(Metric(outside, "TotalDamage"), Is.Zero); // 범위 밖 표적 피해 없음
+            yield return WaitFrames(80); // 폭발 이후 추가 판정 검사
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(70)); // 한 시전의 폭발은 한 번
+        }
+
+        [UnityTest] // 덩굴 고리의 실제 적 이동 제어
+        public IEnumerator VineRingRootsNormalEnemyOnceAndPreservesBossResistance() // 일반·정예 속박과 보스 면역
+        {
+            yield return LoadOuterIslands(); // 실제 적과 출격 마법이 있는 씬
+            Transform pilot = FindPilot(); // 현재 조종사와 발사기
+            ((Behaviour)GameObject.Find("EnemyEncounter").GetComponent("FlightEnemyEncounter")).enabled = false; // 시험 중 웨이브 개입 차단
+            ((Behaviour)pilot.GetComponent("FlightWeapon")).enabled = false; // 자동 사격의 피해 제외
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 실전 마법 발사기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 내부 이동과 조준 조회
+            System.Type presets = caster.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
+            object recipe = all[6].GetType().GetProperty("Recipe").GetValue(all[6]); // 덩굴 고리 구성
+            Vector3 point = (Vector3)caster.GetType().GetMethod("AimPoint", hidden).Invoke(caster, new object[] { 18f }); // 실전 조준으로 지정한 위치
+            Transform enemy = GameObject.Find("EnemyEncounter").transform.Find("AimedEnemy"); // 실제 일반 마물
+            Component route = enemy.GetComponent("FlightEnemyRoute"); // 실제 출현 이동 경로
+            route.GetType().GetMethod("Begin").Invoke(route, new object[] { GetThreatPool(), pilot }); // 정상적인 경로 시작
+            route.GetType().GetField("runEntry", hidden).SetValue(route, point); // 영역 중앙에서 시작
+            route.GetType().GetField("runAttack", hidden).SetValue(route, point + Vector3.right * 8f); // 속박 해제 후 이동할 위치
+            route.GetType().GetField("entrySeconds", hidden).SetValue(route, 8f); // 초당 일 미터의 진입 경로
+            enemy.position = point; // 실제 영역 중심에 배치
+            Physics.SyncTransforms(); // 변경된 실제 충돌 위치
+            Assert.That(caster.GetType().GetMethod("Cast", hidden).Invoke(caster, new[] { recipe }), Is.True); // 실제 덩굴 영역 설치
+            yield return WaitFrames(35); // 일 점 이 초보다 짧은 시간
+            Assert.That(Vector3.Distance(enemy.position, point), Is.LessThan(0.1f)); // 일반 적의 이동 속박
+            yield return WaitFrames(70); // 속박 종료 이후 이동 대기
+            Assert.That(Vector3.Distance(enemy.position, point), Is.GreaterThan(0.2f)); // 같은 시전의 재속박 없이 이동 재개
+            Component status = enemy.GetComponent("FlightCraftedStatus"); // 실제 대상에 연결된 상태 관리자
+            Component life = enemy.GetComponent("FlightEnemy"); // 일반·보스 구분을 가진 실제 체력
+            object boss = System.Enum.Parse(life.GetType().Assembly.GetType("ProjectG.FlightLootTier"), "MidBoss"); // 중간 보스 등급
+            life.GetType().GetField("lootTier", hidden).SetValue(life, boss); // 같은 적을 보스 조건으로 전환
+            Assert.That(status.GetType().GetMethod("TryRoot", hidden).Invoke(status, new object[] { 1.2f }), Is.False); // 보스 강제 속박 차단
+            object normal = System.Enum.Parse(life.GetType().Assembly.GetType("ProjectG.FlightLootTier"), "Normal"); // 일반 전투 등급
+            life.GetType().GetField("lootTier", hidden).SetValue(life, normal); // 보스 면역 조건 해제
+            life.GetType().GetField("elite", hidden).SetValue(life, true); // 동일한 일반 경로의 정예 마물
+            Assert.That(status.GetType().GetMethod("TryRoot", hidden).Invoke(status, new object[] { 1.2f }), Is.True); // 정예에게 감소된 속박 적용
+            float until = (float)route.GetType().GetField("rootedUntil", hidden).GetValue(route); // 실제 경로의 해제 시각
+            Assert.That(until - Time.time, Is.EqualTo(0.6f).Within(0.02f)); // 정예의 속박 지속 시간 절반
+            enemy.position = pilot.position + Vector3.up * 50f; // 지형이 없는 넉백 시험 위치
+            Physics.SyncTransforms(); // 장애물 검사에 현재 위치 반영
+            Vector3 before = enemy.position; // 실제 정예 이동 전 좌표
+            Assert.That(status.GetType().GetMethod("TryKnockback", hidden).Invoke(status, new object[] { Vector3.right, 2f }), Is.True); // 정예의 실제 넉백
+            Assert.That(Vector3.Distance(enemy.position, before), Is.EqualTo(1f).Within(0.02f)); // 기준 이 미터의 절반 이동
+        }
+
+        [UnityTest] // 잿불 항로의 지속 피해와 기록 거리
+        public IEnumerator EmberTrailTicksOncePerIntervalAndClampsRecordedPath() // 마지막 틱과 경로 상한
+        {
+            yield return LoadOuterIslands(); // 제작 연습장이 포함된 실제 출격 씬
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 독립 연습 진입 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 정지 입력
+            yield return WaitFrames(4); // 정지 메뉴 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 연습장 열기
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            Component owner = editor.GetComponent("FlightCraftedSpellEditor"); // 연습 발사기 소유자
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 상태 조회
+            Component range = (Component)owner.GetType().GetField("range", hidden).GetValue(owner); // 격리된 연습 발사기
+            Transform muzzle = (Transform)range.GetType().GetField("muzzle", hidden).GetValue(range); // 실제 시험 발사점
+            System.Type presets = range.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
+            object recipe = all[2].GetType().GetProperty("Recipe").GetValue(all[2]); // 잿불 항로 구성
+            Component target = editor.GetComponentInChildren(System.Type.GetType("ProjectG.FlightCraftedTarget, Assembly-CSharp")); // 피해를 기록할 표적
+            target.transform.position = muzzle.position; // 시작 지점의 실제 표적
+            Physics.SyncTransforms(); // 변경된 충돌 위치 반영
+            Assert.That(range.GetType().GetMethod("Cast", hidden).Invoke(range, new[] { recipe }), Is.True); // 실제 경로 기록 시작
+            yield return WaitFrames(20); // 첫 지속 피해 전
+            Assert.That(Metric(target, "TotalDamage"), Is.Zero); // 즉시 피해 없음
+            yield return WaitFrames(230); // 마지막 유효 틱까지의 시간
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(72)); // 영 점 오 초마다 구 피해와 여덟 번째 틱
+            ClickPauseButton(editor, "ResetTest"); // 이전 영역과 피해 초기화
+            Vector3 start = muzzle.position; // 새 시전의 실제 출발점
+            target.transform.position = start + muzzle.right * 3f; // 왕복하여 겹치는 경로의 표적
+            Physics.SyncTransforms(); // 새 표적 위치 반영
+            Assert.That(range.GetType().GetMethod("Cast", hidden).Invoke(range, new[] { recipe }), Is.True); // 두 번째 경로 기록
+            muzzle.position = start + muzzle.right * 6f; // 첫 경로 선분
+            yield return WaitFrames(2); // 전진 경로 기록
+            muzzle.position = start; // 같은 경로를 역방향으로 이동
+            yield return WaitFrames(2); // 겹치는 선분 기록
+            muzzle.position = start + muzzle.right * 20f; // 제한을 넘는 추가 이동
+            yield return WaitFrames(2); // 경로 상한 반영
+            var trails = (System.Collections.IList)range.GetType().GetField("trails", hidden).GetValue(range); // 시전한 실제 잿불 영역
+            object trail = trails[0]; // 하나의 고정 영역
+            float distance = (float)trail.GetType().GetField("length").GetValue(trail); // 제한 후 기록한 전체 길이
+            Assert.That(distance, Is.EqualTo(12f).Within(0.01f)); // 최대 십이 미터까지만 기록
+            yield return WaitFrames(35); // 첫 경로 피해까지 대기
+            Assert.That(Metric(target, "TotalDamage"), Is.EqualTo(9)); // 겹친 선분에서도 한 틱 피해 한 번
+        }
+
+        [UnityTest] // 설치와 결계가 공유하는 동시 개수 상한
+        public IEnumerator CraftedPlacementsShareThreeActiveLimit() // 세 개 허용과 네 번째 거절
+        {
+            yield return LoadOuterIslands(); // 제작 연습장이 포함된 실제 출격 씬
+            Transform pause = LocateCombatHud().transform.Find("PauseMenu"); // 독립 연습 진입 경로
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); // 실제 정지 입력
+            yield return WaitFrames(4); // 정지 메뉴 표시 대기
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); // 정지 입력 해제
+            ClickPauseButton(pause, "Controls/CraftedSpellEditor"); // 제작 연습장 열기
+            Transform editor = pause.Find("CraftedSpellEditor"); // 실제 제작 화면
+            Component owner = editor.GetComponent("FlightCraftedSpellEditor"); // 연습 발사기 소유자
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 내부 상태 조회
+            Component range = (Component)owner.GetType().GetField("range", hidden).GetValue(owner); // 격리된 연습 발사기
+            System.Type presets = range.GetType().Assembly.GetType("ProjectG.CraftedSpellPresets"); // 기획서의 기본 마법
+            var all = (System.Collections.IList)presets.GetProperty("All").GetValue(null); // 확정된 구성 목록
+            range.GetType().GetField("practiceMana", hidden).SetValue(range, 1000f); // 마력 부족과 동시 개수 한도 분리
+            var cast = range.GetType().GetMethod("Cast", hidden); // 실제 생성과 마력 소비 경로
+            foreach (int index in new[] { 2, 6, 11 }) // 잿불 경로와 덩굴 영역과 정화 결계
+            {
+                object recipe = all[index].GetType().GetProperty("Recipe").GetValue(all[index]); // 각각 다른 설치 구성
+                Assert.That(cast.Invoke(range, new[] { recipe }), Is.True); // 세 번째 설치까지 허용
+            }
+            object seed = all[8].GetType().GetProperty("Recipe").GetValue(all[8]); // 네 번째로 시도할 씨앗 포대
+            float mana = (float)range.GetType().GetField("practiceMana", hidden).GetValue(range); // 실패 직전 남은 마력
+            Assert.That(cast.Invoke(range, new[] { seed }), Is.False); // 동시 세 개를 넘는 설치 거절
+            Assert.That((float)range.GetType().GetField("practiceMana", hidden).GetValue(range), Is.EqualTo(mana)); // 실패한 설치의 마력 보존
+            Assert.That(Metric(range, "EmissionCount"), Is.EqualTo(3)); // 실패한 설치의 개체 미생성
+            range.GetType().GetMethod("ResetCasts", hidden).Invoke(range, null); // 모든 설치체 회수
+            Assert.That(cast.Invoke(range, new[] { seed }), Is.True); // 회수 이후 새로운 설치 허용
+        }
+
+        [UnityTest] // 지정 좌표가 지형 뒤에 놓이지 않는지 확인
+        public IEnumerator CraftedPlacementAimStopsAtTerrain() // 실전 조준선과 장애물 접점
+        {
+            yield return LoadOuterIslands(); // 실제 카메라와 마법 발사기가 있는 씬
+            Transform pilot = FindPilot(); // 실제 전투 비행체
+            Component caster = pilot.GetComponent("FlightCraftedSpellCaster"); // 지정 좌표를 산출하는 발사기
+            const System.Reflection.BindingFlags hidden = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic; // 실제 조준 참조 조회
+            Component camera = (Component)caster.GetType().GetField("aimCamera", hidden).GetValue(caster); // 실전 공격 카메라
+            Ray ray = (Ray)camera.GetType().GetMethod("GetAttackRay").Invoke(camera, null); // 화면 중심의 실제 공격선
+            GameObject obstacle = GameObject.CreatePrimitive(PrimitiveType.Cube); // 지형 충돌을 나타내는 임시 장애물
+            obstacle.layer = 8; // 실제 지형 충돌 레이어
+            obstacle.transform.position = ray.GetPoint(4f); // 카메라 조준선 위의 가까운 장애물
+            obstacle.transform.localScale = Vector3.one * 0.6f; // 조준선에서 확인할 크기
+            Physics.SyncTransforms(); // 생성한 지형의 실제 충돌 반영
+            Assert.That(Physics.Raycast(ray, out RaycastHit contact, 20f, (1 << 8) | (1 << 9), QueryTriggerInteraction.Ignore), Is.True); // 실제 충돌 지점 확인
+            Assert.That(contact.collider.gameObject, Is.SameAs(obstacle)); // 시험 장애물이 첫 충돌체
+            Vector3 point = (Vector3)caster.GetType().GetMethod("AimPoint", hidden).Invoke(caster, new object[] { 20f }); // 실제 지정 좌표 계산
+            Assert.That(Vector3.Distance(point, contact.point), Is.LessThan(0.01f)); // 지형 접점에 고정하고 벽 뒤에 생성하지 않음
+            Object.Destroy(obstacle); // 시험에서 생성한 장애물만 회수
+        }
+
         [UnityTest] // 제작 마법 시험 발사부터 전투까지 같은 조합 확인
         public IEnumerator CraftedSpellEditorSavesAndCastsThroughTheCombatLane() // 편집기와 실전 카드의 공통 발사
         {

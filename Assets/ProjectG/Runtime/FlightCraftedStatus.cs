@@ -63,8 +63,22 @@ namespace ProjectG // 프로젝트 게임 영역
             {
                 return false; // 편집된 경로 없이 위치를 바꾸지 않음
             }
-            route.ApplyCraftedKnockback(direction.normalized * distance); // 지형 제한과 경로를 함께 이동
-            return true; // 일반 마물의 유효한 제어 적용
+            route.ApplyCraftedKnockback(direction.normalized * distance * (enemy.IsElite ? 0.5f : 1f)); // 정예 저항과 지형 제한을 적용한 이동
+            return true; // 일반·정예 마물의 유효한 제어 적용
+        }
+
+        internal bool TryRoot(float duration) // 실제 일반 마물의 이동 속박
+        {
+            if (enemy == null || enemy.Health <= 0 || enemy.LootTier != FlightLootTier.Normal || float.IsNaN(duration) || float.IsInfinity(duration) || duration <= 0f) // 유효한 일반 적과 속박 시간
+            {
+                return false; // 보스와 유효하지 않은 제어 차단
+            }
+            if (!enemy.TryGetComponent(out FlightEnemyRoute route)) // 이동 경로가 없는 마물
+            {
+                return false; // 실제 이동이 없는 대상은 제어하지 않음
+            }
+            route.ApplyCraftedRoot(duration * (enemy.IsElite ? 0.5f : 1f)); // 정예 저항을 적용한 이동 시간 정지
+            return true; // 유효한 일반·정예 마물 속박
         }
 
         private void Update() // 유효한 상태의 시간과 피해 갱신

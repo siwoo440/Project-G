@@ -9,6 +9,7 @@ namespace ProjectG // 프로젝트 게임 영역
         [SerializeField, Min(1)] private int maxHealth = 80; // 일반 마물의 시험 체력
         [SerializeField, Min(0)] private int experienceReward = 12; // 처치 때 드롭할 경험치
         [SerializeField] private FlightLootTier lootTier; // 일반·중간·최종 보스의 강화 드롭 규칙
+        [SerializeField] private bool elite; // 일반 마물 중 제어 저항이 있는 정예 여부
         [SerializeField, Min(0.05f)] private float displaySeconds = 2f; // 피격 후 체력 표시 시간
         [SerializeField] private Transform model; // 판정과 분리된 렌더 하이러키
         [SerializeField] private Transform leftWing; // 왼쪽 날개의 회전축
@@ -38,6 +39,7 @@ namespace ProjectG // 프로젝트 게임 영역
         public int MaxHealth => maxHealth; // 보스 HUD가 참조하는 최대값
         public int ExperienceReward => experienceReward; // 처치한 적의 경험치 보상
         public FlightLootTier LootTier => lootTier; // 현재 적의 강화 출처
+        public bool IsElite => lootTier == FlightLootTier.Normal && elite; // 보스와 구분한 정예 마물
         public event System.Action<FlightEnemy> Defeated; // 실제 처치와 드롭 정보
 
         private void Awake() // 편집된 모델과 이미지의 기준 상태 보관

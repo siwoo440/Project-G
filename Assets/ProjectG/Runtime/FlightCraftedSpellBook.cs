@@ -202,7 +202,7 @@ namespace ProjectG // 프로젝트 게임 영역
                 Upgrade.Count => recipe.InitialShots > 1 && recipe.InitialShots + UpgradeSteps(recipe, kind) < CraftedSpellRules.MaxInitial, // 여러 발 공격과 최초 생성 상한
                 Upgrade.Pierce => (recipe.FirstEffect == "pierce" || recipe.SecondEffect == "pierce") && 3 + UpgradeSteps(recipe, kind) < 5, // 원래 관통과 최대 다섯 명
                 Upgrade.Width => profile.Radius > 0f || profile.Spread > 0f || recipe.FirstEffect == "explode" || recipe.SecondEffect == "explode", // 기존 판정 범위가 있는 마법
-                Upgrade.Duration => recipe.Id == CraftedSpellPresets.All[11].Recipe.Id && 4f + UpgradeSteps(recipe, kind) * 0.5f < 6f, // 유지 시간이 있는 초기 결계
+                Upgrade.Duration => (recipe.Id == CraftedSpellPresets.All[11].Recipe.Id || recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) && 4f + UpgradeSteps(recipe, kind) * 0.5f < 6f, // 유지 시간이 있는 결계와 덩굴 영역
                 _ => false // 등록하지 않은 수치
             };
         }

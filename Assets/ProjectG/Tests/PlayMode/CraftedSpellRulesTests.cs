@@ -137,7 +137,7 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             var all = (IList)presets.GetProperty("All").GetValue(null); // 검증된 구성 목록
             Type caster = Runtime("FlightCraftedSpellCaster"); // 실제 전투의 제작 발사기
             var supports = caster.GetMethod("Supports", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic); // 실제 발사 지원 확인
-            foreach (int index in new[] { 0, 1, 3, 4, 5, 7, 9, 11 }) // 이미 판정이 구현된 기획 마법
+            foreach (int index in new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14 }) // 이미 판정이 구현된 기획 마법
             {
                 object recipe = all[index].GetType().GetProperty("Recipe").GetValue(all[index]); // 정확한 구성 ID
                 Assert.That(supports.Invoke(null, new[] { recipe }), Is.True); // 구현된 명시적 시험값 사용
@@ -146,7 +146,7 @@ namespace ProjectG.Tests // 제작 마법 규칙 검증
             Assert.That(supports.Invoke(null, new[] { generic }), Is.False); // 기존 구체탄 수치의 임의 적용 차단
             object homing = all[15].GetType().GetProperty("Recipe").GetValue(all[15]); // 열다섯 종에 없는 이전 유도 시험탄
             Assert.That(supports.Invoke(null, new[] { homing }), Is.False); // 임시 시험값을 정식 구성으로 제공하지 않음
-            object notYetImplemented = all[2].GetType().GetProperty("Recipe").GetValue(all[2]); // 후속 구현할 잿불 항로
+            object notYetImplemented = all[10].GetType().GetProperty("Recipe").GetValue(all[10]); // 후속 구현할 루미너스 레이
             Assert.That(supports.Invoke(null, new[] { notYetImplemented }), Is.False); // 수치만 있고 판정이 없는 마법은 시전 금지
         }
 

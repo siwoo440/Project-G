@@ -203,7 +203,7 @@ namespace ProjectG // 프로젝트 게임 영역
             }
         }
 
-        private static Component Resolve(Collider shape) // 충돌체의 실제 피해 개체 찾기
+        internal static Component Resolve(Collider shape) // 충돌체의 실제 피해 개체 찾기
         {
             if (shape.TryGetComponent(out FlightWeakPoint weak) && weak.Enemy != null) // 보스 약점은 실제 마물과 연결
             {
@@ -216,7 +216,7 @@ namespace ProjectG // 프로젝트 게임 영역
             return shape.GetComponent<FlightCraftedTarget>(); // 제작 연습 중에만 존재하는 표적
         }
 
-        private void Damage(Component target, float raw) // 실제 피해량과 속성 배율 전달
+        internal void Damage(Component target, float raw) // 실제 피해량과 속성 배율 전달
         {
             if (target is FlightEnemy enemy) // 실제 전투의 마물
             {

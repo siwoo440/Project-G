@@ -52,7 +52,38 @@ namespace ProjectG // 프로젝트 게임 영역
             public float nextAt; // 다음 탄환의 예정 시각
         }
 
-        private static readonly int[] Implemented = { 0, 1, 3, 4, 5, 7, 9, 11 }; // 실제 판정이 완성된 기획 마법
+        private sealed class Placement // 지연 효과를 기다리는 고정 설치체
+        {
+            public CraftedSpellRecipe recipe; // 시전 시점의 제작 구성
+            public Profile profile; // 시전 시점의 자탄 수치
+            public FlightCraftedEmissionBudget.CastToken token; // 모탄과 자탄의 공통 생성 기록
+            public GameObject view; // 고정된 설치체 외형
+            public Vector3 position; // 설치 시점의 월드 좌표
+            public Quaternion aim; // 설치 시점의 자탄 방향
+            public float splitAt; // 자탄 분열 시각
+            public HashSet<Component> hits = new(); // 같은 설치체에서 이미 접촉한 대상
+            public Material material; // 범위 윤곽의 독립 재질
+        }
+
+        private sealed class Trail // 시전 시점부터 기록한 하나의 잿불 영역
+        {
+            public CraftedSpellRecipe recipe; // 시전 당시 제작 구성
+            public Profile profile; // 지속 피해와 반경의 고정 수치
+            public FlightCraftedProjectile source; // 실제 대상 피해 처리
+            public readonly List<Vector3> points = new(); // 제한된 비행 경로의 좌표
+            public Vector3 lastSample; // 이전 프레임의 실제 비행 위치
+            public float lastTime; // 이전 위치를 기록한 시각
+            public float length; // 현재까지 기록한 경로 길이
+            public float recordUntil; // 경로 기록 종료 시각
+            public float endsAt; // 마지막 피해와 영역 종료 시각
+            public float nextTick; // 다음 지속 피해 시각
+            public int ticks; // 이미 처리한 지속 피해 횟수
+            public GameObject view; // 고정된 경로 외형
+            public LineRenderer line; // 기록 경로의 선 표시
+            public Material material; // 경로 선의 임시 색상 재질
+        }
+
+        private static readonly int[] Implemented = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14 }; // 실제 판정이 완성된 기획 마법
         [SerializeField] private FlightCraftedProjectile projectile; // 제작 마법의 공유 프리팹
         [SerializeField] private Transform muzzle; // 이 장면의 실제 발사 위치
         [SerializeField] private LayerMask hitLayers = (1 << 8) | (1 << 9); // 지형과 표적 레이어
@@ -65,6 +96,8 @@ namespace ProjectG // 프로젝트 게임 영역
         private readonly Dictionary<string, float> readyAt = new(); // 같은 조합 두 장이 공유하는 대기시간
         private readonly List<Barrier> barriers = new(); // 살아 있는 정화 결계
         private readonly List<Burst> bursts = new(); // 시전 후 시간에 따라 발사하는 마법
+        private readonly List<Placement> placements = new(); // 지연 중인 고정 설치체
+        private readonly List<Trail> trails = new(); // 경로를 기록하고 남기는 잿불 영역
         private FlightThreatPool threatPool; // 실전 적탄만 관리하는 풀
         private float practiceTime; // 연습에서만 흐르는 시각
         private float practiceMana = 100f; // 실전 출격과 분리한 연습 마력
@@ -92,6 +125,8 @@ namespace ProjectG // 프로젝트 게임 영역
                 practiceMana = Mathf.Min(100f, practiceMana + 10f * PracticeDelta); // 문서의 초당 연습 마력 회복
             }
             UpdateBursts(); // 실전 또는 독립 연습의 순차 발사
+            UpdatePlacements(); // 정지된 설치체의 지연 효과
+            UpdateTrails(); // 비행 경로 기록과 독립 지속 피해
         }
 
         internal static bool Supports(CraftedSpellRecipe recipe) // 판정과 확정된 수치가 모두 준비된 마법
@@ -125,8 +160,34 @@ namespace ProjectG // 프로젝트 게임 영역
             return recipe != null && recipe.Id == CraftedSpellPresets.All[11].Recipe.Id; // 문서의 정화 결계 식별자
         }
 
+        private static bool IsPlacement(CraftedSpellRecipe recipe) // 설치·결계 공통 동시 한도 대상
+        {
+            return recipe != null && (recipe.FireMode == "placed" || recipe.Id == CraftedSpellPresets.All[14].Recipe.Id); // 설치형 구성과 지정 좌표 폭발체
+        }
+
+        private bool HasPlacementRoom(CraftedSpellRecipe recipe) // 실제로 유지하는 설치체와 결계의 합계
+        {
+            return !IsPlacement(recipe) || barriers.Count + placements.Count + trails.Count < 3; // 같은 플레이어의 동시 세 개 상한
+        }
+
         internal static Profile Stats(CraftedSpellRecipe recipe) // 지원하는 조합의 초기 시험 성능
         {
+            if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 잿불 항로의 확정 수치
+            {
+                return new Profile(25, 9, 8f, 0f, 12f, 1.3f, 0f); // 마력과 지속 피해·기록 거리·반경
+            }
+            if (recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) // 덩굴 고리의 확정 수치
+            {
+                return new Profile(24, 0, 10f, 0f, 18f, 3.2f, 0f); // 마력과 지정 거리·속박 반경
+            }
+            if (recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 확정 수치
+            {
+                return new Profile(26, 70, 7f, 0f, 20f, 3.2f, 0f); // 마력과 폭발 피해·지정 거리·반경
+            }
+            if (recipe.Id == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대 자탄의 확정 수치
+            {
+                return new Profile(28, 26, 8f, 18f, 12f, 0.12f, 0f); // 마력과 자탄 피해·속도·거리
+            }
             if (IsFlameSpiral(recipe)) // 플레임 스파이럴의 확정 수치
             {
                 return new Profile(20, 5, 6f, 24f, 24f, 0.15f, 0f); // 열두 탄환의 마력·피해·속도·거리
@@ -181,20 +242,20 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool HasEmissionRoom(CraftedSpellRecipe recipe) // 실제로 생성할 수 있는 플레이어 한도
         {
-            if (!Supports(recipe)) // 실행하지 못하는 구성
+            if (!Supports(recipe) || !HasPlacementRoom(recipe)) // 실행하지 못하는 구성과 설치 한도
             {
                 return false; // 생성 가능 표시 없음
             }
             active.RemoveAll(shot => shot == null); // 이미 종료된 실제 발사체 제외
             int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 이 시전의 전체 최초 생성 수
             int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사는 처음 한 발만 즉시 생성
-            return count <= CraftedSpellRules.MaxInitial && emissions.CanBegin(immediate, active.Count + barriers.Count, Clock); // 실제 첫 발과 최초 상한 확인
+            return count <= CraftedSpellRules.MaxInitial && emissions.CanBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count, Clock); // 실제 첫 발과 최초 상한 확인
         }
 
         internal bool TryContinueEmission(FlightCraftedEmissionBudget.CastToken token, int count) // 같은 시전의 후속 생성 한도 예약
         {
             active.RemoveAll(shot => shot == null); // 종료한 발사체는 활성 한도에서 제외
-            return emissions.TryContinue(token, count, active.Count + barriers.Count, Clock); // 시전 누적과 플레이어 전체 한도 확인
+            return emissions.TryContinue(token, count, active.Count + barriers.Count + placements.Count + trails.Count, Clock); // 시전 누적과 플레이어 전체 한도 확인
         }
 
         internal float CooldownRemaining(CraftedSpellRecipe recipe) // 슬롯과 연습 UI의 재사용 시간
@@ -204,7 +265,7 @@ namespace ProjectG // 프로젝트 게임 영역
 
         internal bool Cast(CraftedSpellRecipe recipe) // 두 장면이 호출하는 공통 사격
         {
-            if (!Supports(recipe) || CooldownRemaining(recipe) > 0f) // 미지원 구성과 재사용 대기
+            if (!Supports(recipe) || !HasPlacementRoom(recipe) || CooldownRemaining(recipe) > 0f) // 미지원 구성과 설치 한도·재사용 대기
             {
                 return false; // 자원이나 발사체를 소모하지 않음
             }
@@ -212,7 +273,9 @@ namespace ProjectG // 프로젝트 게임 영역
             var origins = new FlightCraftedOriginContext // 현재 시점에 확인된 발사 기준
             {
                 Front = muzzle.position, // 실제 마법 발사 지점
-                Around = practice ? muzzle.position : transform.position // 연습과 실전의 주변 기준점
+                Around = practice ? muzzle.position : transform.position, // 연습과 실전의 주변 기준점
+                Point = recipe.Id == CraftedSpellPresets.All[14].Recipe.Id || recipe.Id == CraftedSpellPresets.All[6].Recipe.Id ? AimPoint(profile.Range) : null, // 지정 거리 내 실제 조준점
+                Path = recipe.Id == CraftedSpellPresets.All[2].Recipe.Id ? practice ? muzzle.position : transform.position : null // 현재 비행 위치에서 시작하는 실제 경로
             };
             if (!FlightCraftedOrigins.TryResolve(recipe.Origin, origins, out Vector3 spawn)) // 실제로 존재하는 위치만 사용
             {
@@ -225,7 +288,7 @@ namespace ProjectG // 프로젝트 게임 영역
             active.RemoveAll(shot => shot == null); // 회수한 발사체는 활성 한도에서 제외
             int count = IsPurification(recipe) ? 1 : recipe.InitialShots + Steps(recipe, FlightCraftedSpellBook.Upgrade.Count); // 결계 또는 강화한 최초 생성 수
             int immediate = IsFlameSpiral(recipe) ? 1 : count; // 순차 발사의 처음 한 발만 예약
-            if (count > CraftedSpellRules.MaxInitial || !emissions.TryBegin(immediate, active.Count + barriers.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
+            if (count > CraftedSpellRules.MaxInitial || !emissions.TryBegin(immediate, active.Count + barriers.Count + placements.Count + trails.Count, Clock, out FlightCraftedEmissionBudget.CastToken token)) // 최초·누적·초당·동시 생성 한도
             {
                 return false; // 일부 발사나 자원 차감 없이 거절
             }
@@ -246,6 +309,76 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             float now = Clock; // 이번 시전의 시간
             Quaternion aim = AimRotation(profile.Range, spawn); // 실제 생성 위치에서 조준 목표 보정
+            if (recipe.Id == CraftedSpellPresets.All[2].Recipe.Id) // 이동 경로를 기록하는 잿불 항로
+            {
+                GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 시전 시점의 독립 영역 표시
+                FlightCraftedProjectile source = view.GetComponent<FlightCraftedProjectile>(); // 공용 속성 피해 경로
+                source.Begin(recipe, profile, hitLayers, practice, null, 3, token); // 시전 당시 공격력과 속성 보존
+                source.enabled = false; // 이동 탄환과 직접 충돌 피해 차단
+                if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 실전 지속 피해
+                {
+                    source.SetMeleeSource(weapon.Sword); // 실제 표적 거리의 피해 보정
+                }
+                else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 이리스의 실전 지속 피해
+                {
+                    source.SetResonance(weapon.Resonance); // 유효 피해의 공명 처리
+                }
+                view.transform.localScale = Vector3.one * 0.2f; // 경로 시작점을 나타내는 작은 표시
+                LineRenderer line = view.AddComponent<LineRenderer>(); // 남아 있는 경로의 임시 선
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"); // 지원하는 단색 셰이더
+                Material material = shader != null ? new Material(shader) : null; // 다른 마법과 분리한 표시 재질
+                if (material != null) // 사용 가능한 표시 재질
+                {
+                    material.color = new Color(1f, 0.4f, 0.15f); // 화염 경로의 주황색
+                    line.sharedMaterial = material; // 이 경로에만 재질 적용
+                }
+                line.useWorldSpace = true; // 이동한 조종사와 분리한 월드 경로
+                line.widthMultiplier = 0.1f; // 영역 중심의 가는 경로선
+                line.positionCount = 1; // 실제 첫 기록 좌표
+                line.SetPosition(0, spawn); // 시전 시점의 시작 위치
+                var trail = new Trail { recipe = recipe, profile = profile, source = source, view = view, line = line, material = material, lastSample = spawn, lastTime = now, recordUntil = now + 1f, endsAt = now + 4f, nextTick = now + 0.5f }; // 제한된 경로와 시간 고정
+                trail.points.Add(spawn); // 정지 중에도 유효한 시작 영역
+                trails.Add(trail); // 이후 기록과 피해 갱신
+                readyAt[recipe.Id] = now + 4f + profile.Cooldown; // 종료 예정 시각과 이후 재사용 시간
+                if (practice) // 독립 연습의 실제 마력
+                {
+                    practiceMana -= profile.Mana; // 시전 마력 차감
+                }
+                EmissionCount++; // 시전한 잿불 영역 하나 기록
+                CastCount++; // 실제 성공한 시전 기록
+                return true; // 경로 기록 시작
+            }
+            if (recipe.Id == CraftedSpellPresets.All[6].Recipe.Id || recipe.Id == CraftedSpellPresets.All[8].Recipe.Id || recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 지정 또는 지연 설치 마법
+            {
+                GameObject view = Instantiate(projectile.gameObject, spawn, aim, practice ? transform : null); // 원래 위치에 고정된 임시 외형
+                FlightCraftedProjectile installed = view.GetComponent<FlightCraftedProjectile>(); // 피해 경로를 공유할 설치체
+                installed.Begin(recipe, profile, hitLayers, practice, null, 3, token); // 시전 시점의 피해와 속성 고정
+                installed.enabled = false; // 설치체의 이동과 충돌 피해 차단
+                if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Sera) // 세라의 실전 마법
+                {
+                    installed.SetMeleeSource(weapon.Sword); // 실제 표적까지의 피해 보정
+                }
+                else if (!practice && weapon != null && weapon.ActivePilot == FlightBroomPilot.Iris) // 이리스의 실전 마법
+                {
+                    installed.SetResonance(weapon.Resonance); // 유효 피해의 공명 처리
+                }
+                view.transform.localScale = Vector3.one * 0.5f; // 자탄과 구분되는 설치체 크기
+                float duration = recipe.Id == CraftedSpellPresets.All[6].Recipe.Id ? Mathf.Min(6f, 4f + Steps(recipe, FlightCraftedSpellBook.Upgrade.Duration) * 0.5f) : 1f; // 덩굴 영역 또는 지연 시간
+                var placement = new Placement { recipe = recipe, profile = profile, token = token, view = view, position = spawn, aim = aim, splitAt = now + duration }; // 유지 종료 또는 지연 효과 예약
+                if (recipe.Id != CraftedSpellPresets.All[8].Recipe.Id) // 덩굴과 파열의 실제 영역 경계
+                {
+                    DrawPlacementOutline(placement); // 판정 반경의 세 축 윤곽
+                }
+                placements.Add(placement); // 실제 설치체의 시간 관리
+                readyAt[recipe.Id] = now + profile.Cooldown + (recipe.Id == CraftedSpellPresets.All[14].Recipe.Id ? 0f : duration); // 파열은 시전부터, 설치형은 종료 후 대기
+                if (practice) // 연습 공간의 독립 마력
+                {
+                    practiceMana -= profile.Mana; // 실제 연습 마력 차감
+                }
+                EmissionCount++; // 생성한 모탄 한 개 기록
+                CastCount++; // 실제 성공한 설치 기록
+                return true; // 설치 성공
+            }
             bool shared = recipe.Id == CraftedSpellPresets.All[3].Recipe.Id || IsReturningRing(recipe); // 수압과 회류의 시전별 중복 제한
             HashSet<Component> sharedHits = shared ? new HashSet<Component>() : null; // 같은 시전의 전진 적중 기록
             HashSet<Component> returnHits = IsReturningRing(recipe) ? new HashSet<Component>() : null; // 회류 고리의 별도 복귀 적중 기록
@@ -271,6 +404,10 @@ namespace ProjectG // 프로젝트 게임 영역
         {
             Vector3 shotOrigin = spawn; // 해당 발사체의 실제 출발점
             Vector3 direction = CraftedSpellVectors.DirectionForCount(recipe, aim, index, profile.Spread, count); // 재현 가능한 입체 배열
+            if (recipe.Id == CraftedSpellPresets.All[8].Recipe.Id) // 씨앗 포대의 세 자탄
+            {
+                direction = Quaternion.AngleAxis(index * 120f, aim * Vector3.up) * (aim * Vector3.forward); // 수평면의 백이십 도 간격
+            }
             if (recipe.Id == CraftedSpellPresets.All[4].Recipe.Id) // 급류 관통탄의 집중 배열
             {
                 float offset = (index - (count - 1) * 0.5f) * profile.Radius * 2f; // 탄환 지름 간격의 출발 위치
@@ -325,6 +462,191 @@ namespace ProjectG // 프로젝트 게임 영역
                 {
                     bursts.RemoveAt(i); // 완료한 순차 발사 정리
                 }
+            }
+        }
+
+        private void UpdatePlacements() // 고정 설치체의 지연 효과와 종료
+        {
+            if (!practice && Time.timeScale == 0f) // 실전 정지 중 설치 시간 동결
+            {
+                return; // 전투 재개까지 분열 중지
+            }
+            for (int i = placements.Count - 1; i >= 0; i--) // 종료 중 목록의 안전한 순회
+            {
+                Placement placement = placements[i]; // 설치 당시 위치와 고정 수치
+                if (placement.recipe.Id == CraftedSpellPresets.All[6].Recipe.Id) // 지정 좌표에 고정된 덩굴 영역
+                {
+                    if (Clock >= placement.splitAt) // 설치 영역의 유지 종료
+                    {
+                        DestroyPlacement(placement); // 고정 설치체와 재질 회수
+                        placements.RemoveAt(i); // 종료한 영역 제거
+                        readyAt[placement.recipe.Id] = Clock + placement.profile.Cooldown; // 종료 이후 재사용 시간 시작
+                        continue; // 종료된 영역의 접촉 검사 제외
+                    }
+                    Collider[] contacts = Physics.OverlapSphere(placement.position, placement.profile.Radius, hitLayers, QueryTriggerInteraction.Ignore); // 영역 안에 실제로 접촉한 충돌체
+                    foreach (Collider shape in contacts) // 들어온 적의 몸체와 약점 검사
+                    {
+                        Component target = FlightCraftedProjectile.Resolve(shape); // 실제 마물이나 연습 표적
+                        if (target is FlightEnemy enemy && placement.hits.Add(target)) // 같은 시전에서 처음 닿은 실제 마물
+                        {
+                            if (!enemy.TryGetComponent(out FlightCraftedStatus status)) // 대상의 공통 제어 상태
+                            {
+                                status = enemy.gameObject.AddComponent<FlightCraftedStatus>(); // 첫 접촉에서 상태 연결
+                            }
+                            status.TryRoot(1.2f); // 일반 적 속박과 보스 저항 확인
+                        }
+                    }
+                    continue; // 덩굴 영역의 폭발과 분열 제외
+                }
+                if (Clock + 0.00001f < placement.splitAt) // 아직 일 초가 지나지 않은 설치체
+                {
+                    continue; // 예정 시각까지 유지
+                }
+                active.RemoveAll(shot => shot == null); // 종료한 발사체 제외
+                if (placement.recipe.Id == CraftedSpellPresets.All[14].Recipe.Id) // 황혼 파열의 지연 폭발
+                {
+                    Collider[] overlaps = Physics.OverlapSphere(placement.position, placement.profile.Radius, hitLayers, QueryTriggerInteraction.Ignore); // 지정 반경의 실제 충돌체
+                    var hit = new HashSet<Component>(); // 몸체와 약점이 공유하는 대상 기록
+                    FlightCraftedProjectile source = placement.view.GetComponent<FlightCraftedProjectile>(); // 설치 시점 피해를 고정한 발사체
+                    foreach (Collider shape in overlaps) // 범위 안의 모든 실제 충돌체
+                    {
+                        Component target = FlightCraftedProjectile.Resolve(shape); // 실제 마물이나 연습 표적
+                        if (target != null && hit.Add(target)) // 한 대상당 한 번의 폭발
+                        {
+                            source.Damage(target, placement.profile.Damage); // 상성과 캐릭터 효과가 반영된 폭발 피해
+                        }
+                    }
+                    DestroyPlacement(placement); // 피해 적용 후 설치체와 재질 회수
+                    placements.RemoveAt(i); // 종료한 폭발체 제거
+                    continue; // 자탄 분열은 처리하지 않음
+                }
+                if (!emissions.TryContinue(placement.token, 3, active.Count + barriers.Count + placements.Count + trails.Count - 1, Clock)) // 모탄 종료 후 자탄 세 발의 공통 한도
+                {
+                    readyAt[placement.recipe.Id] = Clock + placement.profile.Cooldown; // 분열 지연만큼 종료 후 대기 시각 연장
+                    continue; // 남은 생성 한도가 생길 때까지 대기
+                }
+                DestroyPlacement(placement); // 모탄 자체는 피해 없이 종료
+                placements.RemoveAt(i); // 동시 활성 설치체에서 제외
+                for (int shot = 0; shot < 3; shot++) // 재분열 없는 자탄 세 발
+                {
+                    SpawnShot(placement.recipe, placement.profile, placement.position, placement.aim, shot, 3, null, null, 3, placement.token); // 하나의 시전에 속한 자탄 생성
+                }
+                readyAt[placement.recipe.Id] = Clock + placement.profile.Cooldown; // 설치체 종료 후 재사용 시간 시작
+            }
+        }
+
+        private static void DrawPlacementOutline(Placement placement) // 설치 마법의 실제 범위 표시
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"); // 지원하는 단색 표시 셰이더
+            if (shader == null) // 그래픽 재질을 만들 수 없는 환경
+            {
+                return; // 실제 판정은 표시와 독립 유지
+            }
+            placement.material = new Material(shader); // 이 설치체의 임시 윤곽 재질
+            placement.material.color = placement.recipe.Element == "grass" ? new Color(0.58f, 1f, 0.25f) : new Color(0.68f, 0.39f, 1f); // 마법 속성의 시각 구분
+            for (int axis = 0; axis < 3; axis++) // 세 축의 구형 판정 윤곽
+            {
+                GameObject ring = new GameObject("Crafted Area Ring"); // 한 축의 범위 표시
+                ring.transform.SetParent(placement.view.transform, false); // 고정 설치체 아래의 독립 윤곽
+                LineRenderer line = ring.AddComponent<LineRenderer>(); // 실제 반경의 원형 선
+                line.sharedMaterial = placement.material; // 같은 영역의 세 선에 재질 공유
+                line.useWorldSpace = true; // 부모의 임시 메시 크기와 분리된 월드 좌표
+                line.loop = true; // 닫힌 원형 경계
+                line.widthMultiplier = 0.035f; // 화면을 가리지 않는 선 폭
+                line.positionCount = 64; // 부드러운 원형의 점 수
+                for (int i = 0; i < line.positionCount; i++) // 해당 평면의 모든 점
+                {
+                    float angle = i * 2f * Mathf.PI / line.positionCount; // 원주상의 균등한 각도
+                    float a = Mathf.Cos(angle) * placement.profile.Radius; // 실제 판정 반경의 첫 축
+                    float b = Mathf.Sin(angle) * placement.profile.Radius; // 실제 판정 반경의 둘째 축
+                    Vector3 offset = axis == 0 ? new Vector3(a, b, 0f) : axis == 1 ? new Vector3(a, 0f, b) : new Vector3(0f, a, b); // 선택한 평면의 상대 좌표
+                    line.SetPosition(i, placement.position + offset); // 지정 좌표 기준의 고정 경계
+                }
+            }
+        }
+
+        private static void DestroyPlacement(Placement placement) // 설치체와 임시 표시 자원 회수
+        {
+            if (placement.view != null) // 남아 있는 설치체 객체
+            {
+                Destroy(placement.view); // 메시와 범위 윤곽 회수
+            }
+            if (placement.material != null) // 설치체가 직접 만든 재질
+            {
+                Destroy(placement.material); // 공유하지 않는 임시 재질 회수
+            }
+        }
+
+        private void UpdateTrails() // 실제 비행 위치 기록과 대상별 지속 피해
+        {
+            if (!practice && Time.timeScale == 0f) // 실전 정지 중 경로와 피해 중단
+            {
+                return; // 전투 재개까지 시간 보존
+            }
+            for (int i = trails.Count - 1; i >= 0; i--) // 종료된 영역을 안전하게 제거
+            {
+                Trail trail = trails[i]; // 하나의 독립적인 잿불 시전
+                Vector3 current = practice ? muzzle.position : transform.position; // 현재 실제 비행 위치
+                if (trail.lastTime < trail.recordUntil && Clock > trail.lastTime) // 최초 일 초의 비행 경로
+                {
+                    float portion = Mathf.Clamp01((trail.recordUntil - trail.lastTime) / (Clock - trail.lastTime)); // 기록 종료 시각에서 자른 이동 비율
+                    Vector3 sample = Vector3.Lerp(trail.lastSample, current, portion); // 실제 시간 범위의 마지막 좌표
+                    Vector3 delta = sample - trail.points[trail.points.Count - 1]; // 마지막으로 보존한 점에서 이동한 거리
+                    float remaining = Mathf.Max(0f, trail.profile.Range - trail.length); // 십이 미터까지의 남은 기록 길이
+                    if (delta.sqrMagnitude > 0.000001f && remaining > 0f) // 유효한 이동과 남은 거리
+                    {
+                        Vector3 step = Vector3.ClampMagnitude(delta, remaining); // 제한을 넘지 않는 마지막 선분
+                        trail.points.Add(trail.points[trail.points.Count - 1] + step); // 실제 이동 경로 좌표 추가
+                        trail.length += step.magnitude; // 기록한 선분 길이 합산
+                        trail.line.positionCount = trail.points.Count; // 표시할 전체 경로 점 수
+                        trail.line.SetPosition(trail.points.Count - 1, trail.points[trail.points.Count - 1]); // 새 좌표의 경로 표시
+                    }
+                }
+                trail.lastSample = current; // 다음 프레임의 실제 위치 기준
+                trail.lastTime = Clock; // 다음 프레임의 시간 기준
+                while (trail.ticks < 8 && Clock + 0.00001f >= trail.nextTick && trail.nextTick <= trail.endsAt + 0.00001f) // 마지막 유효 틱까지 처리
+                {
+                    DamageTrail(trail); // 겹친 선분을 합친 대상별 피해
+                    trail.ticks++; // 실제 처리한 틱 수
+                    trail.nextTick += 0.5f; // 다음 영 점 오 초 간격
+                }
+                if (Clock + 0.00001f >= trail.endsAt) // 마지막 유효 피해를 처리한 뒤 종료
+                {
+                    readyAt[trail.recipe.Id] = Clock + trail.profile.Cooldown; // 영역 종료 후 재사용 대기
+                    DestroyTrail(trail); // 표시와 임시 재질 회수
+                    trails.RemoveAt(i); // 종료한 영역 제거
+                }
+            }
+        }
+
+        private void DamageTrail(Trail trail) // 전체 경로를 합친 한 번의 지속 피해
+        {
+            var hit = new HashSet<Component>(); // 겹친 영역에서 한 번만 처리할 대상
+            for (int i = 0; i < trail.points.Count; i++) // 각 기록 점과 앞 선분
+            {
+                Vector3 end = trail.points[i]; // 이번 선분의 끝 위치
+                Vector3 start = i == 0 ? end : trail.points[i - 1]; // 시작점도 구형 영역으로 검사
+                Collider[] contacts = Physics.OverlapCapsule(start, end, trail.profile.Radius, hitLayers, QueryTriggerInteraction.Ignore); // 실제 경로 반경의 충돌체
+                foreach (Collider shape in contacts) // 같은 틱의 모든 표적
+                {
+                    Component target = FlightCraftedProjectile.Resolve(shape); // 마물과 연습 표적의 실제 피해 대상
+                    if (target != null && hit.Add(target)) // 겹친 선분과 약점의 중복 제외
+                    {
+                        trail.source.Damage(target, trail.profile.Damage); // 시전 당시 피해와 현재 대상 상성
+                    }
+                }
+            }
+        }
+
+        private static void DestroyTrail(Trail trail) // 잿불 영역의 임시 표시 자원 회수
+        {
+            if (trail.view != null) // 아직 남아 있는 경로 객체
+            {
+                Destroy(trail.view); // 표시와 피해 원본 회수
+            }
+            if (trail.material != null) // 독립 생성한 경로 재질
+            {
+                Destroy(trail.material); // 공유하지 않는 임시 재질 회수
             }
         }
 
@@ -412,6 +734,16 @@ namespace ProjectG // 프로젝트 게임 영역
             }
             barriers.Clear(); // 결계 수명 기록 초기화
             bursts.Clear(); // 이전 시전의 후속 발사 취소
+            foreach (Placement placement in placements) // 아직 분열하지 않은 설치체
+            {
+                DestroyPlacement(placement); // 남은 설치체와 표시 재질 회수
+            }
+            placements.Clear(); // 설치체와 예약된 자탄 취소
+            foreach (Trail trail in trails) // 아직 유지 중인 잿불 영역
+            {
+                DestroyTrail(trail); // 이전 경로와 표시 재질 회수
+            }
+            trails.Clear(); // 이전 영역의 피해 예약 취소
             emissions.Reset(); // 초당 생성과 이전 시전 기록 초기화
             readyAt.Clear(); // 재사용 대기 초기화
             practiceMana = 100f; // 표준 조건의 시험 마력 초기화
@@ -426,6 +758,16 @@ namespace ProjectG // 프로젝트 게임 영역
                 DestroyBarrier(barrier); // 남은 표시와 재질 반환
             }
             barriers.Clear(); // 종료한 시전 기록 제거
+            foreach (Placement placement in placements) // 씬에 남은 씨앗 설치체
+            {
+                DestroyPlacement(placement); // 임시 설치체와 재질 회수
+            }
+            placements.Clear(); // 설치체 참조 정리
+            foreach (Trail trail in trails) // 씬에 남은 잿불 경로
+            {
+                DestroyTrail(trail); // 남은 경로와 재질 회수
+            }
+            trails.Clear(); // 종료한 영역 참조 정리
         }
 
         private Quaternion AimRotation(float range, Vector3 origin) // 카메라 중심과 실제 생성 위치의 시차 보정
@@ -438,6 +780,17 @@ namespace ProjectG // 프로젝트 게임 영역
             Vector3 goal = Physics.Raycast(view, out RaycastHit hit, range, hitLayers, QueryTriggerInteraction.Ignore) ? hit.point : view.GetPoint(range); // 실제 표적 거리 또는 사거리 끝
             Vector3 direction = goal - origin; // 실제 생성 위치에서 같은 표적을 향함
             return direction.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(direction) : muzzle.rotation; // 발사 방향의 안전한 초기 각도
+        }
+
+        private Vector3 AimPoint(float range) // 조준선의 실제 장애물 또는 최대 지정 거리
+        {
+            if (aimCamera == null) // 독립 연습의 고정 발사 방향
+            {
+                return muzzle.position + muzzle.forward * range; // 발사점에서 지정 거리의 좌표
+            }
+            Ray view = aimCamera.GetAttackRay(); // 실제 카메라 조준선
+            Vector3 goal = Physics.Raycast(view, out RaycastHit hit, range, hitLayers, QueryTriggerInteraction.Ignore) ? hit.point : view.GetPoint(range); // 조준선에 닿는 첫 장애물 또는 끝점
+            return muzzle.position + Vector3.ClampMagnitude(goal - muzzle.position, range); // 실제 발사점 기준의 최대 거리 제한
         }
     }
 }

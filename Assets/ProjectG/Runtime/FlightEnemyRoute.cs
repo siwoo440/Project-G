@@ -19,6 +19,7 @@ namespace ProjectG // 프로젝트 게임 영역
         private FlightThreatPool pool; // 적들이 공유하는 풀
         private Transform pilot; // 현재 비행체의 위치
         private float elapsed; // 해당 출현의 경과 시간
+        private float rootedUntil; // 이동을 재개할 전투 시각
         private int attempts; // 시도한 발사 단계
         private Vector3 runEntry; // 현재 출현의 시작 위치
         private Vector3 runAttack; // 현재 출현의 공격 위치
@@ -31,6 +32,7 @@ namespace ProjectG // 프로젝트 게임 영역
             pool = sharedPool; // 기존 적탄 풀 참조
             pilot = target; // 실제 조준 기준
             elapsed = 0f; // 첫 등장 프레임
+            rootedUntil = 0f; // 이전 출현의 속박 제거
             attempts = 0; // 첫 탄막 시도 대기
             PatternsFired = 0; // 이전 출격의 패턴 수 제거
             runEntry = entryMarker != null ? entryMarker.position : entry; // 씬 출현점 또는 시험 좌표
@@ -46,6 +48,10 @@ namespace ProjectG // 프로젝트 게임 영역
             if (Time.timeScale == 0f || pilot == null || pool == null) // 조작 정지·등장 전·씬이 교체되는 프레임
             {
                 return; // 실제 대상과 탄막 풀이 있을 때만 이동·조준
+            }
+            if (Time.time < rootedUntil && (elapsed < entrySeconds || elapsed >= entrySeconds + attackSeconds)) // 실제 이동 구간의 속박
+            {
+                return; // 이동 경로 시간만 멈추어 순간 이동 방지
             }
             elapsed += Time.deltaTime; // 해당 출격의 경로 시간
             if (elapsed < entrySeconds) // 등장 중인 구간
@@ -95,6 +101,11 @@ namespace ProjectG // 프로젝트 게임 영역
             runAttack += delta; // 공격 경로의 새 기준점
             runExit += delta; // 이탈 경로의 새 기준점
             transform.position += delta; // 현재 위치에 넉백 적용
+        }
+
+        internal void ApplyCraftedRoot(float duration) // 실제 이동 경로의 속박 적용
+        {
+            rootedUntil = Mathf.Max(rootedUntil, Time.time + duration); // 남아 있는 제어 시간 유지
         }
 
         private void Face(Vector3 forward) // 높이 변화에도 안정적인 마물 방향
